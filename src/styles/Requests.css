@@ -1,0 +1,339 @@
+/* ============================================
+   REQUESTS PAGE STYLES
+   ============================================
+   
+   This stylesheet styles the Requests page component which displays
+   a list of citizen service requests assigned to barangay officials.
+   
+   Key sections:
+   - Container and layout
+   - Filter controls
+   - Request cards and metadata
+   - Status badges
+   - Responsive design
+*/
+
+/* Main Container - holds all request page content */
+.requests-container {
+  padding: 2rem;
+  min-height: 100%;
+  background-color: #f9fafb;
+}
+
+/* ============================================
+   HEADER SECTION
+   ============================================
+*/
+
+/* Page header wrapper */
+.requests-header {
+  margin-bottom: 2rem;
+}
+
+/* Main page title */
+.requests-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 0.5rem 0;
+}
+
+/* Subtitle explaining page purpose */
+.requests-subtitle {
+  font-size: 1rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* ============================================
+   FILTER CONTROLS SECTION
+   ============================================
+*/
+
+/* Filter section container */
+.filter-section {
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Filter dropdown wrapper - contains button and menu */
+.filter-dropdown {
+  position: relative;
+}
+
+/* Filter button - appears as a styled button with dropdown */
+.filter-button {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  color: #6b7280;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* Hover state - slight background color change */
+.filter-button:hover {
+  background-color: #f9fafb;
+  border-color: #d1d5db;
+  color: #374151;
+}
+
+/* Chevron icon animation when dropdown is open */
+.filter-button .chevron {
+  transition: transform 0.2s ease;
+}
+
+.filter-button .chevron.open {
+  transform: rotate(180deg);
+}
+
+/* Filter dropdown menu - appears below button */
+.filter-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  min-width: 180px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  animation: slideDown 0.2s ease;
+}
+
+/* Animation for dropdown menu appearance */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Individual filter option item */
+.filter-item {
+  width: 100%;
+  display: block;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 0.9375rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* Hover state for filter option */
+.filter-item:hover {
+  background-color: #f9fafb;
+  color: #1f2937;
+}
+
+/* Active filter option highlight */
+.filter-item.active {
+  background-color: #e8f5e9;
+  color: #50c878;
+  font-weight: 600;
+}
+
+/* Overlay to close dropdown when clicking outside */
+.filter-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 99;
+}
+
+/* ============================================
+   REQUEST CARDS SECTION
+   ============================================
+*/
+
+/* Container for all request cards - uses flex layout */
+.requests-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Individual request card - contains all request info */
+.request-card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  border-left: 4px solid transparent;
+}
+
+/* Hover effect - subtle lift and shadow increase */
+.request-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Request badge section - status and type badges */
+.request-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+/* Status badge - shows request status color */
+.status-badge {
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Type badge - shows request type in gray */
+.type-badge {
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  background-color: #f3f4f6;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Request title - main heading */
+.request-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 1rem 0;
+}
+
+/* ============================================
+   METADATA SECTION
+   ============================================
+*/
+
+/* Metadata container - holds submitted by, dates, etc */
+.request-metadata {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+/* Individual metadata item - icon + text */
+.metadata-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+/* Metadata icons styling */
+.metadata-item svg {
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+/* ============================================
+   ACTION BUTTONS
+   ============================================
+*/
+
+/* View Details button - action to see full request */
+.view-details-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0;
+  background: none;
+  border: none;
+  color: #50c878;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* Hover state - slightly visible underline effect */
+.view-details-btn:hover {
+  opacity: 0.8;
+  transform: translateX(2px);
+}
+
+/* ============================================
+   EMPTY STATE
+   ============================================
+*/
+
+/* Empty state message when no requests found */
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #9ca3af;
+  font-size: 1rem;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================
+*/
+
+/* Tablet and smaller devices */
+@media (max-width: 1024px) {
+  .requests-container {
+    padding: 1.5rem;
+  }
+
+  .request-metadata {
+    gap: 1rem;
+  }
+}
+
+/* Mobile devices */
+@media (max-width: 768px) {
+  .requests-container {
+    padding: 1rem;
+  }
+
+  .requests-title {
+    font-size: 1.5rem;
+  }
+
+  .request-card {
+    padding: 1rem;
+  }
+
+  .request-badge {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  /* Stack metadata items vertically on mobile */
+  .request-metadata {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .view-details-btn {
+    margin-top: 1rem;
+  }
+}
