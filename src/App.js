@@ -14,6 +14,8 @@ import Home from "./pages/home";
 import BarangayOfficial from "./pages/BarangayOfficial";
 import Requests from "./pages/Requests";
 import Layout from "./components/Layout";
+import { postAnnouncement } from "./supabse_db/announcement/post_announcement";
+import supabase from "./supabse_db/supabase_client";
 
 /**
  * App Root Component
@@ -35,10 +37,14 @@ import Layout from "./components/Layout";
  * - Path: "/requests/:id"
  * - Component: RequestDetail
  */
-function App() {
+async function App() {
   // State to hold current logged-in user's name
   // TODO: Replace with actual user data from Supabase auth session
   const [userName] = useState("Barangay Official");
+
+postAnnouncement("general", "normal", "Test Announcement", "This is a test announcement content.");
+ 
+console.log(await supabase.auth.getUser());
 
   /**
    * Handle logout action
