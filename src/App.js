@@ -1,13 +1,24 @@
-import { fetchUsers } from "./supabse_db/supabase_client";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+
+//TODO : sanitize iputss
+
 import {
-  activateAccount,
-  signInEmail,
-  signOutEmail,
-  signUpEmail,
-} from "./supabse_db/supabase_auth";
+  checkHouseholdMember,
+  checkUser,
+  loginByEmail,
+  logout,
+  registerByEmail,
+} from "./supabse_db/auth/auth";
+import Home from "./pages/home";
 
 function App() {
-  return <div className="App"></div>;
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<Home />} />
+      </Routes>
+    </Router>
+  );
 }
 
 export default App;
