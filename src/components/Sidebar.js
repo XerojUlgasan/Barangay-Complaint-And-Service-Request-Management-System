@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, FileText, Menu, X } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 import '../styles/Sidebar.css';
 
 /**
@@ -17,7 +18,7 @@ import '../styles/Sidebar.css';
  * Props:
  * @param {string} activeMenu - Currently active menu item to highlight (e.g., 'dashboard', 'requests')
  */
-const Sidebar = ({ activeMenu = 'dashboard' }) => {
+const Sidebar = ({ activeMenu = 'dashboard', menuItems = [] }) => {
   // State to track if sidebar is open on mobile devices
   const [isOpen, setIsOpen] = useState(true);
 
@@ -43,37 +44,23 @@ const Sidebar = ({ activeMenu = 'dashboard' }) => {
           </div>
         </div>
 
-        {/* Navigation Menu */}
+        {/* Navigation Menu - items injected from `menuItems` prop */}
         <nav className="sidebar-nav">
-          {/* GENERAL Section - main dashboard features */}
           <div className="nav-section">
-            <h3 className="nav-section-title">GENERAL</h3>
+            <h3 className="nav-section-title">MENU</h3>
             <ul className="nav-items">
-              <li>
-                <a
-                  href="/"
-                  className={`nav-item ${activeMenu === 'dashboard' ? 'active' : ''}`}
-                >
-                  <LayoutDashboard size={20} />
-                  <span>Dashboard</span>
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          {/* SERVICES Section - citizen service features */}
-          <div className="nav-section">
-            <h3 className="nav-section-title">SERVICES</h3>
-            <ul className="nav-items">
-              <li>
-                <a
-                  href="/requests"
-                  className={`nav-item ${activeMenu === 'requests' ? 'active' : ''}`}
-                >
-                  <FileText size={20} />
-                  <span>Requests</span>
-                </a>
-              </li>
+              {menuItems.map((it) => (
+                <li key={it.path}>
+                  <NavLink
+                    to={it.path}
+                    end={!!it.end}
+                    className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                  >
+                    {it.icon ? <span className="nav-icon">{it.icon}</span> : null}
+                    <span>{it.label}</span>
+                  </NavLink>
+                </li>
+              ))}
             </ul>
           </div>
         </nav>

@@ -12,6 +12,9 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
+/* Enforce global app font for header */
+.header { font-family: var(--font-family); }
+
 .header-left {
   flex: 1;
 }

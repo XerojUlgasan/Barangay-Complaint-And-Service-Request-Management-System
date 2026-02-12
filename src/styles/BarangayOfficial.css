@@ -1,7 +1,9 @@
 .barangay-official-container {
   padding: 0;
-  background-color: #f9fafb;
+  background-color: var(--color-gray-100);
   min-height: 100%;
+  font-family: var(--font-family);
+  color: var(--color-gray-900);
 }
 
 /* Header */
@@ -11,15 +13,15 @@
 }
 
 .dashboard-header h1 {
-  font-size: 1.875rem;
-  font-weight: 700;
-  color: #1f2937;
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--color-gray-900);
   margin: 0 0 0.5rem 0;
 }
 
 .dashboard-header p {
   font-size: 1rem;
-  color: #6b7280;
+  color: var(--color-gray-600);
   margin: 0;
 }
 
@@ -33,13 +35,13 @@
 }
 
 .stat-card {
-  background-color: #ffffff;
+  background-color: var(--color-white, #fff);
   border-radius: 12px;
   padding: 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
@@ -62,7 +64,7 @@
 .stat-value {
   font-size: 2.5rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--color-gray-900);
   margin: 0;
 }
 

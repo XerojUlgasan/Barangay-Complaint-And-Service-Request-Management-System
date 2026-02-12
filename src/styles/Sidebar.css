@@ -13,6 +13,9 @@
   transition: transform 0.3s ease;
 }
 
+/* Enforce global app font for sidebar */
+.sidebar { font-family: var(--font-family); }
+
 .sidebar.closed {
   transform: translateX(-100%);
 }

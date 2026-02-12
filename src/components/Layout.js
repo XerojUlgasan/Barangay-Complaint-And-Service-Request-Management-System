@@ -1,6 +1,7 @@
 import React from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import { Outlet } from 'react-router-dom';
 import '../styles/Layout.css';
 
 /**
@@ -20,20 +21,20 @@ import '../styles/Layout.css';
  * @param {string} userName - Name of logged-in user to display in header
  * @param {function} onLogout - Callback for logout action from header
  */
-const Layout = ({ children, activeMenu, userName = 'Barangay Official', onLogout }) => {
+const Layout = ({ menuItems = [], userName = 'Barangay Official', onLogout }) => {
   return (
     <div className="app-layout">
-      {/* Left Sidebar - navigation menu */}
-      <Sidebar activeMenu={activeMenu} />
+      {/* Left Sidebar - navigation menu; receives menu configuration */}
+      <Sidebar menuItems={menuItems} />
 
       {/* Main wrapper - contains header and content area */}
       <div className="main-wrapper">
         {/* Top Header - page title and user account dropdown */}
-        <Header userName={userName} onLogout={onLogout} />
+        <Header menuItems={menuItems} userName={userName} onLogout={onLogout} />
 
-        {/* Main Content Area - displays page-specific content */}
+        {/* Main Content Area - renders nested routes via Outlet */}
         <main className="main-content">
-          {children}
+          <Outlet />
         </main>
       </div>
     </div>

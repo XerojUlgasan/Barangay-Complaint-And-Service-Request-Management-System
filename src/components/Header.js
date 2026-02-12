@@ -1,5 +1,6 @@
 import React from 'react';
 import { LogOut } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import '../styles/Header.css';
 
 /**
@@ -14,7 +15,7 @@ import '../styles/Header.css';
  * @param {string} userName - Name/email of the currently logged-in user
  * @param {function} onLogout - Callback function to execute when user clicks logout
  */
-const Header = ({ userName = 'Barangay Official', onLogout }) => {
+const Header = ({ menuItems = [], userName = 'Barangay Official', onLogout }) => {
   /**
    * Handle logout button click
    * 
@@ -27,11 +28,25 @@ const Header = ({ userName = 'Barangay Official', onLogout }) => {
     }
   };
 
+  const location = useLocation();
+  const pathname = location.pathname || '/';
+
+  const findMenuLabel = () => {
+    if (!Array.isArray(menuItems) || menuItems.length === 0) return 'Dashboard';
+    const exact = menuItems.find((m) => m.path === pathname);
+    if (exact) return exact.label;
+    const sorted = [...menuItems].sort((a, b) => b.path.length - a.path.length);
+    const prefix = sorted.find((m) => pathname.startsWith(m.path));
+    return prefix ? prefix.label : 'Dashboard';
+  };
+
+  const pageTitle = findMenuLabel();
+
   return (
     <header className="header">
       {/* Left side - page title */}
       <div className="header-left">
-        <h1 className="page-title">Dashboard</h1>
+        <h1 className="page-title">{pageTitle}</h1>
       </div>
 
       {/* Right side - user account and logout */}

@@ -10,10 +10,29 @@ import {
   logout,
   registerByEmail,
 } from "./supabse_db/auth/auth";
-import Home from "./pages/home";
-import BarangayOfficial from "./pages/BarangayOfficial";
-import Requests from "./pages/Requests";
+import Homepage from "./pages/Homepage";
+import { LayoutDashboard, FileText, Megaphone, Users } from 'lucide-react';
+import OfficialDashboard from "./pages/official/OfficialDashboard";
+import OfficialRequests from "./pages/official/OfficialRequests";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
+import AdminRequests from "./pages/admin/AdminRequests";
+import AdminUsers from "./pages/admin/AdminUsers";
 import Layout from "./components/Layout";
+
+// Simple inline page for demo user (no external file)
+function UserPage() {
+  // small placeholder for User page
+  return <div>User page (demo)</div>;
+}
+
+// Simple inline page for admin (no external file)
+function AdminPage() {
+  // small placeholder for Admin page
+  return <div>Barangay Admin page (demo)</div>;
+}
+
+// Note: demo login was removed in favor of blank LoginSignUp page
 
 /**
  * App Root Component
@@ -67,27 +86,55 @@ function App() {
 
   return (
     <Router>
-      {/* React Router Routes - defines all application pages */}
+      {/* Routes - define app pages and navigation */}
       <Routes>
-        {/* DASHBOARD ROUTE - Main page */}
-        <Route
-          path="/"
-          element={
-            <Layout activeMenu="dashboard" userName={userName} onLogout={handleLogout}>
-              <BarangayOfficial />
-            </Layout>
-          }
-        />
+        {/* HOME ROUTE - public homepage (blank placeholder). hide header/sidebar */}
+        <Route path="/" element={<Homepage />} />
 
-        {/* REQUESTS ROUTE - View and manage citizen service requests */}
+        {/* LOGIN handled as modal on Homepage - no separate route */}
+
+        {/* USER ROUTE - demo user landing */}
+        <Route path="/user" element={<UserPage />} />
+
+        {/* OFFICIAL ROUTES - use shared Layout with official menu */}
         <Route
-          path="/requests"
+          path="/BarangayOfficial"
           element={
-            <Layout activeMenu="requests" userName={userName} onLogout={handleLogout}>
-              <Requests />
-            </Layout>
+            <Layout
+              menuItems={[
+                { path: '/BarangayOfficial', label: 'Dashboard', icon: <LayoutDashboard size={18} />, end: true },
+                { path: '/BarangayOfficial/requests', label: 'Requests', icon: <FileText size={18} /> },
+              ]}
+              userName={userName}
+              onLogout={handleLogout}
+            />
           }
-        />
+        >
+          <Route index element={<OfficialDashboard />} />
+          <Route path="requests" element={<OfficialRequests />} />
+        </Route>
+
+        {/* ADMIN ROUTES - use same Layout but different menu config */}
+        <Route
+          path="/BarangayAdmin"
+          element={
+            <Layout
+              menuItems={[
+                { path: '/BarangayAdmin', label: 'Dashboard', icon: <LayoutDashboard size={18} />, end: true },
+                { path: '/BarangayAdmin/announcements', label: 'Announcements', icon: <Megaphone size={18} /> },
+                { path: '/BarangayAdmin/requests', label: 'Requests', icon: <FileText size={18} /> },
+                { path: '/BarangayAdmin/users', label: 'Users', icon: <Users size={18} /> },
+              ]}
+              userName={userName}
+              onLogout={handleLogout}
+            />
+          }
+        >
+          <Route index element={<AdminDashboard />} />
+          <Route path="announcements" element={<AdminAnnouncements />} />
+          <Route path="requests" element={<AdminRequests />} />
+          <Route path="users" element={<AdminUsers />} />
+        </Route>
 
         {/* TODO: Add more routes as needed */}
         {/* Example routes to implement:
