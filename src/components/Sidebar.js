@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, FileText, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, FileText, Menu, X } from 'lucide-react';
 import '../styles/Sidebar.css';
 
 /**
@@ -21,18 +21,7 @@ const Sidebar = ({ activeMenu = 'dashboard' }) => {
   // State to track if sidebar is open on mobile devices
   const [isOpen, setIsOpen] = useState(true);
 
-  /**
-   * Handle logout action
-   * TODO: Integrate with actual logout function from App component
-   * Should trigger:
-   * - Supabase logout call
-   * - Clear user session
-   * - Redirect to login page
-   */
-  const handleLogout = () => {
-    // Add logout logic here
-    console.log('Logout clicked');
-  };
+
 
   return (
     <>
@@ -89,13 +78,7 @@ const Sidebar = ({ activeMenu = 'dashboard' }) => {
           </div>
         </nav>
 
-        {/* Logout Button - at bottom of sidebar */}
-        <div className="sidebar-footer">
-          <button className="logout-btn" onClick={handleLogout}>
-            <LogOut size={20} />
-            <span>Logout</span>
-          </button>
-        </div>
+
       </aside>
 
       {/* Sidebar Overlay for Mobile - click to close */}
