@@ -1,4 +1,4 @@
-import { postAnnouncement } from "../supabse_db/announcement/post_announcement";
+import { postAnnouncement, getAnnouncements } from "../supabse_db/announcement/post_announcement";
 import {
   checkHouseholdMember,
   loginByEmail,
@@ -37,9 +37,13 @@ const Home = () => {
       </button>
 
       <button
-        onClick={() => loginByEmail("xerojulgasan@gmail.com", "password123")}
+        onClick={() => loginByEmail("xerojulgasan@gmail.com", "password1231")}
       >
         LOGIN
+      </button>
+
+      <button onClick={() => logout()}>
+        LOGOUT
       </button>
 
       <button
@@ -52,6 +56,23 @@ const Home = () => {
 
       <button onClick={() => insertRequest("amao", "adasda", "asdasd")}>
         CREATE REQUEST
+      </button>
+
+      <button
+        onClick={() =>
+          postAnnouncement("genera", "high", "Test Title", "Test Content")
+        }
+      >
+        POST ANNOUNCEMENT
+      </button>
+
+      <button
+        onClick={async () => {
+          const data = await getAnnouncements();
+          alert(JSON.stringify(data, null, 2));
+        }}
+      >
+        GET ANNOUNCEMENTS
       </button>
     </div>
   );
