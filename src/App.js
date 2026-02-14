@@ -19,43 +19,39 @@ import supabase from "./supabse_db/supabase_client";
 
 /**
  * App Root Component
- * 
+ *
  * This is the main application component that handles:
  * - Application routing for all pages
  * - User session state management
  * - Layout wrapping for consistent navigation
- * 
+ *
  * Routes:
  * - "/" : Dashboard page (BarangayOfficial component)
  * - "/requests" : Requests management page
- * 
+ *
  * TODO: Add authentication middleware
  * - Check user session before rendering protected routes
  * - Redirect to login if not authenticated
- * 
+ *
  * TODO: Add route for request details
  * - Path: "/requests/:id"
  * - Component: RequestDetail
  */
-async function App() {
+function App() {
   // State to hold current logged-in user's name
   // TODO: Replace with actual user data from Supabase auth session
   const [userName] = useState("Barangay Official");
 
-postAnnouncement("general", "normal", "Test Announcement", "This is a test announcement content.");
- 
-console.log(await supabase.auth.getUser());
-
   /**
    * Handle logout action
-   * 
+   *
    * This function:
    * 1. Calls the logout function from Supabase auth
    * 2. Clears user session on backend
    * 3. Redirects to home page after successful logout
-   * 
+   *
    * Error handling: Logs errors if logout fails
-   * 
+   *
    * TODO: Add error toast notification for failed logout attempts
    */
   const handleLogout = async () => {
@@ -79,7 +75,11 @@ console.log(await supabase.auth.getUser());
         <Route
           path="/"
           element={
-            <Layout activeMenu="dashboard" userName={userName} onLogout={handleLogout}>
+            <Layout
+              activeMenu="dashboard"
+              userName={userName}
+              onLogout={handleLogout}
+            >
               <BarangayOfficial />
             </Layout>
           }
@@ -89,11 +89,17 @@ console.log(await supabase.auth.getUser());
         <Route
           path="/requests"
           element={
-            <Layout activeMenu="requests" userName={userName} onLogout={handleLogout}>
+            <Layout
+              activeMenu="requests"
+              userName={userName}
+              onLogout={handleLogout}
+            >
               <Requests />
             </Layout>
           }
         />
+
+        <Route path="/testingan" element={<Home />} />
 
         {/* TODO: Add more routes as needed */}
         {/* Example routes to implement:
@@ -108,5 +114,3 @@ console.log(await supabase.auth.getUser());
 }
 
 export default App;
-
-
