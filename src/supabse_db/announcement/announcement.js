@@ -1,9 +1,9 @@
 import supabase from "../supabase_client";
 
 export const postAnnouncement = async (category, priority, title, content) => {
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const { data: userData, error: authError } = await supabase.auth.getUser();
 
-  if (authError || !user) {
+  if (authError || !userData || !userData.user) {
     return { success: false, message: "Not authenticated" };
   }
 
@@ -13,8 +13,7 @@ export const postAnnouncement = async (category, priority, title, content) => {
       category: category,
       priority: priority,
       title: title,
-      content: content,
-      announcer: user.id
+      content: content
     })
     .select()
     .single();
@@ -31,7 +30,12 @@ export const postAnnouncement = async (category, priority, title, content) => {
 export const getAnnouncements = async () => {
   const { data, error } = await supabase
     .from('announcement_tbl')
-    .select('*')
+    .select(`
+      *,
+      announcer_info:superadmin_tbl!announcement_tbl_announcer_fkey (
+        auth_uid
+      )
+    `)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -41,4 +45,89 @@ export const getAnnouncements = async () => {
   
   console.log("Announcements retrieved:", data);
   return { success: true, data };
+};
+
+export const getAnnouncementById = async (id) => {
+  const { data, error } = await supabase
+    .from('announcement_tbl')
+    .select(`
+      *,
+      announcer_info:superadmin_tbl!announcement_tbl_announcer_fkey (
+        auth_uid
+      )
+    `)
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    console.error("Error fetching announcement:", error);
+    return { success: false, message: "Failed to fetch announcement" };
+  }
+  
+  return { success: true, data };
+};
+
+export const updateAnnouncement = async (id, category, priority, title, content) => {
+  const { data: userData, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !userData || !userData.user) {
+    return { success: false, message: "Not authenticated" };
+  }
+
+  const { data: superadminData } = await supabase
+    .from("superadmin_tbl")
+    .select("id")
+    .eq("auth_uid", userData.user.id)
+    .single();
+
+  if (!superadminData) {
+    return { success: false, message: "Only superadmins can update announcements" };
+  }
+
+  const { error } = await supabase
+    .from('announcement_tbl')
+    .update({
+      category: category,
+      priority: priority,
+      title: title,
+      content: content
+    })
+    .eq('id', id);
+
+  if (error) {
+    console.error("Error updating announcement:", error);
+    return { success: false, message: error.message };
+  }
+
+  return { success: true, message: "Announcement updated successfully" };
+};
+
+export const deleteAnnouncement = async (id) => {
+  const { data: userData, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !userData || !userData.user) {
+    return { success: false, message: "Not authenticated" };
+  }
+
+  const { data: superadminData } = await supabase
+    .from("superadmin_tbl")
+    .select("id")
+    .eq("auth_uid", userData.user.id)
+    .single();
+
+  if (!superadminData) {
+    return { success: false, message: "Only superadmins can delete announcements" };
+  }
+
+  const { error } = await supabase
+    .from('announcement_tbl')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error("Error deleting announcement:", error);
+    return { success: false, message: error.message };
+  }
+
+  return { success: true, message: "Announcement deleted successfully" };
 };
