@@ -14,7 +14,7 @@ import Home from "./pages/home";
 import BarangayOfficial from "./pages/BarangayOfficial";
 import Requests from "./pages/Requests";
 import Layout from "./components/Layout";
-import { postAnnouncement } from "./supabse_db/announcement/post_announcement";
+import { postAnnouncement } from "./supabse_db/announcement/announcement";
 import supabase from "./supabse_db/supabase_client";
 
 /**
