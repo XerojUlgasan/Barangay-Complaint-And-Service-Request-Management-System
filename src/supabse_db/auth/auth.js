@@ -126,7 +126,7 @@ export const loginByEmail = async (email, password) => {
   if (data.user?.confirmed_at) {
     console.log(data);
     console.log("LOGGED IN");
-    await bindAuthuidToResident();
+    // await bindAuthuidToResident(); // ETO ERROR NAKA DEFAULT KAPAG RESIDENT AUTO BIND YUNG UID
   }
 
   return {

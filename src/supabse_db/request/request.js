@@ -7,13 +7,13 @@ export const insertRequest = async (subj, desc, cert_type) => {
     console.log("No authenticated user found.");
     return { success: false, message: "Not authenticated" };
   }
-  
+
   const { data, error } = await supabase
     .from("request_tbl")
     .insert({
       subject: subj,
       description: desc,
-      certificate_type: cert_type
+      certificate_type: cert_type,
     })
     .select()
     .single();
@@ -29,7 +29,7 @@ export const insertRequest = async (subj, desc, cert_type) => {
 
 export const getRequests = async () => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
-  
+
   if (authError || !userData || !userData.user) {
     console.log("No authenticated user found.");
     return { success: false, message: "Not authenticated" };
@@ -45,7 +45,8 @@ export const getRequests = async () => {
 
   let query = supabase
     .from("request_tbl")
-    .select(`
+    .select(
+      `
       *,
       member:sample_household_members_tbl!request_tbl_user_id_fkey (
         firstname,
@@ -57,7 +58,8 @@ export const getRequests = async () => {
         lastname,
         role
       )
-    `)
+    `,
+    )
     .order("created_at", { ascending: false });
 
   if (!isAdmin) {
@@ -71,14 +73,16 @@ export const getRequests = async () => {
     return { success: false, message: "Failed to fetch requests" };
   }
 
-  const enriched = data.map(request => ({
+  const enriched = data.map((request) => ({
     ...request,
-    requester_name: request.member?.firstname && request.member?.lastname
-      ? `${request.member.firstname} ${request.member.lastname}`
-      : "Unknown",
-    assigned_official_name: request.official?.firstname && request.official?.lastname
-      ? `${request.official.firstname} ${request.official.lastname}`
-      : null
+    requester_name:
+      request.member?.firstname && request.member?.lastname
+        ? `${request.member.firstname} ${request.member.lastname}`
+        : "Unknown",
+    assigned_official_name:
+      request.official?.firstname && request.official?.lastname
+        ? `${request.official.firstname} ${request.official.lastname}`
+        : null,
   }));
 
   return { success: true, data: enriched };
@@ -86,14 +90,15 @@ export const getRequests = async () => {
 
 export const getRequestById = async (requestId) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
-  
+
   if (authError || !userData || !userData.user) {
     return { success: false, message: "Not authenticated" };
   }
 
   const { data, error } = await supabase
     .from("request_tbl")
-    .select(`
+    .select(
+      `
       *,
       member:sample_household_members_tbl!request_tbl_user_id_fkey (
         firstname,
@@ -105,7 +110,8 @@ export const getRequestById = async (requestId) => {
         lastname,
         role
       )
-    `)
+    `,
+    )
     .eq("id", requestId)
     .single();
 
@@ -114,35 +120,44 @@ export const getRequestById = async (requestId) => {
     return { success: false, message: "Failed to fetch request" };
   }
 
-  return { 
-    success: true, 
+  return {
+    success: true,
     data: {
       ...data,
-      requester_name: data.member?.firstname && data.member?.lastname
-        ? `${data.member.firstname} ${data.member.lastname}`
-        : "Unknown",
-      assigned_official_name: data.official?.firstname && data.official?.lastname
-        ? `${data.official.firstname} ${data.official.lastname}`
-        : null
-    }
+      requester_name:
+        data.member?.firstname && data.member?.lastname
+          ? `${data.member.firstname} ${data.member.lastname}`
+          : "Unknown",
+      assigned_official_name:
+        data.official?.firstname && data.official?.lastname
+          ? `${data.official.firstname} ${data.official.lastname}`
+          : null,
+    },
   };
 };
 
-export const updateRequestStatus = async (requestId, status, remarks = null) => {
+export const updateRequestStatus = async (
+  requestId,
+  status,
+  remarks = null,
+) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
-  
+
   if (authError || !userData || !userData.user) {
     return { success: false, message: "Not authenticated" };
   }
 
   const { data: officialData } = await supabase
     .from("official_tbl")
-    .select("id")
-    .eq("id", userData.user.id)
+    .select("auth_uid")
+    .eq("auth_uid", userData.user.id)
     .single();
 
   if (!officialData) {
-    return { success: false, message: "Only officials can update request status" };
+    return {
+      success: false,
+      message: "Only officials can update request status",
+    };
   }
 
   const { error } = await supabase
@@ -151,7 +166,7 @@ export const updateRequestStatus = async (requestId, status, remarks = null) => 
       request_status: status,
       remarks: remarks,
       assigned_official_id: userData.user.id,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     })
     .eq("id", requestId);
 
@@ -165,7 +180,7 @@ export const updateRequestStatus = async (requestId, status, remarks = null) => 
 
 export const assignRequestToOfficial = async (requestId, officialId) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
-  
+
   if (authError || !userData || !userData.user) {
     return { success: false, message: "Not authenticated" };
   }
@@ -184,7 +199,7 @@ export const assignRequestToOfficial = async (requestId, officialId) => {
     .from("request_tbl")
     .update({
       assigned_official_id: officialId,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     })
     .eq("id", requestId);
 
@@ -198,7 +213,7 @@ export const assignRequestToOfficial = async (requestId, officialId) => {
 
 export const deleteRequest = async (requestId) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
-  
+
   if (authError || !userData || !userData.user) {
     return { success: false, message: "Not authenticated" };
   }
@@ -219,21 +234,23 @@ export const deleteRequest = async (requestId) => {
 
 export const getRequestHistory = async (requestId) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
-  
+
   if (authError || !userData || !userData.user) {
     return { success: false, message: "Not authenticated" };
   }
 
   const { data, error } = await supabase
     .from("request_history_tbl")
-    .select(`
+    .select(
+      `
       *,
       official:official_tbl!request_history_tbl_assigned_official_id_fkey (
         firstname,
         lastname,
         role
       )
-    `)
+    `,
+    )
     .eq("request_id", requestId)
     .order("updated_at", { ascending: true });
 
@@ -242,19 +259,24 @@ export const getRequestHistory = async (requestId) => {
     return { success: false, message: "Failed to fetch request history" };
   }
 
-  const enriched = data.map(history => ({
+  const enriched = data.map((history) => ({
     ...history,
-    official_name: history.official?.firstname && history.official?.lastname
-      ? `${history.official.firstname} ${history.official.lastname}`
-      : "Unassigned"
+    official_name:
+      history.official?.firstname && history.official?.lastname
+        ? `${history.official.firstname} ${history.official.lastname}`
+        : "Unassigned",
   }));
 
   return { success: true, data: enriched };
 };
 
-export const insertRequestHistory = async (requestId, request_status, remarks) => {
+export const insertRequestHistory = async (
+  requestId,
+  request_status,
+  remarks,
+) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
-  
+
   if (authError || !userData || !userData.user) {
     return { success: false, message: "Not authenticated" };
   }
@@ -265,14 +287,12 @@ export const insertRequestHistory = async (requestId, request_status, remarks) =
     .eq("id", userData.user.id)
     .single();
 
-  const { error } = await supabase
-    .from("request_history_tbl")
-    .insert({
-      request_id: requestId,
-      request_status: request_status,
-      remarks: remarks,
-      assigned_official_id: officialData ? userData.user.id : null
-    });
+  const { error } = await supabase.from("request_history_tbl").insert({
+    request_id: requestId,
+    request_status: request_status,
+    remarks: remarks,
+    assigned_official_id: officialData ? userData.user.id : null,
+  });
 
   if (error) {
     console.error("Error inserting request history:", error);

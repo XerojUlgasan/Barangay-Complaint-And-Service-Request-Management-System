@@ -23,7 +23,7 @@ export const getOfficialProfile = async () => {
   const { data, error } = await supabase
     .from("official_tbl")
     .select("*")
-    .eq("id", userData.user.id)
+    .eq("auth_uid", userData.user.id)
     .single();
 
   if (error) {

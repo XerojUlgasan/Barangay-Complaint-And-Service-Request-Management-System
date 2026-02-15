@@ -8,12 +8,12 @@ export const postAnnouncement = async (category, priority, title, content) => {
   }
 
   const { data, error } = await supabase
-    .from('announcement_tbl')
+    .from("announcement_tbl")
     .insert({
       category: category,
       priority: priority,
       title: title,
-      content: content
+      content: content,
     })
     .select()
     .single();
@@ -29,45 +29,55 @@ export const postAnnouncement = async (category, priority, title, content) => {
 
 export const getAnnouncements = async () => {
   const { data, error } = await supabase
-    .from('announcement_tbl')
-    .select(`
+    .from("announcement_tbl")
+    .select(
+      `
       *,
       announcer_info:superadmin_tbl!announcement_tbl_announcer_fkey (
         auth_uid
       )
-    `)
-    .order('created_at', { ascending: false });
+    `,
+    )
+    .order("created_at", { ascending: false });
 
   if (error) {
     console.error("Error fetching announcements:", error);
     return { success: false, message: "Failed to fetch announcements" };
   }
-  
+
   console.log("Announcements retrieved:", data);
   return { success: true, data };
 };
 
 export const getAnnouncementById = async (id) => {
   const { data, error } = await supabase
-    .from('announcement_tbl')
-    .select(`
+    .from("announcement_tbl")
+    .select(
+      `
       *,
       announcer_info:superadmin_tbl!announcement_tbl_announcer_fkey (
         auth_uid
       )
-    `)
-    .eq('id', id)
+    `,
+    )
+    .eq("id", id)
     .single();
 
   if (error) {
     console.error("Error fetching announcement:", error);
     return { success: false, message: "Failed to fetch announcement" };
   }
-  
+
   return { success: true, data };
 };
 
-export const updateAnnouncement = async (id, category, priority, title, content) => {
+export const updateAnnouncement = async (
+  id,
+  category,
+  priority,
+  title,
+  content,
+) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
 
   if (authError || !userData || !userData.user) {
@@ -81,18 +91,21 @@ export const updateAnnouncement = async (id, category, priority, title, content)
     .single();
 
   if (!superadminData) {
-    return { success: false, message: "Only superadmins can update announcements" };
+    return {
+      success: false,
+      message: "Only superadmins can update announcements",
+    };
   }
 
   const { error } = await supabase
-    .from('announcement_tbl')
+    .from("announcement_tbl")
     .update({
       category: category,
       priority: priority,
       title: title,
-      content: content
+      content: content,
     })
-    .eq('id', id);
+    .eq("id", id);
 
   if (error) {
     console.error("Error updating announcement:", error);
@@ -116,13 +129,16 @@ export const deleteAnnouncement = async (id) => {
     .single();
 
   if (!superadminData) {
-    return { success: false, message: "Only superadmins can delete announcements" };
+    return {
+      success: false,
+      message: "Only superadmins can delete announcements",
+    };
   }
 
   const { error } = await supabase
-    .from('announcement_tbl')
+    .from("announcement_tbl")
     .delete()
-    .eq('id', id);
+    .eq("id", id);
 
   if (error) {
     console.error("Error deleting announcement:", error);
