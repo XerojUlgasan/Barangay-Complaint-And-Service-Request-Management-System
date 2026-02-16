@@ -77,7 +77,7 @@ const Home = () => {
           )
         }
       >
-        Check Household goods
+        Check Household GOODS
       </button>
       <button
         onClick={() =>
@@ -89,7 +89,7 @@ const Home = () => {
       <button
         onClick={() => loginByEmail("xeroj1342@gmail.com", "password123")}
       >
-        LOGIN BY SUPER ADIN
+        LOGIN BY SUPER ADMIN
       </button>
       <button
         onClick={() => loginByEmail("xerojulgasan@gmail.com", "password123")}
@@ -119,7 +119,7 @@ const Home = () => {
           console.log("INSERT COMPLAINT:", result);
         }}
       >
-        Insert Complaint goods
+        Insert Complaint GOODS
       </button>
       <button
         onClick={async () => {
@@ -127,7 +127,7 @@ const Home = () => {
           console.log("GET COMPLAINTS:", result);
         }}
       >
-        Get Complaints goods
+        Get Complaints GOODS
       </button>
       <button
         onClick={async () => {
@@ -135,7 +135,7 @@ const Home = () => {
           console.log("GET COMPLAINT BY ID:", result);
         }}
       >
-        Get Complaint #1 goods
+        Get Complaint #1 GOODS
       </button>
       <button
         onClick={async () => {
