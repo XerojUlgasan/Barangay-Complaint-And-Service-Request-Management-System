@@ -53,6 +53,7 @@ import {
   getAllOfficials,
   getOfficialById,
   updateOfficialRole,
+  getAssignedComplaints,
 } from "../supabse_db/official/official";
 
 const Home = () => {
@@ -91,13 +92,20 @@ const Home = () => {
       >
         LOGIN BY SUPER ADMIN
       </button>
+
+      
       <button
         onClick={() => loginByEmail("xerojulgasan@gmail.com", "password123")}
       >
-        Login by official NOT GOODS pero add another function to check role,
-        call rpc gagawin ni xeroj may error, nag eedit yung household_member
-        kapag nag lologin using an official account
+        Login by official 
       </button>
+
+            <button
+        onClick={() => loginByEmail("asd@gmail.com", "password123")}
+      >
+        Login by official2 
+      </button>
+
       <button
         onClick={() =>
           loginByEmail("agustinernestocruz@gmail.com", "password123")
@@ -105,6 +113,14 @@ const Home = () => {
       >
         Login by resident
       </button>
+<button
+        onClick={() =>
+          loginByEmail("prominenplayz@gmail.com", "qwe123")
+        }
+      >
+        Login by resident2
+      </button>
+
       <button onClick={() => logout()}>Logout</button>
 
       <h2>COMPLAINTS</h2>
@@ -119,7 +135,7 @@ const Home = () => {
           console.log("INSERT COMPLAINT:", result);
         }}
       >
-        Insert Complaint GOODS
+        Insert Complaint <font color="green"><b>GOODS</b></font>
       </button>
       <button
         onClick={async () => {
@@ -140,7 +156,7 @@ const Home = () => {
       <button
         onClick={async () => {
           const result = await updateComplaintStatus(
-            20,
+            14,
             "resolved",
             "Issue resolved",
             "low",
@@ -163,20 +179,20 @@ const Home = () => {
       </button>
       <button
         onClick={async () => {
-          const result = await deleteComplaint(19);
+          const result = await deleteComplaint(14);
           console.log("DELETE COMPLAINT:", result);
         }}
       >
-        Delete Complaint (GOODS: ONLY RESIDENT WHO WONS THE COMPLAINT CAN DELETE
-        THE COMPLAINT)
+        Delete Complaint #1 NOT GOODS NOT DELETING (MAYBE DUE TO RLS)
       </button>
       <button
         onClick={async () => {
-          const result = await getComplaintHistory(20);
+          const result = await getComplaintHistory(14);
           console.log("GET COMPLAINT HISTORY:", result);
         }}
       >
-        Get Complaint History (GOODS)
+        Get Complaint #1 History NOT GOODS (NOT RECORDING HISTORY MAYBE DUE TO
+        TRIGGER)
       </button>
       <button
         onClick={async () => {
@@ -217,7 +233,7 @@ const Home = () => {
       </button>
       <button
         onClick={async () => {
-          const result = await getRequestById(6);
+          const result = await getRequestById(3);
           console.log("GET REQUEST BY ID:", result);
         }}
       >
@@ -226,14 +242,14 @@ const Home = () => {
       <button
         onClick={async () => {
           const result = await updateRequestStatus(
-            35,
-            "completed",
+            1,
+            "approved",
             "Approved by official",
           );
           console.log("UPDATE REQUEST STATUS:", result);
         }}
       >
-        Update Request GOODS
+        Update Request #1 Status GOODS TODO : FIX UPDATES HISTORY BY XEROJ
       </button>
       <button
         onClick={async () => {
@@ -245,19 +261,20 @@ const Home = () => {
       </button>
       <button
         onClick={async () => {
-          const result = await deleteRequest(6);
+          const result = await deleteRequest(4);
           console.log("DELETE REQUEST:", result);
         }}
       >
-        Delete Request GOODS (ONLY OWNER CAN DELETE)
+        Delete Request #1 NTO GOODS, ONLY RESIDENT ITSELF CAN DELETE HIT/HER
+        REQUEST, OFFICIAL CAN ONLY REJECTss
       </button>
       <button
         onClick={async () => {
-          const result = await getRequestHistory(35);
+          const result = await getRequestHistory(1);
           console.log("GET REQUEST HISTORY:", result);
         }}
       >
-        Get Request #1 History GOODS
+        Get Request #1 History NOT CHECKED
       </button>
       <button
         onClick={async () => {
@@ -381,7 +398,19 @@ const Home = () => {
       >
         Get All Officials GOODS
       </button>
+      <button
+        onClick={async () => {
+          const result = await getAssignedComplaints();
+          console.log("GET ASSIGNED COMPLAINTS:", result);
+        }}
+      >
+        Get Assigned Complaints GOODS
+      </button>
+    
     </div>
+
+
+
   );
 };
 

@@ -1,8 +1,7 @@
 import supabase from "../supabase_client";
 
-export const getComplaints = async () => {
-  const { data, error } = await supabase.from("complaint_tbl").select("*");
-
+export const getAssignedComplaints = async () => {
+  const { data, error } = await supabase.from("complaint_tbl").select("*") .eq("assigned_official_id", (await supabase.auth.getUser()).data.user.id ); // Replace with actual official ID
   if (error) {
     console.log(error);
     return;
