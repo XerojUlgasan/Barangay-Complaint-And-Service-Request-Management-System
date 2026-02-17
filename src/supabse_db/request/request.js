@@ -2,7 +2,7 @@ import supabase from "../supabase_client";
 
 export const insertRequest = async (subj, desc, cert_type) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
-
+  console.log(userData);
   if (authError || !userData || !userData.user) {
     console.log("No authenticated user found.");
     return { success: false, message: "Not authenticated" };
@@ -37,8 +37,8 @@ export const getRequests = async () => {
 
   const { data: officialData } = await supabase
     .from("official_tbl")
-    .select("id")
-    .eq("id", userData.user.id)
+    .select("auth_uid")
+    .eq("auth_uid", userData.user.id)
     .single();
 
   const isAdmin = !!officialData;
@@ -241,16 +241,7 @@ export const getRequestHistory = async (requestId) => {
 
   const { data, error } = await supabase
     .from("request_history_tbl")
-    .select(
-      `
-      *,
-      official:official_tbl!request_history_tbl_assigned_official_id_fkey (
-        firstname,
-        lastname,
-        role
-      )
-    `,
-    )
+    .select("*")
     .eq("request_id", requestId)
     .order("updated_at", { ascending: true });
 

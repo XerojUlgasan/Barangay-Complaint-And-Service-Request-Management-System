@@ -140,7 +140,7 @@ const Home = () => {
       <button
         onClick={async () => {
           const result = await updateComplaintStatus(
-            14,
+            20,
             "resolved",
             "Issue resolved",
             "low",
@@ -163,20 +163,20 @@ const Home = () => {
       </button>
       <button
         onClick={async () => {
-          const result = await deleteComplaint(14);
+          const result = await deleteComplaint(19);
           console.log("DELETE COMPLAINT:", result);
         }}
       >
-        Delete Complaint #1 NOT GOODS NOT DELETING (MAYBE DUE TO RLS)
+        Delete Complaint (GOODS: ONLY RESIDENT WHO WONS THE COMPLAINT CAN DELETE
+        THE COMPLAINT)
       </button>
       <button
         onClick={async () => {
-          const result = await getComplaintHistory(14);
+          const result = await getComplaintHistory(20);
           console.log("GET COMPLAINT HISTORY:", result);
         }}
       >
-        Get Complaint #1 History NOT GOODS (NOT RECORDING HISTORY MAYBE DUE TO
-        TRIGGER)
+        Get Complaint History (GOODS)
       </button>
       <button
         onClick={async () => {
@@ -217,7 +217,7 @@ const Home = () => {
       </button>
       <button
         onClick={async () => {
-          const result = await getRequestById(3);
+          const result = await getRequestById(6);
           console.log("GET REQUEST BY ID:", result);
         }}
       >
@@ -226,14 +226,14 @@ const Home = () => {
       <button
         onClick={async () => {
           const result = await updateRequestStatus(
-            1,
-            "approved",
+            34,
+            "in_progress",
             "Approved by official",
           );
           console.log("UPDATE REQUEST STATUS:", result);
         }}
       >
-        Update Request #1 Status GOODS TODO : FIX UPDATES HISTORY BY XEROJ
+        Update Request GOODS
       </button>
       <button
         onClick={async () => {
@@ -245,20 +245,19 @@ const Home = () => {
       </button>
       <button
         onClick={async () => {
-          const result = await deleteRequest(4);
+          const result = await deleteRequest(6);
           console.log("DELETE REQUEST:", result);
         }}
       >
-        Delete Request #1 NTO GOODS, ONLY RESIDENT ITSELF CAN DELETE HIT/HER
-        REQUEST, OFFICIAL CAN ONLY REJECTss
+        Delete Request GOODS (ONLY OWNER CAN DELETE)
       </button>
       <button
         onClick={async () => {
-          const result = await getRequestHistory(1);
+          const result = await getRequestHistory(34);
           console.log("GET REQUEST HISTORY:", result);
         }}
       >
-        Get Request #1 History NOT CHECKED
+        Get Request #1 History GOODS
       </button>
       <button
         onClick={async () => {

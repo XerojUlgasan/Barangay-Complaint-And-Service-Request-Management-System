@@ -162,7 +162,7 @@ export const updateComplaintStatus = async (
     };
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("complaint_tbl")
     .update({
       status: status,
@@ -171,13 +171,14 @@ export const updateComplaintStatus = async (
       updated_by: userData.user.id,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", complaintId);
+    .eq("id", complaintId)
+    .select("id");
 
   if (error) {
     console.error("Error updating complaint:", error);
     return { success: false, message: "Failed to update complaint" };
   }
-
+  console.log(data);
   return { success: true, message: "Complaint updated successfully" };
 };
 
