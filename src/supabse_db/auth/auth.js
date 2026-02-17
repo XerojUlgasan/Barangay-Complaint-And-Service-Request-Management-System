@@ -2,10 +2,20 @@ import supabase from "../supabase_client";
 
 var member_id = null;
 
-// supabase.auth.onAuthStateChange((event, session) => {
-//   console.log(`Event: ${event}`);
-//   console.log(`Event: ${session}`);
-// });
+// CHECK USER ROLE (resident, official, super_admin)
+export const checkUserRole = async (uid) => {
+  const { data, error } = await supabase.rpc("check_user_role", {
+    uid_input: uid,
+  });
+
+  if (error) {
+    console.error("Error checking user role:", error);
+    return null;
+  }
+
+  console.log("User role:", data);
+  return data; // Returns "resident", "official", or "super_admin"
+};
 
 // CHECK HOUSEHOLD MEMBER BEFORE REGISTRATION
 export const checkHouseholdMember = async (
@@ -126,12 +136,25 @@ export const loginByEmail = async (email, password) => {
   if (data.user?.confirmed_at) {
     console.log(data);
     console.log("LOGGED IN");
+    
+    // CHECK USER ROLE AFTER LOGIN
+    const userRole = await checkUserRole(data.user.id);
+    
     // await bindAuthuidToResident(); // ETO ERROR NAKA DEFAULT KAPAG RESIDENT AUTO BIND YUNG UID
+    
+    return {
+      success: true,
+      message: "Logged In Successfully",
+      user: data.user,
+      role: userRole, // Returns "resident", "official", or "super_admin"
+    };
   }
 
   return {
     success: true,
-    message: "Logged In Successfull",
+    message: "Logged In Successfully",
+    user: data.user,
+    role: null,
   };
 };
 
