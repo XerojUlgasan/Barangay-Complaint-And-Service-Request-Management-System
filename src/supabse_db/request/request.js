@@ -167,6 +167,7 @@ export const updateRequestStatus = async (
       remarks: remarks,
       assigned_official_id: userData.user.id,
       updated_at: new Date().toISOString(),
+      updated_by: userData.user.id,
     })
     .eq("id", requestId);
 

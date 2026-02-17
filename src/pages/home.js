@@ -226,8 +226,8 @@ const Home = () => {
       <button
         onClick={async () => {
           const result = await updateRequestStatus(
-            34,
-            "in_progress",
+            35,
+            "completed",
             "Approved by official",
           );
           console.log("UPDATE REQUEST STATUS:", result);
@@ -253,7 +253,7 @@ const Home = () => {
       </button>
       <button
         onClick={async () => {
-          const result = await getRequestHistory(34);
+          const result = await getRequestHistory(35);
           console.log("GET REQUEST HISTORY:", result);
         }}
       >
