@@ -4,8 +4,8 @@ var member_id = null;
 
 // CHECK USER ROLE (resident, official, super_admin)
 export const checkUserRole = async (uid) => {
-  const { data, error } = await supabase.rpc("check_user_role", {
-    uid_input: uid,
+  const { data, error } = await supabase.rpc("get_user_role", {
+    uid: uid, // <-- make sure your SQL function has 'uid_input' as parameter
   });
 
   if (error) {
