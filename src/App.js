@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { useState } from "react";
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 // TODO: Sanitize user inputs for security
 
@@ -10,93 +11,59 @@ import {
   logout,
   registerByEmail,
 } from "./supabse_db/auth/auth";
-import Homepage from "./pages/Homepage";
+
+// --- Shared Layout (Official/Admin) ---
+import Layout from "./components/Layout";
 import { LayoutDashboard, FileText, Megaphone, Users } from 'lucide-react';
+
+// --- Public / User-facing pages ---
+import Homepage from "./raw/Homepage";        // ← changed from ./pages/Homepage
+import Login from "./raw/Login";
+import UserLanding from "./raw/Userlanding";
+import SubmitRequest from "./raw/SubmitRequest";
+
+// --- Official pages ---
 import OfficialDashboard from "./pages/official/OfficialDashboard";
 import OfficialRequests from "./pages/official/OfficialRequests";
+
+// --- Admin pages ---
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
 import AdminRequests from "./pages/admin/AdminRequests";
 import AdminUsers from "./pages/admin/AdminUsers";
-import Layout from "./components/Layout";
 
-// Simple inline page for demo user (no external file)
+// Demo placeholder
 function UserPage() {
-  // small placeholder for User page
   return <div>User page (demo)</div>;
 }
 
-// Simple inline page for admin (no external file)
-function AdminPage() {
-  // small placeholder for Admin page
-  return <div>Barangay Admin page (demo)</div>;
-}
-
-// Note: demo login was removed in favor of blank LoginSignUp page
-
-/**
- * App Root Component
- * 
- * This is the main application component that handles:
- * - Application routing for all pages
- * - User session state management
- * - Layout wrapping for consistent navigation
- * 
- * Routes:
- * - "/" : Dashboard page (BarangayOfficial component)
- * - "/requests" : Requests management page
- * 
- * TODO: Add authentication middleware
- * - Check user session before rendering protected routes
- * - Redirect to login if not authenticated
- * 
- * TODO: Add route for request details
- * - Path: "/requests/:id"
- * - Component: RequestDetail
- */
 function App() {
-  // State to hold current logged-in user's name
-  // TODO: Replace with actual user data from Supabase auth session
   const [userName] = useState("Barangay Official");
 
-  /**
-   * Handle logout action
-   * 
-   * This function:
-   * 1. Calls the logout function from Supabase auth
-   * 2. Clears user session on backend
-   * 3. Redirects to home page after successful logout
-   * 
-   * Error handling: Logs errors if logout fails
-   * 
-   * TODO: Add error toast notification for failed logout attempts
-   */
   const handleLogout = async () => {
     try {
-      // Call Supabase logout function
       await logout();
-      // Redirect to home page after logout
       window.location.href = "/";
     } catch (error) {
-      // Log any logout errors
       console.error("Logout error:", error);
-      // TODO: Show error notification to user
     }
   };
 
   return (
     <Router>
-      {/* Routes - define app pages and navigation */}
       <Routes>
-        {/* HOME ROUTE - public homepage (blank placeholder). hide header/sidebar */}
-        <Route path="/" element={<Homepage />} />
 
-        {/* LOGIN handled as modal on Homepage - no separate route */}
+        {/* PUBLIC / USER-FACING ROUTES */}
+        <Route path="/"              element={<Homepage />} />
+        <Route path="/homepage"      element={<Homepage />} />
+        <Route path="/login"         element={<Login />} />
+        <Route path="/dashboard"     element={<UserLanding />} />
+        <Route path="/requests"      element={<UserLanding />} />
+        <Route path="/announcements" element={<UserLanding />} />
+        <Route path="/submit"        element={<SubmitRequest />} />
+        <Route path="/user"          element={<UserPage />} />
 
-        {/* USER ROUTE - demo user landing */}
-        <Route path="/user" element={<UserPage />} />
-
-        {/* OFFICIAL ROUTES - use shared Layout with official menu */}
+        {/* OFFICIAL PORTAL ROUTES */}
         <Route
           path="/BarangayOfficial"
           element={
@@ -114,7 +81,7 @@ function App() {
           <Route path="requests" element={<OfficialRequests />} />
         </Route>
 
-        {/* ADMIN ROUTES - use same Layout but different menu config */}
+        {/* ADMIN PORTAL ROUTES */}
         <Route
           path="/BarangayAdmin"
           element={
@@ -132,22 +99,13 @@ function App() {
         >
           <Route index element={<AdminDashboard />} />
           <Route path="announcements" element={<AdminAnnouncements />} />
-          <Route path="requests" element={<AdminRequests />} />
-          <Route path="users" element={<AdminUsers />} />
+          <Route path="requests"      element={<AdminRequests />} />
+          <Route path="users"         element={<AdminUsers />} />
         </Route>
 
-        {/* TODO: Add more routes as needed */}
-        {/* Example routes to implement:
-            - /requests/:id (Request detail/edit page)
-            - /profile (User profile settings)
-            - /analytics (Advanced analytics dashboard)
-            - /settings (Application settings)
-        */}
       </Routes>
     </Router>
   );
 }
 
 export default App;
-
-
