@@ -1,3 +1,5 @@
+import supabase from "../supabase_client";
+
 import {
   postAnnouncement,
   getAnnouncements,
@@ -11,6 +13,7 @@ import {
   loginByEmail,
   logout,
   registerByEmail,
+  checkUserRole,
 } from "../supabse_db/auth/auth";
 
 import {
@@ -121,6 +124,32 @@ const Home = () => {
       >
         Login by resident2
       </button>
+        <button
+  onClick={async () => {
+    console.log("CHECK USER ROLE BUTTON CLICKED");
+
+    // 1. Get current user
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser(); // <-- fix typo here
+
+    console.log("CURRENT USER:", user);
+    console.log("GET USER ERROR:", error);
+
+    if (!user) {
+      console.log("No user logged in");
+      return;
+    }
+
+    // 2. Pass user.id to your function
+    const result = await checkUserRole(user.id);
+
+    console.log("Check user role:", result);
+  }}
+>
+  Check User Role
+</button>
 
       <button onClick={() => logout()}>Logout</button>
 
