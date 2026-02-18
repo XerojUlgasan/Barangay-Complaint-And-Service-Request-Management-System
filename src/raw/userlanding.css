@@ -1,0 +1,777 @@
+/* Scoped styles for UserLanding page */
+.user-landing-page * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.user-landing-page {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f9fafb;
+    min-height: 100vh;
+}
+
+/* ── LAYOUT ── */
+.user-landing-page .layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* ── SIDEBAR ── */
+.user-landing-page .sidebar {
+    width: 240px;
+    background: #ffffff;
+    padding: 24px 16px;
+    border-right: 1px solid #e5e7eb;
+    flex-shrink: 0;
+
+    /* Fixed sidebar */
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    overflow-y: auto;
+    z-index: 100;
+}
+
+.user-landing-page .logo-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.user-landing-page .logo-icon {
+    width: 40px;
+    height: 40px;
+    background-color: #059669;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.user-landing-page .shield-logo {
+    width: 20px !important;
+    height: 20px !important;
+    stroke: white;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.user-landing-page .logo-section h2 {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1f2937;
+    letter-spacing: -0.01em;
+}
+
+.user-landing-page .logo-section p {
+    font-size: 11px;
+    color: #6b7280;
+    font-weight: 400;
+    margin-top: 2px;
+}
+
+.user-landing-page .menu h4 {
+    font-size: 11px;
+    color: #9ca3af;
+    margin: 24px 0 8px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.user-landing-page .menu a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #374151;
+    text-decoration: none;
+    transition: background 0.15s ease;
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+.user-landing-page .menu a:hover {
+    background: #f9fafb;
+}
+
+.user-landing-page .menu a.active,
+.user-landing-page .menu a.active:hover {
+    background: #d1fae5;
+    color: #059669;
+    font-weight: 600;
+}
+
+.user-landing-page .menu a svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+}
+
+/* ── MAIN ── */
+.user-landing-page .main {
+    flex: 1;
+    /* Push main content to the right of the fixed sidebar */
+    margin-left: 240px;
+    background: #f9fafb;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── TOPBAR ── */
+.user-landing-page .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #ffffff;
+    padding: 16px 40px;
+    border-bottom: 1px solid #e5e7eb;
+
+    /* Fixed topbar within main area */
+    position: sticky;
+    top: 0;
+    z-index: 99;
+}
+
+.user-landing-page .topbar h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.user-landing-page .user {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.user-landing-page .user-text {
+    text-align: right;
+}
+
+.user-landing-page .user-text strong {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.user-landing-page .user-text span {
+    display: block;
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
+.user-landing-page .back-button {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.user-landing-page .back-button:hover {
+    background: #f9fafb;
+    border-color: #d1d5db;
+}
+
+.user-landing-page .back-button svg {
+    width: 18px;
+    height: 18px;
+    color: #374151;
+}
+
+/* ── CONTENT BODY ── */
+.user-landing-page .welcome {
+    margin: 32px 40px 28px 40px;
+}
+
+.user-landing-page .welcome h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 4px;
+}
+
+.user-landing-page .welcome p {
+    color: #6b7280;
+    font-size: 14px;
+}
+
+/* ── ACTION CARDS ── */
+.user-landing-page .action-cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin: 0 40px 28px 40px;
+}
+
+.user-landing-page .card {
+    padding: 24px 28px;
+    border-radius: 16px;
+    color: #ffffff !important;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-decoration: none;
+    position: relative;
+    overflow: visible;
+    flex-direction: row-reverse;
+    border: none !important;
+}
+
+.user-landing-page .card-content {
+    position: relative;
+    z-index: 1;
+}
+
+.user-landing-page .card h3 {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: #ffffff !important;
+}
+
+.user-landing-page .card p {
+    font-size: 14px;
+    opacity: 1;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.user-landing-page .card.blue {
+    background: #2563eb;
+}
+
+.user-landing-page .card.green {
+    background: #16a34a;
+}
+
+.user-landing-page .card.clickable {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+}
+
+.user-landing-page .card.clickable:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.user-landing-page .card.clickable:hover .circle {
+    transform: scale(1.1);
+}
+
+.user-landing-page .circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 20px;
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+    border: 2px solid rgba(255,255,255,0.4);
+}
+
+/* ── STATUS CARDS ── */
+.user-landing-page .status-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin: 0 40px 28px 40px;
+}
+
+.user-landing-page .status {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.user-landing-page .status-left p {
+    font-size: 14px;
+    color: #6b7280;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.user-landing-page .status-left h2 {
+    font-size: 32px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.user-landing-page .status-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.user-landing-page .status-icon svg {
+    width: 22px;
+    height: 22px;
+}
+
+.user-landing-page .yellow {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.user-landing-page .blue-icon {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+.user-landing-page .green-icon {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+/* ── RECENT REQUESTS ── */
+.user-landing-page .recent {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    margin: 0 40px 40px 40px;
+}
+
+.user-landing-page .recent-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.user-landing-page .recent-header h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.user-landing-page .recent-header a {
+    font-size: 14px;
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.user-landing-page .recent-header a:hover {
+    text-decoration: underline;
+}
+
+.user-landing-page .request-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 12px;
+    border-top: 1px solid #f3f4f6;
+    transition: background-color 0.15s ease;
+}
+
+.user-landing-page .request-item:first-of-type {
+    border-top: none;
+}
+
+.user-landing-page .request-item:hover {
+    background-color: #f9fafb;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.user-landing-page .request-item .icon {
+    color: #9ca3af;
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f9fafb;
+    border-radius: 8px;
+}
+
+.user-landing-page .request-item .icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+.user-landing-page .request-item .details {
+    flex: 1;
+    min-width: 0;
+}
+
+.user-landing-page .request-item h4 {
+    margin: 0 0 4px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.user-landing-page .request-item p {
+    margin: 0 0 4px 0;
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.user-landing-page .request-item .details > span {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.user-landing-page .badge {
+    padding: 10px 40px;
+    border-radius: 16px;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: fit-content !important;
+    min-width: unset !important;
+    max-width: fit-content !important;
+    height: 30px;
+}
+
+.user-landing-page .badge.progress {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+.user-landing-page .badge.completed {
+    background: #d1fae5;
+    color: #059669;
+}
+
+/* ── SUBMIT REQUEST FORM ── */
+.user-landing-page .submit-request-container {
+    margin: 0 auto;
+    padding: 32px 40px 40px 40px;
+}
+
+.user-landing-page .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #6b7280;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 24px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.15s ease;
+}
+
+.user-landing-page .back-link:hover {
+    color: #374151;
+}
+
+.user-landing-page .back-link svg {
+    width: 18px;
+    height: 18px;
+}
+
+.user-landing-page .form-card {
+    background: white;
+    padding: 32px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    width: 700px;
+}
+
+.user-landing-page .form-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 28px;
+}
+
+.user-landing-page .form-group {
+    margin-bottom: 24px;
+}
+
+.user-landing-page .form-group label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+}
+
+.user-landing-page .required-star {
+    color: #ef4444;
+    font-weight: 700;
+}
+
+.user-landing-page .form-select,
+.user-landing-page .form-input,
+.user-landing-page .form-textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #1f2937;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    background: #ffffff;
+}
+
+.user-landing-page .form-select:focus,
+.user-landing-page .form-input:focus,
+.user-landing-page .form-textarea:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.user-landing-page .form-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+    padding-right: 40px;
+    cursor: pointer;
+}
+
+.user-landing-page .form-input::placeholder,
+.user-landing-page .form-textarea::placeholder {
+    color: #9ca3af;
+}
+
+.user-landing-page .form-textarea {
+    resize: vertical;
+    min-height: 120px;
+}
+
+/* ── ATTACHMENTS ── */
+.user-landing-page .attachments-area {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.user-landing-page .attachment-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #374151;
+    max-width: 200px;
+}
+
+.user-landing-page .attachment-item svg {
+    width: 16px;
+    height: 16px;
+    color: #6b7280;
+    flex-shrink: 0;
+}
+
+.user-landing-page .attachment-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    color: #374151;
+}
+
+.user-landing-page .remove-attachment {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    color: #9ca3af;
+    transition: color 0.15s ease;
+}
+
+.user-landing-page .remove-attachment:hover {
+    color: #ef4444;
+}
+
+.user-landing-page .remove-attachment svg {
+    width: 14px;
+    height: 14px;
+    color: inherit;
+}
+
+.user-landing-page .add-file-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 135px;
+    height: 135px;
+    border: 2px dashed #d1d5db;
+    border-radius: 10px;
+    background: transparent;
+    cursor: pointer;
+    font-size: 13px;
+    color: #6b7280;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-weight: 500;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.user-landing-page .add-file-btn:hover {
+    border-color: #2563eb;
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+.user-landing-page .add-file-btn svg {
+    width: 28px;
+    height: 28px;
+    stroke: currentColor;
+}
+
+.user-landing-page .attachment-hint {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-top: 8px;
+    font-style: italic;
+}
+
+/* ── FORM ACTIONS ── */
+.user-landing-page .form-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 32px;
+}
+
+.user-landing-page .btn-submit {
+    flex: 1;
+    padding: 12px 24px;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.user-landing-page .btn-submit:hover {
+    background: #1d4ed8;
+}
+
+.user-landing-page .btn-submit:active {
+    transform: scale(0.98);
+}
+
+.user-landing-page .btn-cancel {
+    padding: 12px 24px;
+    background: transparent;
+    color: #6b7280;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.user-landing-page .btn-cancel:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
+    color: #374151;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1024px) {
+    .user-landing-page .sidebar {
+        width: 200px;
+    }
+
+    .user-landing-page .main {
+        margin-left: 200px;
+    }
+
+    .user-landing-page .action-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .user-landing-page .status-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .user-landing-page .submit-request-container {
+        padding: 24px 20px 40px 20px;
+    }
+
+    .user-landing-page .form-card {
+        padding: 24px;
+    }
+}
+
+@media (max-width: 768px) {
+    .user-landing-page .sidebar {
+        display: none;
+    }
+
+    .user-landing-page .main {
+        margin-left: 0;
+    }
+
+    .user-landing-page .welcome,
+    .user-landing-page .action-cards,
+    .user-landing-page .status-cards,
+    .user-landing-page .recent {
+        margin-left: 20px;
+        margin-right: 20px;
+    }
+
+    .user-landing-page .topbar {
+        padding: 16px 20px;
+    }
+}

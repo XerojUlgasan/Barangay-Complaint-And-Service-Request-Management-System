@@ -12,6 +12,9 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
+/* Enforce global app font for header */
+.header { font-family: var(--font-family); }
+
 .header-left {
   flex: 1;
 }
@@ -29,26 +32,12 @@
   gap: 1rem;
 }
 
-/* Account Dropdown */
-.account-dropdown {
-  position: relative;
-}
-
-.account-button {
+/* Account Info Display */
+.account-info {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.625rem 1rem;
-  background-color: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.account-button:hover {
-  background-color: #f3f4f6;
-  border-color: #d1d5db;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
 }
 
 .account-label {
@@ -65,86 +54,29 @@
   color: #1f2937;
 }
 
-.dropdown-icon {
-  color: #6b7280;
-  transition: transform 0.2s ease;
-}
-
-.account-button:hover .dropdown-icon {
-  transform: rotate(180deg);
-}
-
-/* Dropdown Menu */
-.dropdown-menu {
-  position: absolute;
-  top: calc(100% + 0.5rem);
-  right: 0;
-  background-color: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  min-width: 180px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  z-index: 200;
-  animation: slideDown 0.2s ease;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-0.5rem);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.dropdown-item {
-  width: 100%;
+/* Logout Icon Button */
+.logout-icon-btn {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  background: none;
-  border: none;
-  color: #6b7280;
-  font-size: 0.9375rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: left;
-}
-
-.dropdown-item:first-child {
-  border-radius: 7px 7px 0 0;
-}
-
-.dropdown-item:last-child {
-  border-radius: 0 0 7px 7px;
-}
-
-.dropdown-item:hover {
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
   background-color: #f9fafb;
-  color: #1f2937;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #6b7280;
+  transition: all 0.2s ease;
 }
 
-.dropdown-item.logout-item:hover {
+.logout-icon-btn:hover {
   background-color: #fee2e2;
+  border-color: #fecaca;
   color: #dc2626;
 }
 
-.dropdown-item svg {
-  flex-shrink: 0;
-}
 
-/* Dropdown Overlay */
-.dropdown-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 199;
-}
 
 /* Responsive Design */
 @media (max-width: 768px) {
