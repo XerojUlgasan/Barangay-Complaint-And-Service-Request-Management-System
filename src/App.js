@@ -32,6 +32,10 @@ import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
 import AdminRequests from "./pages/admin/AdminRequests";
 import AdminUsers from "./pages/admin/AdminUsers";
 
+
+//test
+import Home from "./pages/home";
+
 // Demo placeholder
 function UserPage() {
   return <div>User page (demo)</div>;
@@ -62,6 +66,7 @@ function App() {
         <Route path="/announcements" element={<UserLanding />} />
         <Route path="/submit"        element={<SubmitRequest />} />
         <Route path="/user"          element={<UserPage />} />
+        <Route path="/testingan"     element={<Home />} />
 
         {/* OFFICIAL PORTAL ROUTES */}
         <Route
