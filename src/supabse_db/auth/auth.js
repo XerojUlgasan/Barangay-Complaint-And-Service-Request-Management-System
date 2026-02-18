@@ -5,7 +5,7 @@ var member_id = null;
 // CHECK USER ROLE (resident, official, super_admin)
 export const checkUserRole = async (uid) => {
   const { data, error } = await supabase.rpc("get_user_role", {
-    uid: uid, // <-- make sure your SQL function has 'uid_input' as parameter
+    uid: uid,
   });
 
   if (error) {
@@ -14,7 +14,7 @@ export const checkUserRole = async (uid) => {
   }
 
   console.log("User role:", data);
-  return data; // Returns "resident", "official", or "super_admin"
+  return data;
 };
 
 // CHECK HOUSEHOLD MEMBER BEFORE REGISTRATION
@@ -23,7 +23,7 @@ export const checkHouseholdMember = async (
   firstname,
   lastname,
   middlename,
-  birthdate,
+  birthdate
 ) => {
   let query = supabase
     .from("sample_household_members_tbl")
@@ -42,7 +42,6 @@ export const checkHouseholdMember = async (
   const { data, error } = await query.maybeSingle();
 
   if (error) {
-    // ERROR
     console.log(error.message);
     return {
       success: false,
@@ -53,62 +52,110 @@ export const checkHouseholdMember = async (
   console.log("DATA FOUND : ", data);
 
   if (data == null) {
-    // NO DATA
     console.log("NO DATA FOUND");
     return {
       success: true,
       isExist: false,
-      is_activated: false,
+      isActivated: false,
     };
   }
 
-  if (data) {
-    // HAS DATA
-    member_id = data.id;
-    return {
-      success: true,
-      isExist: true,
-      isActivated: data.is_activated, // TRUE MEANS THAT THERE IS ALREADY A EMAIL CONNECTED TO IT!
-    };
+  // SAVE MEMBER ID
+  member_id = data.id;
+
+  if (data.is_activated) {
+    console.log("MEMBER ALREADY ACTIVATED (EMAIL ALREADY REGISTERED)");
   }
+
+  return {
+    success: true,
+    isExist: true,
+    isActivated: data.is_activated,
+  };
 };
 
-// SHOULD DO checkHouseholdMember() FIRST BEFORE REGISTRATION
+// REGISTER BY EMAIL
+// IMPORTANT: call checkHouseholdMember() first
 export const registerByEmail = async (email, password) => {
+  console.log("REGISTER ATTEMPT");
+  console.log("EMAIL:", email);
+  console.log("MEMBER ID:", member_id);
+
+  // 1. Check if member_id is valid
   if (!(await checkMemberId())) {
-    // IF NOT MEMBER ID
+    console.log("NO MEMBER IDENTIFIED");
     return {
       success: false,
       message: "Please identify household first.",
     };
   }
 
+  // 2. Check if this household member is already activated
+  const { data: memberData, error: memberError } = await supabase
+    .from("sample_household_members_tbl")
+    .select("is_activated")
+    .eq("id", member_id)
+    .single();
+
+  console.log("MEMBER STATUS:", memberData);
+
+  if (memberError) {
+    console.log("MEMBER CHECK ERROR:", memberError.message);
+    return {
+      success: false,
+      message: "Error checking member status.",
+    };
+  }
+
+  if (memberData.is_activated) {
+    console.log("REGISTRATION BLOCKED: MEMBER ALREADY HAS EMAIL");
+    return {
+      success: false,
+      message: "This household member is already registered.",
+    };
+  }
+
+  // 3. Try to register email in Supabase Auth
   const { data, error } = await supabase.auth.signUp({
     email: email,
     password: password,
   });
 
+  console.log("SIGNUP RESPONSE:", data);
+  console.log("SIGNUP ERROR:", error);
+
   if (error) {
-    console.log(error);
+    // Email already exists in Auth
+    if (
+      error.message?.toLowerCase().includes("already registered") ||
+      error.code === "user_already_exists"
+    ) {
+      console.log("EMAIL ALREADY REGISTERED IN AUTH");
+      return {
+        success: false,
+        message: "Email is already registered.",
+      };
+    }
+
     return {
       success: false,
       message: error.message,
     };
   }
 
-  if (data) {
-    console.log(data);
-    console.log(await supabase.auth.getUser());
+  console.log("OTP SENT TO EMAIL");
+  console.log(await supabase.auth.getUser());
 
-    return {
-      success: true,
-      message: "OTP is sent to your email",
-    };
-  }
+  return {
+    success: true,
+    message: "OTP is sent to your email",
+  };
 };
 
-// NOTE THAT IF IT RETURNED SUCCESS: FALSE, MEANS REGISTER AGAIN!
+// LOGIN
 export const loginByEmail = async (email, password) => {
+  console.log("LOGIN ATTEMPT:", email);
+
   const { data, error } = await supabase.auth.signInWithPassword({
     email: email,
     password: password,
@@ -128,7 +175,8 @@ export const loginByEmail = async (email, password) => {
         message: error.message,
       };
     }
-    console.log("LOGiN ERROR");
+
+    console.log("LOGIN ERROR");
     console.log(error.code);
     console.log(error.message);
   }
@@ -136,17 +184,14 @@ export const loginByEmail = async (email, password) => {
   if (data.user?.confirmed_at) {
     console.log(data);
     console.log("LOGGED IN");
-    
-    // CHECK USER ROLE AFTER LOGIN
+
     const userRole = await checkUserRole(data.user.id);
-    
-    // await bindAuthuidToResident(); // ETO ERROR NAKA DEFAULT KAPAG RESIDENT AUTO BIND YUNG UID
-    
+
     return {
       success: true,
       message: "Logged In Successfully",
       user: data.user,
-      role: userRole, // Returns "resident", "official", or "super_admin"
+      role: userRole,
     };
   }
 
@@ -158,8 +203,10 @@ export const loginByEmail = async (email, password) => {
   };
 };
 
-// LOG OUT
+// LOGOUT
 export const logout = async () => {
+  console.log("LOGOUT");
+
   const { data, error } = await supabase.auth.signOut();
 
   if (error) {
@@ -169,14 +216,19 @@ export const logout = async () => {
       message: error.message,
     };
   }
+
+  console.log("LOGGED OUT");
 };
 
-// FUNCTIONS BELOW IS FOR DEBUG PURPOSES
+// DEBUG FUNCTIONS
+
 const checkUser = async () => {
   console.log(await supabase.auth.getUser());
 };
 
 const checkMemberId = async () => {
+  console.log("CHECKING MEMBER ID:", member_id);
+
   const { data, error } = await supabase.rpc("check_member_id", {
     member_id_input: member_id,
   });
@@ -185,6 +237,8 @@ const checkMemberId = async () => {
     console.log(error.message);
     return false;
   }
+
+  console.log("CHECK MEMBER RPC RESULT:", data);
 
   if (data) {
     return true;
