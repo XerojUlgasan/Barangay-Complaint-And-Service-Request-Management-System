@@ -63,7 +63,7 @@ export const getRequests = async () => {
     .order("created_at", { ascending: false });
 
   if (!isAdmin) {
-    query = query.eq("user_id", userData.user.id);
+    query = query.eq("requester_id", userData.user.id);
   }
 
   const { data, error } = await query;
@@ -223,7 +223,7 @@ export const deleteRequest = async (requestId) => {
     .from("request_tbl")
     .delete()
     .eq("id", requestId)
-    .eq("user_id", userData.user.id);
+    .eq("requester_id", userData.user.id);
 
   if (error) {
     console.error("Error deleting request:", error);

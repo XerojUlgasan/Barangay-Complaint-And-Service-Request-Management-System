@@ -12,6 +12,20 @@ export const getAssignedComplaints = async () => {
     return;
   }
 };
+
+export const getAssignedRequests = async () => {
+  const { data, error } = await supabase.from("request_tbl").select("*") .eq("assigned_official_id", (await supabase.auth.getUser()).data.user.id ); // Replace with actual official ID
+  if (error) {
+    console.log(error);
+    return;
+  }
+
+  if (data) {
+    console.log(data);
+    return;
+  }
+};
+
 export const getOfficialProfile = async () => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
 

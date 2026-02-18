@@ -54,6 +54,7 @@ import {
   getOfficialById,
   updateOfficialRole,
   getAssignedComplaints,
+  getAssignedRequests,
 } from "../supabse_db/official/official";
 
 const Home = () => {
@@ -406,7 +407,16 @@ const Home = () => {
       >
         Get Assigned Complaints GOODS
       </button>
+          <button
+        onClick={async () => {
+          const result = await getAssignedRequests();
+          console.log("GET ASSIGNED REQUESTS:", result);
+        }}
+      >
+        Get Assigned Requests
+      </button>
     
+
     </div>
 
 
