@@ -1,12 +1,71 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getRequests } from '../supabse_db/request/request';
+import supabase from '../supabse_db/supabase_client'; // adjust path if needed
 import './userlanding.css';
 
 const UserLanding = () => {
   const navigate = useNavigate();
 
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState('');
+
+  useEffect(() => {
+    const fetchData = async () => {
+      // Get authenticated user
+      const { data: userData } = await supabase.auth.getUser();
+
+      if (userData?.user) {
+        // Fetch member name from household members table
+        const { data: memberData } = await supabase
+          .from('sample_household_members_tbl')
+          .select('firstname, lastname, middlename')
+          .eq('auth_uid', userData.user.id)
+          .single();
+
+        if (memberData) {
+          const fullName = [memberData.firstname, memberData.middlename, memberData.lastname]
+            .filter(Boolean)
+            .join(' ');
+          setUserName(fullName);
+        }
+      }
+
+      // Fetch requests
+      const result = await getRequests();
+      if (result.success) {
+        setRequests(result.data);
+      }
+
+      setLoading(false);
+    };
+
+    fetchData();
+  }, []);
+
   const handleBack = () => {
     navigate(-1);
+  };
+
+  const pendingCount    = requests.filter(r => r.request_status === 'Pending').length;
+  const inProgressCount = requests.filter(r => r.request_status === 'In Progress').length;
+  const completedCount  = requests.filter(r => r.request_status === 'Completed').length;
+
+  const recentRequests = requests.slice(0, 3);
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric'
+    });
+  };
+
+  const getBadgeClass = (status) => {
+    if (status === 'Completed') return 'badge completed';
+    if (status === 'In Progress') return 'badge progress';
+    if (status === 'Pending') return 'badge pending';
+    return 'badge';
   };
 
   return (
@@ -62,20 +121,20 @@ const UserLanding = () => {
             <h3>Dashboard</h3>
             <div className="user">
               <div className="user-text">
-                <strong>Juan Dela Cruz</strong>
+                <strong>{userName || 'Loading...'}</strong>
                 <span>Resident</span>
               </div>
-           <button onClick={handleBack} className="back-button" title="Go back">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M5 12h14M12 5l7 7-7 7"/>
-  </svg>
-</button>
+              <button onClick={handleBack} className="back-button" title="Go back">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </button>
             </div>
           </div>
 
           {/* WELCOME */}
           <div className="welcome">
-            <h1>Welcome, Juan Dela Cruz!</h1>
+            <h1>Welcome, {userName || '...'}!</h1>
             <p>Manage your barangay services and requests</p>
           </div>
 
@@ -102,7 +161,7 @@ const UserLanding = () => {
             <div className="status">
               <div className="status-left">
                 <p>Pending</p>
-                <h2>0</h2>
+                <h2>{loading ? '...' : pendingCount}</h2>
               </div>
               <div className="status-icon yellow">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -114,16 +173,14 @@ const UserLanding = () => {
             <div className="status">
               <div className="status-left">
                 <p>In Progress</p>
-                <h2>1</h2>
+                <h2>{loading ? '...' : inProgressCount}</h2>
               </div>
-              <div className="status-icon blue-icon">
-              !
-              </div>
+              <div className="status-icon blue-icon">!</div>
             </div>
             <div className="status">
               <div className="status-left">
                 <p>Completed</p>
-                <h2>1</h2>
+                <h2>{loading ? '...' : completedCount}</h2>
               </div>
               <div className="status-icon green-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -141,37 +198,31 @@ const UserLanding = () => {
               <a href="/requests">View all</a>
             </div>
 
-            <div className="request-item">
-              <div className="icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <path d="M6 2H14L20 8V22H6V2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-                  <path d="M14 2V8H20" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-                  <path d="M9 13H15M9 17H15" stroke="currentColor" strokeLinecap="round" strokeWidth="1.5"/>
-                </svg>
-              </div>
-              <div className="details">
-                <h4>Certificate of Indigency Request</h4>
-                <p>Need certificate for medical assistance</p>
-                <span>Feb 6, 2026</span>
-              </div>
-              <span className="badge progress">In Progress</span>
-            </div>
-
-            <div className="request-item">
-              <div className="icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <path d="M6 2H14L20 8V22H6V2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-                  <path d="M14 2V8H20" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-                  <path d="M9 13H15M9 17H15" stroke="currentColor" strokeLinecap="round" strokeWidth="1.5"/>
-                </svg>
-              </div>
-              <div className="details">
-                <h4>Barangay Clearance Request</h4>
-                <p>Needed for job application</p>
-                <span>Feb 3, 2026</span>
-              </div>
-              <span className="badge completed">Completed</span>
-            </div>
+            {loading ? (
+              <p style={{ padding: '16px', color: '#888' }}>Loading requests...</p>
+            ) : recentRequests.length === 0 ? (
+              <p style={{ padding: '16px', color: '#888' }}>No requests yet.</p>
+            ) : (
+              recentRequests.map((req) => (
+                <div className="request-item" key={req.id}>
+                  <div className="icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                      <path d="M6 2H14L20 8V22H6V2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+                      <path d="M14 2V8H20" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+                      <path d="M9 13H15M9 17H15" stroke="currentColor" strokeLinecap="round" strokeWidth="1.5"/>
+                    </svg>
+                  </div>
+                  <div className="details">
+                    <h4>{req.subject}</h4>
+                    <p>{req.description}</p>
+                    <span>{formatDate(req.created_at)}</span>
+                  </div>
+                  <span className={getBadgeClass(req.request_status)}>
+                    {req.request_status}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
 
         </main>
