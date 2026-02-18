@@ -143,8 +143,7 @@ const Home = () => {
           console.log("GET OFFICIAL PROFILE:", result);
         }}
       >
-        Get Official Profile GOODS OERO USING OFFICAL PROFILE NUNG NAKA LOGIN
-        LANG ADD (IF SUPER ADMIN, DAPAT GET SPECIFIC OFFICIAL USING ID)
+        Get Official Profile GOODS 
       </button>
       <h2>COMPLAINTS</h2>
       <button 
@@ -173,7 +172,7 @@ const Home = () => {
       </button>
       <button
         onClick={async () => {
-          const result = await getComplaintById(14);
+          const result = await getComplaintById(26);
           console.log("GET COMPLAINT BY ID:", result);
         }}
       >
@@ -189,12 +188,12 @@ const Home = () => {
       </button>
       <button
         onClick={async () => {
-          const result = await getComplaintHistory(14);
+          const result = await getComplaintHistory(26);
           console.log("GET COMPLAINT HISTORY:", result);
         }}
       >
         Get Complaint #1 History NOT GOODS (NOT RECORDING HISTORY MAYBE DUE TO
-        TRIGGER)
+        TRIGGER) -gets history but showing on all roles
       </button>
 
       <h2>REQUESTS</h2>
@@ -266,7 +265,7 @@ const Home = () => {
             <button
         onClick={async () => {
           const result = await updateComplaintStatus(
-            14,
+            26,
             "resolved",
             "Issue resolved",
             "low",
