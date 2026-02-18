@@ -179,38 +179,6 @@ export const updateRequestStatus = async (
   return { success: true, message: "Request updated successfully" };
 };
 
-export const assignRequestToOfficial = async (requestId, officialId) => {
-  const { data: userData, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !userData || !userData.user) {
-    return { success: false, message: "Not authenticated" };
-  }
-
-  const { data: officialData } = await supabase
-    .from("official_tbl")
-    .select("id")
-    .eq("id", userData.user.id)
-    .single();
-
-  if (!officialData) {
-    return { success: false, message: "Only officials can assign requests" };
-  }
-
-  const { error } = await supabase
-    .from("request_tbl")
-    .update({
-      assigned_official_id: officialId,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", requestId);
-
-  if (error) {
-    console.error("Error assigning request:", error);
-    return { success: false, message: "Failed to assign request" };
-  }
-
-  return { success: true, message: "Request assigned successfully" };
-};
 
 export const deleteRequest = async (requestId) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
@@ -262,34 +230,3 @@ export const getRequestHistory = async (requestId) => {
   return { success: true, data: enriched };
 };
 
-export const insertRequestHistory = async (
-  requestId,
-  request_status,
-  remarks,
-) => {
-  const { data: userData, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !userData || !userData.user) {
-    return { success: false, message: "Not authenticated" };
-  }
-
-  const { data: officialData } = await supabase
-    .from("official_tbl")
-    .select("id")
-    .eq("id", userData.user.id)
-    .single();
-
-  const { error } = await supabase.from("request_history_tbl").insert({
-    request_id: requestId,
-    request_status: request_status,
-    remarks: remarks,
-    assigned_official_id: officialData ? userData.user.id : null,
-  });
-
-  if (error) {
-    console.error("Error inserting request history:", error);
-    return { success: false, message: "Failed to insert request history" };
-  }
-
-  return { success: true, message: "Request history recorded" };
-};

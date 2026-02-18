@@ -26,85 +26,84 @@ export const getAssignedRequests = async () => {
   }
 };
 
-export const getOfficialProfile = async () => {
+
+export const updateRequestStatus = async (
+  requestId,
+  status,
+  remarks = null,
+) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
 
   if (authError || !userData || !userData.user) {
     return { success: false, message: "Not authenticated" };
   }
 
-  const { data, error } = await supabase
+  const { data: officialData } = await supabase
     .from("official_tbl")
-    .select("*")
+    .select("auth_uid")
     .eq("auth_uid", userData.user.id)
     .single();
 
-  if (error) {
-    console.error("Official profile error:", error);
-    return { success: false, message: "Official profile not found" };
-  }
-
-  return { success: true, data };
-};
-
-export const getAllOfficials = async () => {
-  const { data, error } = await supabase
-    .from("official_tbl")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error("Error fetching officials:", error);
-    return { success: false, message: "Failed to fetch officials" };
-  }
-
-  return { success: true, data };
-};
-
-export const getOfficialById = async (officialId) => {
-  const { data, error } = await supabase
-    .from("official_tbl")
-    .select("*")
-    .eq("id", officialId)
-    .single();
-
-  if (error) {
-    console.error("Error fetching official:", error);
-    return { success: false, message: "Failed to fetch official" };
-  }
-
-  return { success: true, data };
-};
-
-export const updateOfficialRole = async (officialId, role) => {
-  const { data: userData, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !userData || !userData.user) {
-    return { success: false, message: "Not authenticated" };
-  }
-
-  const { data: superadminData } = await supabase
-    .from("superadmin_tbl")
-    .select("id")
-    .eq("auth_uid", userData.user.id)
-    .single();
-
-  if (!superadminData) {
+  if (!officialData) {
     return {
       success: false,
-      message: "Only superadmins can update official roles",
+      message: "Only officials can update request status",
     };
   }
 
   const { error } = await supabase
-    .from("official_tbl")
-    .update({ role: role })
-    .eq("id", officialId);
+    .from("request_tbl")
+    .update({
+      request_status: status,
+      remarks: remarks,
+      assigned_official_id: userData.user.id,
+      updated_at: new Date().toISOString(),
+      updated_by: userData.user.id,
+    })
+    .eq("id", requestId);
 
   if (error) {
-    console.error("Error updating official role:", error);
-    return { success: false, message: "Failed to update official role" };
+    console.error("Error updating request:", error);
+    return { success: false, message: "Failed to update request" };
   }
 
-  return { success: true, message: "Official role updated successfully" };
+  return { success: true, message: "Request updated successfully" };
+};
+
+export const updateComplaintStatus = async (complaintId, status, remarks = null, priority_level = null) => {
+  const { data: userData, error: authError } = await supabase.auth.getUser();
+  
+  if (authError || !userData || !userData.user) {
+    return { success: false, message: "Not authenticated" };
+  }
+
+  const { data: officialData } = await supabase
+    .from("official_tbl")
+    .select("id")
+    .eq("auth_uid", userData.user.id)
+    .single();
+
+  if (!officialData) {
+    return { success: false, message: "Only officials can update complaint status" };
+  }
+
+  const { error } = await supabase
+    .from("complaint_tbl")
+    .update({
+      status: status,
+      remarks: remarks,
+      priority_level: priority_level,
+      updated_by: userData.user.id,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", complaintId)
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("Error updating complaint:", error);
+    return { success: false, message: "Failed to update complaint" };
+  }
+
+  return { success: true, message: "Complaint updated successfully" };
 };

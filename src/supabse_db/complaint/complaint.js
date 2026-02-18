@@ -167,41 +167,6 @@ export const updateComplaintStatus = async (complaintId, status, remarks = null,
   return { success: true, message: "Complaint updated successfully" };
 };
 
-export const assignComplaintToOfficial = async (complaintId, officialAuthUid) => {
-  const { data: userData, error: authError } = await supabase.auth.getUser();
-  
-  if (authError || !userData || !userData.user) {
-    return { success: false, message: "Not authenticated" };
-  }
-
-  const { data: officialData } = await supabase
-    .from("official_tbl")
-    .select("id")
-    .eq("auth_uid", userData.user.id)
-    .single();
-
-  if (!officialData) {
-    return { success: false, message: "Only officials can assign complaints" };
-  }
-
-  const { error } = await supabase
-    .from("complaint_tbl")
-    .update({
-      assigned_official_id: officialAuthUid,
-      updated_at: new Date().toISOString()
-    })
-    .eq("id", complaintId)
-    .select("id")
-    .single();
-
-  if (error) {
-    console.error("Error assigning complaint:", error);
-    return { success: false, message: "Failed to assign complaint" };
-  }
-
-  return { success: true, message: "Complaint assigned successfully" };
-};
-
 export const deleteComplaint = async (complaintId) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
   
@@ -258,28 +223,3 @@ export const getComplaintHistory = async (complaintId) => {
   return { success: true, data: enriched };
 };
 
-export const insertComplaintHistory = async (complaintId, status, priority_level, remarks) => {
-  const { data: userData, error: authError } = await supabase.auth.getUser();
-  
-  if (authError || !userData || !userData.user) {
-    return { success: false, message: "Not authenticated" };
-  }
-
-  const { error } = await supabase
-    .from("complaint_history_tbl")
-    .insert({
-      complaint_id: complaintId,
-      status: status,
-      priority_level: priority_level,
-      remarks: remarks
-    })
-    .select("id")
-    .single();
-
-  if (error) {
-    console.error("Error inserting complaint history:", error);
-    return { success: false, message: "Failed to insert complaint history" };
-  }
-
-  return { success: true, message: "Complaint history recorded" };
-};

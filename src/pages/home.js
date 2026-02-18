@@ -20,44 +20,35 @@ import {
   insertComplaint,
   getComplaints,
   getComplaintById,
-  updateComplaintStatus,
-  assignComplaintToOfficial,
   deleteComplaint,
   getComplaintHistory,
-  insertComplaintHistory,
 } from "../supabse_db/complaint/complaint";
 
 import {
   insertRequest,
   getRequests,
   getRequestById,
-  updateRequestStatus,
-  assignRequestToOfficial,
   deleteRequest,
   getRequestHistory,
-  insertRequestHistory,
 } from "../supabse_db/request/request";
 
 import {
-  getAllHouseholds,
-  getHouseholdById,
-  createHousehold,
-  deleteHousehold,
-  getAllHouseholdMembers,
-  getHouseholdMembers,
-  getHouseholdMemberById,
-  addHouseholdMember,
-  updateHouseholdMember,
-  deleteHouseholdMember,
-} from "../supabse_db/household/household";
+    getAllOfficials,
+    getOfficialById,
+    updateOfficialRole,
+  } from "../supabse_db/superadmin/superadmin";     
 
 import {
-  getOfficialProfile,
-  getAllOfficials,
-  getOfficialById,
-  updateOfficialRole,
+    getOfficialProfile,
+
+} from "../supabse_db/profile/profile";
+
+import {
   getAssignedComplaints,
   getAssignedRequests,
+  updateComplaintStatus,
+  updateRequestStatus,
+
 } from "../supabse_db/official/official";
 
 const Home = () => {
@@ -145,9 +136,18 @@ const Home = () => {
       </button>
 
       <button onClick={() => logout()}>Logout</button>
-
-      <h2>COMPLAINTS</h2>
+      <h2>PROFILE</h2>
       <button
+        onClick={async () => {
+          const result = await getOfficialProfile();
+          console.log("GET OFFICIAL PROFILE:", result);
+        }}
+      >
+        Get Official Profile GOODS OERO USING OFFICAL PROFILE NUNG NAKA LOGIN
+        LANG ADD (IF SUPER ADMIN, DAPAT GET SPECIFIC OFFICIAL USING ID)
+      </button>
+      <h2>COMPLAINTS</h2>
+      <button 
         onClick={async () => {
           const result = await insertComplaint(
             "Noise",
@@ -181,30 +181,6 @@ const Home = () => {
       </button>
       <button
         onClick={async () => {
-          const result = await updateComplaintStatus(
-            14,
-            "resolved",
-            "Issue resolved",
-            "low",
-          );
-          console.log("UPDATE COMPLAINT STATUS:", result);
-        }}
-      >
-        Update Complaint #1 GOODS Status TODO : sa database: add status enum
-      </button>
-      <button
-        onClick={async () => {
-          const result = await assignComplaintToOfficial(
-            14,
-            "official-uuid-here",
-          );
-          console.log("ASSIGN COMPLAINT:", result);
-        }}
-      >
-        Assign Complaint #1 TODO: ni xeroj sa backend, automatically
-      </button>
-      <button
-        onClick={async () => {
           const result = await deleteComplaint(14);
           console.log("DELETE COMPLAINT:", result);
         }}
@@ -219,19 +195,6 @@ const Home = () => {
       >
         Get Complaint #1 History NOT GOODS (NOT RECORDING HISTORY MAYBE DUE TO
         TRIGGER)
-      </button>
-      <button
-        onClick={async () => {
-          const result = await insertComplaintHistory(
-            1,
-            "pending",
-            "medium",
-            "Initial submission",
-          );
-          console.log("INSERT COMPLAINT HISTORY:", result);
-        }}
-      >
-        Insert Complaint History NOT GOODS (AALISIN SINCE AUTOMATIC)
       </button>
 
       <h2>REQUESTS</h2>
@@ -267,26 +230,6 @@ const Home = () => {
       </button>
       <button
         onClick={async () => {
-          const result = await updateRequestStatus(
-            1,
-            "approved",
-            "Approved by official",
-          );
-          console.log("UPDATE REQUEST STATUS:", result);
-        }}
-      >
-        Update Request #1 Status GOODS TODO : FIX UPDATES HISTORY BY XEROJ
-      </button>
-      <button
-        onClick={async () => {
-          const result = await assignRequestToOfficial(1, "official-uuid-here");
-          console.log("ASSIGN REQUEST:", result);
-        }}
-      >
-        Assign Request #1 REMOVE (AUTOMATIC ASSIGNED BY XEROJ) TODO : BY XEROJ
-      </button>
-      <button
-        onClick={async () => {
           const result = await deleteRequest(4);
           console.log("DELETE REQUEST:", result);
         }}
@@ -302,21 +245,61 @@ const Home = () => {
       >
         Get Request #1 History NOT CHECKED
       </button>
+
+      <h2>OFFICIALS</h2>
       <button
         onClick={async () => {
-          const result = await insertRequestHistory(
+          const result = await getAssignedComplaints();
+          console.log("GET ASSIGNED COMPLAINTS:", result);
+        }}
+      >
+        Get Assigned Complaints GOODS
+      </button>
+      <button
+        onClick={async () => {
+          const result = await getAssignedRequests();
+          console.log("GET ASSIGNED REQUESTS:", result);
+        }}
+      >
+        Get Assigned Requests
+      </button>
+            <button
+        onClick={async () => {
+          const result = await updateComplaintStatus(
+            14,
+            "resolved",
+            "Issue resolved",
+            "low",
+          );
+          console.log("UPDATE COMPLAINT STATUS:", result);
+        }}
+      >
+        Update Complaint #1 GOODS Status TODO : sa database: add status enum
+      </button>
+              <button
+        onClick={async () => {
+          const result = await updateRequestStatus(
             1,
             "approved",
             "Approved by official",
           );
-          console.log("INSERT REQUEST HISTORY:", result);
+          console.log("UPDATE REQUEST STATUS:", result);
         }}
       >
-        Insert Request History NOT GOODS, REMOVED (AUTOMATICALLY upDATES hISTORY
-        ON CHANGE) TODO : DIX BY XEROJ
+        Update Request #1 Status GOODS TODO : FIX UPDATES HISTORY BY XEROJ
       </button>
 
-      <h2>ANNOUNCEMENTS</h2>
+        <h2>SUPERADMIN</h2>
+              <button
+        onClick={async () => {
+          const result = await getAllOfficials();
+          console.log("GET ALL OFFICIALS:", result);
+        }}
+      >
+        Get All Officials GOODS
+      </button>
+
+            <h2>ANNOUNCEMENTS</h2>
       <button
         onClick={async () => {
           const result = await postAnnouncement(
@@ -347,99 +330,29 @@ const Home = () => {
         Get Announcement #1 GOODS
       </button>
 
-      <h2>HOUSEHOLDS</h2>
-      <button
+        <button
         onClick={async () => {
-          const result = await getAllHouseholds();
-          console.log("GET ALL HOUSEHOLDS:", result);
-        }}
-      >
-        Get All Households GOODS
-      </button>
-      <button
-        onClick={async () => {
-          const result = await getHouseholdById(
-            "f09c62c5-5dc1-4eab-87a1-3e74dc7fbc81",
+          const result = await updateAnnouncement(
+            1363,
+            "general",
+            "high",
+            "Updated Title",
+            "Updated Content",
           );
-          console.log("GET HOUSEHOLD BY ID:", result);
+          console.log("UPDATE ANNOUNCEMENT:", result);
         }}
       >
-        Get Household by ID GOODS
+        Update Announcement #1 
       </button>
       <button
         onClick={async () => {
-          const result = await createHousehold();
-          console.log("CREATE HOUSEHOLD:", result);
+          const result = await deleteAnnouncement(1363);
+          console.log("DELETE ANNOUNCEMENT:", result);
         }}
       >
-        Create Household GOODS
+        Delete Announcement #1 
       </button>
 
-      <h2>HOUSEHOLD MEMBERS</h2>
-      <button
-        onClick={async () => {
-          const result = await getAllHouseholdMembers();
-          console.log("GET ALL HOUSEHOLD MEMBERS:", result);
-        }}
-      >
-        Get All Household Members GOODS
-      </button>
-      <button
-        onClick={async () => {
-          const result = await getHouseholdMembers(
-            "f09c62c5-5dc1-4eab-87a1-3e74dc7fbc81",
-          );
-          console.log("GET HOUSEHOLD MEMBERS:", result);
-        }}
-      >
-        Get Household by ID NO ACCESS (MAYBR DUE TO RLS)
-      </button>
-      <button
-        onClick={async () => {
-          const result = await getHouseholdMemberById(
-            "e3d38c4e-81fa-4213-b742-54f2b26c804c",
-          );
-          console.log("GET HOUSEHOLD MEMBER BY ID:", result);
-        }}
-      >
-        Get Household Member by ID GOODS PERO BAKIT WALANG ACCESS (MAYBE SA RLS)
-        TODO BY XEOJ
-      </button>
-
-      <h2>OFFICIALS</h2>
-      <button
-        onClick={async () => {
-          const result = await getOfficialProfile();
-          console.log("GET OFFICIAL PROFILE:", result);
-        }}
-      >
-        Get Official Profile GOODS OERO USING OFFICAL PROFILE NUNG NAKA LOGIN
-        LANG ADD (IF SUPER ADMIN, DAPAT GET SPECIFIC OFFICIAL USING ID)
-      </button>
-      <button
-        onClick={async () => {
-          const result = await getAllOfficials();
-          console.log("GET ALL OFFICIALS:", result);
-        }}
-      >
-        Get All Officials GOODS
-      </button>
-      <button
-        onClick={async () => {
-          const result = await getAssignedComplaints();
-          console.log("GET ASSIGNED COMPLAINTS:", result);
-        }}
-      >
-        Get Assigned Complaints GOODS
-      </button>
-      <button
-        onClick={async () => {
-          const result = await getAssignedRequests();
-          console.log("GET ASSIGNED REQUESTS:", result);
-        }}
-      >
-        Get Assigned Requests
-      </button>
     </div>
   );
 };
