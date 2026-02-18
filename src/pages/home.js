@@ -1,4 +1,4 @@
-import supabase from "../supabase_client";
+import supabase from "../supabse_db/supabase_client";
 
 import {
   postAnnouncement,
@@ -97,17 +97,14 @@ const Home = () => {
         LOGIN BY SUPER ADMIN
       </button>
 
-      
       <button
         onClick={() => loginByEmail("xerojulgasan@gmail.com", "password123")}
       >
-        Login by official 
+        Login by official
       </button>
 
-            <button
-        onClick={() => loginByEmail("asd@gmail.com", "password123")}
-      >
-        Login by official2 
+      <button onClick={() => loginByEmail("asd@gmail.com", "password123")}>
+        Login by official2
       </button>
 
       <button
@@ -117,39 +114,35 @@ const Home = () => {
       >
         Login by resident
       </button>
-<button
-        onClick={() =>
-          loginByEmail("prominenplayz@gmail.com", "qwe123")
-        }
-      >
+      <button onClick={() => loginByEmail("prominenplayz@gmail.com", "qwe123")}>
         Login by resident2
       </button>
-        <button
-  onClick={async () => {
-    console.log("CHECK USER ROLE BUTTON CLICKED");
+      <button
+        onClick={async () => {
+          console.log("CHECK USER ROLE BUTTON CLICKED");
 
-    // 1. Get current user
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(); // <-- fix typo here
+          // 1. Get current user
+          const {
+            data: { user },
+            error,
+          } = await supabase.auth.getUser(); // <-- fix typo here
 
-    console.log("CURRENT USER:", user);
-    console.log("GET USER ERROR:", error);
+          console.log("CURRENT USER:", user);
+          console.log("GET USER ERROR:", error);
 
-    if (!user) {
-      console.log("No user logged in");
-      return;
-    }
+          if (!user) {
+            console.log("No user logged in");
+            return;
+          }
 
-    // 2. Pass user.id to your function
-    const result = await checkUserRole(user.id);
+          // 2. Pass user.id to your function
+          const result = await checkUserRole(user.id);
 
-    console.log("Check user role:", result);
-  }}
->
-  Check User Role
-</button>
+          console.log("Check user role:", result);
+        }}
+      >
+        Check User Role
+      </button>
 
       <button onClick={() => logout()}>Logout</button>
 
@@ -165,7 +158,10 @@ const Home = () => {
           console.log("INSERT COMPLAINT:", result);
         }}
       >
-        Insert Complaint <font color="green"><b>GOODS</b></font>
+        Insert Complaint{" "}
+        <font color="green">
+          <b>GOODS</b>
+        </font>
       </button>
       <button
         onClick={async () => {
@@ -436,7 +432,7 @@ const Home = () => {
       >
         Get Assigned Complaints GOODS
       </button>
-          <button
+      <button
         onClick={async () => {
           const result = await getAssignedRequests();
           console.log("GET ASSIGNED REQUESTS:", result);
@@ -444,12 +440,7 @@ const Home = () => {
       >
         Get Assigned Requests
       </button>
-    
-
     </div>
-
-
-
   );
 };
 
