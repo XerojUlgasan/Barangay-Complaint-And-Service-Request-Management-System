@@ -11,7 +11,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { Calendar, CheckCircle2, Clock, AlertCircle, TrendingUp } from 'lucide-react';
+import { CheckCircle2, Clock, AlertCircle, TrendingUp } from 'lucide-react';
 import '../../styles/BarangayOfficial.css';
 
 const OfficialDashboard = () => {
@@ -186,13 +186,6 @@ const OfficialDashboard = () => {
               </div>
             ))}
           </div>
-        </div>
-
-        <div className="daily-schedule-card">
-          <Calendar size={24} color="#FFFFFF" />
-          <h3>Daily Schedule</h3>
-          <p>Don't forget to check all pending requests before the end of your shift today.</p>
-          <button className="schedule-button">View Full Schedule</button>
         </div>
       </div>
     </div>
