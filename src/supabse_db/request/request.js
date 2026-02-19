@@ -66,7 +66,7 @@ export const getRequests = async () => {
     .from("request_tbl")
     .select(`
       *,
-      member:sample_household_members_tbl (
+      member:sample_household_members_tbl!request_tbl_user_id_fkey (
         firstname,
         lastname,
         middlename
@@ -115,11 +115,24 @@ export const getRequestById = async (requestId) => {
 
   const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
 
+  // First check if request exists at all (without ownership filters)
+  const { data: requestExists } = await supabase
+    .from("request_tbl")
+    .select("id")
+    .eq("id", requestId)
+    .maybeSingle();
+
+  if (!requestExists) {
+    console.log("Request does not exist or you don't have access to it");
+    return { success: false, message: "Request does not exist or you don't have access to it" };
+  }
+
+  // Now check if user has access to this request
   let query = supabase
     .from("request_tbl")
     .select(`
       *,
-      member:sample_household_members_tbl (
+      member:sample_household_members_tbl!request_tbl_user_id_fkey (
         firstname,
         lastname,
         middlename
@@ -141,11 +154,13 @@ export const getRequestById = async (requestId) => {
 
   if (error) {
     console.error("Error fetching request:", error);
-    return { success: false, message: "Failed to fetch request" };
+    console.log("Request does not exist or you don't have access to it");
+    return { success: false, message: "Request does not exist or you don't have access to it" };
   }
 
   if (!data) {
-    return { success: false, message: "You dont own this request" };
+    console.log("Request does not exist or you don't have access to it");
+    return { success: false, message: "Request does not exist or you don't have access to it" };
   }
 
   return {
@@ -185,11 +200,13 @@ export const deleteRequest = async (requestId) => {
     .maybeSingle();
 
   if (!requestData) {
-    return { success: false, message: "Request does not exist" };
+    console.log("Request does not exist or you don't have access to it");
+    return { success: false, message: "Request does not exist or you don't have access to it" };
   }
 
   if (requestData.requester_id !== userData.user.id) {
-    return { success: false, message: "Request is not owned by the logged in resident" };
+    console.log("Request does not exist or you don't have access to it");
+    return { success: false, message: "Request does not exist or you don't have access to it" };
   }
 
   const { error } = await supabase
@@ -215,7 +232,19 @@ export const getRequestHistory = async (requestId) => {
 
   const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
 
-  // First verify user has access to this request
+  // First check if request exists at all (without ownership filters)
+  const { data: requestExists } = await supabase
+    .from("request_tbl")
+    .select("id")
+    .eq("id", requestId)
+    .maybeSingle();
+
+  if (!requestExists) {
+    console.log("Request does not exist or you don't have access to it");
+    return { success: false, message: "Request does not exist or you don't have access to it" };
+  }
+
+  // Now verify user has access to this request
   let accessQuery = supabase
     .from("request_tbl")
     .select("id, requester_id")
@@ -229,7 +258,8 @@ export const getRequestHistory = async (requestId) => {
   const { data: accessData } = await accessQuery.maybeSingle();
 
   if (!accessData) {
-    return { success: false, message: "You dont own this request" };
+    console.log("Request does not exist or you don't have access to it");
+    return { success: false, message: "Request does not exist or you don't have access to it" };
   }
 
   const { data, error } = await supabase

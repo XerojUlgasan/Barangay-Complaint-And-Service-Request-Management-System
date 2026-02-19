@@ -80,7 +80,7 @@ const Home = () => {
           registerByEmail("agustinernestocruz@gmail.com", "password123")
         }
       >
-        Register Email check if user is already registered
+        Register Email GOODS
       </button>
       <button
         onClick={() => loginByEmail("xeroj1342@gmail.com", "password123")}
@@ -177,19 +177,19 @@ const Home = () => {
           console.log("GET COMPLAINTS:", result);
         }}
       >
-        Get Complaints GOODS -kulang superadmin   
+        Get Complaints GOODS <font color="red"><b>-kulang superadmin</b></font>
       </button>
       <button
         onClick={async () => {
-          const result = await getComplaintById(30);
+          const result = await getComplaintById(44);
           console.log("GET COMPLAINT BY ID:", result);
         }}
       >
-        Get Complaint #1 GOODS - kulang superadmin
+        Get Complaint #1 GOODS <font color="red"><b>-kulang superadmin</b></font>
       </button>
       <button
         onClick={async () => {
-          const result = await deleteComplaint(30);
+          const result = await deleteComplaint(44);
           console.log("DELETE COMPLAINT:", result);
         }}
       >
@@ -197,11 +197,11 @@ const Home = () => {
       </button>
       <button
         onClick={async () => {
-          const result = await getComplaintHistory(30);
+          const result = await getComplaintHistory(44);
           console.log("GET COMPLAINT HISTORY:", result);
         }}
       >
-        Get Complaint #1 History GOODS -kulang superadmin
+        Get Complaint #1 History GOODS <font color="red"><b>-kulang superadmin</b></font>
       </button>
 
       <h2>REQUESTS</h2>
@@ -223,34 +223,31 @@ const Home = () => {
           console.log("GET REQUESTS:", result);
         }}
       >
-        Get Requests GOODS BY RESIDENT, OFFICIAL CANNOT SEE IT'S ASSIGNED
-        REQUESTS (NEED DEDICATED FUNCTION FOR GETTING ASSIGNED REQUEST TO
-        OFFICAL)
+        Get Requests GOODS <font color="red"><b>-kulang superadmin</b></font>
       </button>
       <button
         onClick={async () => {
-          const result = await getRequestById(34);
+          const result = await getRequestById(47);
           console.log("GET REQUEST BY ID:", result);
         }}
       >
-        Get Request #1 GOODS ADJUSTMENTS (NEEDS DEDICATED FUNCTION FOR OFFICIAL)
+        Get Request #1 GOODS <font color="red"><b>-kulang superadmin</b></font>
       </button>
       <button
         onClick={async () => {
-          const result = await deleteRequest(34);
+          const result = await deleteRequest(47);
           console.log("DELETE REQUEST:", result);
         }}
       >
-        Delete Request #1 NTO GOODS, ONLY RESIDENT ITSELF CAN DELETE HIT/HER
-        REQUEST, OFFICIAL CAN ONLY REJECTss
+        Delete Request #1 GOODS
       </button>
       <button
         onClick={async () => {
-          const result = await getRequestHistory(34);
+          const result = await getRequestHistory(47);
           console.log("GET REQUEST HISTORY:", result);
         }}
       >
-        Get Request #1 History NOT CHECKED
+        Get Request #1 History GOODS <font color="red"><b>-kulang superadmin</b></font>
       </button>
 
       <h2>OFFICIALS</h2>
@@ -286,7 +283,7 @@ const Home = () => {
               <button
         onClick={async () => {
           const result = await updateRequestStatus(
-            1,
+            46,
             "approved",
             "Approved by official",
           );
