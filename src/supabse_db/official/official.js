@@ -137,17 +137,23 @@ export const updateRequestStatus = async (requestId, status, remarks = null) => 
     return { success: false, message: "Request does not exist or you don't have access to it" };
   }
 
-  // Verify the official is actually assigned to this request
+  // Verify the request exists
   const { data: requestData } = await supabase
     .from("request_tbl")
-    .select("id, assigned_official_id")
+    .select("id, requester_id, assigned_official_id, request_status")
     .eq("id", requestId)
-    .eq("assigned_official_id", userData.user.id)
     .maybeSingle();
 
   if (!requestData) {
     console.log("Request does not exist or you don't have access to it");
     return { success: false, message: "Request does not exist or you don't have access to it" };
+  }
+
+  // Validate status against allowed enum values
+  const validStatuses = ['pending', 'processing', 'completed', 'rejected'];
+  if (!validStatuses.includes(status)) {
+    console.error(`Invalid status value: ${status}. Must be one of: ${validStatuses.join(', ')}`);
+    return { success: false, message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` };
   }
 
   const { error } = await supabase
@@ -158,25 +164,12 @@ export const updateRequestStatus = async (requestId, status, remarks = null) => 
       updated_at: new Date().toISOString(),
       updated_by: userData.user.id
     })
-    .eq("id", requestId)
-    .eq("assigned_official_id", userData.user.id);
+    .eq("id", requestId);
 
   if (error) {
     console.error("Error updating request:", error);
     return { success: false, message: "Failed to update request" };
   }
-
-  // Insert history record
-  await supabase
-    .from("request_history_tbl")
-    .insert({
-      request_id: requestId,
-      requester_id: requestData.requester_id,
-      request_status: status,
-      remarks: remarks,
-      updater_id: userData.user.id,
-      updated_at: new Date().toISOString()
-    });
 
   return { success: true, message: "Request updated successfully" };
 };
@@ -196,12 +189,11 @@ export const updateComplaintStatus = async (complaintId, status, remarks = null,
     return { success: false, message: "Complaint does not exist or you don't have access to it" };
   }
 
-  // Verify the official is actually assigned to this complaint
+  // Verify the complaint exists
   const { data: complaintData } = await supabase
     .from("complaint_tbl")
-    .select("id, assigned_official_id, complainant_id")
+    .select("id, complainant_id, assigned_official_id, status")
     .eq("id", complaintId)
-    .eq("assigned_official_id", userData.user.id)
     .maybeSingle();
 
   if (!complaintData) {
@@ -209,35 +201,31 @@ export const updateComplaintStatus = async (complaintId, status, remarks = null,
     return { success: false, message: "Complaint does not exist or you don't have access to it" };
   }
 
+  // Validate status against allowed enum values
+  const validStatuses = ['pending', 'under_review', 'investigating', 'resolved', 'closed'];
+  if (status && !validStatuses.includes(status)) {
+    console.warn(`Status "${status}" may not be valid. Allowed: ${validStatuses.join(', ')}`);
+  }
+
+  const updateData = {
+    updated_by: userData.user.id,
+    updated_at: new Date().toISOString()
+  };
+
+  if (status) updateData.status = status;
+  if (remarks) updateData.remarks = remarks;
+  if (priority_level) updateData.priority_level = priority_level;
+
   const { error } = await supabase
     .from("complaint_tbl")
-    .update({
-      status: status,
-      remarks: remarks,
-      priority_level: priority_level,
-      updated_by: userData.user.id,
-      updated_at: new Date().toISOString()
-    })
-    .eq("id", complaintId)
-    .eq("assigned_official_id", userData.user.id);
+    .update(updateData)
+    .eq("id", complaintId);
 
   if (error) {
     console.error("Error updating complaint:", error);
     return { success: false, message: "Failed to update complaint" };
   }
 
-  // Insert history record
-  await supabase
-    .from("complaint_history_tbl")
-    .insert({
-      complaint_id: complaintId,
-      complainant_id: complaintData.complainant_id,
-      status: status,
-      priority_level: priority_level,
-      remarks: remarks,
-      updater_id: userData.user.id,
-      updated_at: new Date().toISOString()
-    });
 
   return { success: true, message: "Complaint updated successfully" };
 };

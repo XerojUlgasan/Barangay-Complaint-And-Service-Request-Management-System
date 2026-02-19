@@ -35,7 +35,8 @@ import {
 import {
     getAllOfficials,
     getOfficialById,
-    updateOfficialRole,
+    getAllResidents,
+    getResidentById
   } from "../supabse_db/superadmin/superadmin";     
 
 import {
@@ -243,7 +244,7 @@ const Home = () => {
       </button>
       <button
         onClick={async () => {
-          const result = await getRequestHistory(47);
+          const result = await getRequestHistory(35);
           console.log("GET REQUEST HISTORY:", result);
         }}
       >
@@ -278,19 +279,19 @@ const Home = () => {
           console.log("UPDATE COMPLAINT STATUS:", result);
         }}
       >
-        Update Complaint #1 GOODS Status <font color="red"><b>-TODO sa database: add status enum</b></font>
+        Update Complaint #1 Status GOODS<font color="red"><b>-TODO sa database: add status enum</b></font>
       </button>
               <button
         onClick={async () => {
           const result = await updateRequestStatus(
             35,
-            "approved",
+            "completed",
             "Approved by official",
           );
           console.log("UPDATE REQUEST STATUS:", result);
         }}
       >
-        Update Request #1 Status GOODS TODO : FIX UPDATES HISTORY BY XEROJ
+        Update Request #1 Status GOODS
       </button>
 
         <h2>SUPERADMIN</h2>
@@ -301,6 +302,30 @@ const Home = () => {
         }}
       >
         Get All Officials GOODS
+      </button>
+      <button
+        onClick={async () => {
+          const result = await getOfficialById("f3409e4a-91f0-4a77-bb1c-64a8dba4ec5d");  
+          console.log("GET OFFICIAL BY ID:", result);
+        }}
+      >
+        Get Official #1 GOODS
+      </button>
+      <button
+        onClick={async () => {
+          const result = await getAllResidents();
+          console.log("GET ALL RESIDENTS:", result);
+        }}
+      >
+        Get All Residents GOODS 
+      </button>
+      <button
+        onClick={async () => {
+          const result = await getResidentById(1);
+          console.log("GET RESIDENT BY ID:", result);
+        }}
+      >
+        Get Resident #1 GOODS
       </button>
 
             <h2>ANNOUNCEMENTS</h2>
