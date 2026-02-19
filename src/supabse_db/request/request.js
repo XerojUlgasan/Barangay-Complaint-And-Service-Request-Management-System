@@ -1,11 +1,36 @@
 import supabase from "../supabase_client";
 
+// Helper function to check user role without causing 406 errors
+const checkUserRole = async (userId) => {
+  const { data: superadminData } = await supabase
+    .from("superadmin_tbl")
+    .select("id")
+    .eq("auth_uid", userId);
+  
+  const { data: officialData } = await supabase
+    .from("official_tbl")
+    .select("id")
+    .eq("auth_uid", userId);
+
+  return {
+    isSuperAdmin: superadminData && superadminData.length > 0,
+    isOfficial: officialData && officialData.length > 0
+  };
+};
+
 export const insertRequest = async (subj, desc, cert_type) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
   console.log(userData);
   if (authError || !userData || !userData.user) {
     console.log("No authenticated user found.");
     return { success: false, message: "Not authenticated" };
+  }
+
+  // Check if user is official or superadmin - they cannot insert requests
+  const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
+
+  if (isSuperAdmin || isOfficial) {
+    return { success: false, message: "Officials and superadmin cannot insert requests" };
   }
 
   const { data, error } = await supabase
@@ -35,20 +60,13 @@ export const getRequests = async () => {
     return { success: false, message: "Not authenticated" };
   }
 
-  const { data: officialData } = await supabase
-    .from("official_tbl")
-    .select("auth_uid")
-    .eq("auth_uid", userData.user.id)
-    .single();
-
-  const isAdmin = !!officialData;
+  const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
 
   let query = supabase
     .from("request_tbl")
-    .select(
-      `
+    .select(`
       *,
-      member:sample_household_members_tbl!request_tbl_user_id_fkey (
+      member:sample_household_members_tbl (
         firstname,
         lastname,
         middlename
@@ -58,11 +76,11 @@ export const getRequests = async () => {
         lastname,
         role
       )
-    `,
-    )
+    `)
     .order("created_at", { ascending: false });
 
-  if (!isAdmin) {
+  if (!isSuperAdmin && !isOfficial) {
+    // Residents can only view their own requests
     query = query.eq("requester_id", userData.user.id);
   }
 
@@ -95,12 +113,13 @@ export const getRequestById = async (requestId) => {
     return { success: false, message: "Not authenticated" };
   }
 
-  const { data, error } = await supabase
+  const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
+
+  let query = supabase
     .from("request_tbl")
-    .select(
-      `
+    .select(`
       *,
-      member:sample_household_members_tbl!request_tbl_user_id_fkey (
+      member:sample_household_members_tbl (
         firstname,
         lastname,
         middlename
@@ -110,14 +129,23 @@ export const getRequestById = async (requestId) => {
         lastname,
         role
       )
-    `,
-    )
-    .eq("id", requestId)
-    .single();
+    `)
+    .eq("id", requestId);
+
+  if (!isSuperAdmin && !isOfficial) {
+    // Residents can only view their own requests
+    query = query.eq("requester_id", userData.user.id);
+  }
+
+  const { data, error } = await query.single();
 
   if (error) {
     console.error("Error fetching request:", error);
     return { success: false, message: "Failed to fetch request" };
+  }
+
+  if (!data) {
+    return { success: false, message: "You dont own this request" };
   }
 
   return {
@@ -136,55 +164,32 @@ export const getRequestById = async (requestId) => {
   };
 };
 
-export const updateRequestStatus = async (
-  requestId,
-  status,
-  remarks = null,
-) => {
-  const { data: userData, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !userData || !userData.user) {
-    return { success: false, message: "Not authenticated" };
-  }
-
-  const { data: officialData } = await supabase
-    .from("official_tbl")
-    .select("auth_uid")
-    .eq("auth_uid", userData.user.id)
-    .single();
-
-  if (!officialData) {
-    return {
-      success: false,
-      message: "Only officials can update request status",
-    };
-  }
-
-  const { error } = await supabase
-    .from("request_tbl")
-    .update({
-      request_status: status,
-      remarks: remarks,
-      assigned_official_id: userData.user.id,
-      updated_at: new Date().toISOString(),
-      updated_by: userData.user.id,
-    })
-    .eq("id", requestId);
-
-  if (error) {
-    console.error("Error updating request:", error);
-    return { success: false, message: "Failed to update request" };
-  }
-
-  return { success: true, message: "Request updated successfully" };
-};
-
-
 export const deleteRequest = async (requestId) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
 
   if (authError || !userData || !userData.user) {
     return { success: false, message: "Not authenticated" };
+  }
+
+  const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
+
+  if (isSuperAdmin || isOfficial) {
+    return { success: false, message: "Officials and superadmin cant delete requests" };
+  }
+
+  // Check if request exists and is owned by the resident
+  const { data: requestData } = await supabase
+    .from("request_tbl")
+    .select("id, requester_id")
+    .eq("id", requestId)
+    .maybeSingle();
+
+  if (!requestData) {
+    return { success: false, message: "Request does not exist" };
+  }
+
+  if (requestData.requester_id !== userData.user.id) {
+    return { success: false, message: "Request is not owned by the logged in resident" };
   }
 
   const { error } = await supabase
@@ -208,9 +213,35 @@ export const getRequestHistory = async (requestId) => {
     return { success: false, message: "Not authenticated" };
   }
 
+  const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
+
+  // First verify user has access to this request
+  let accessQuery = supabase
+    .from("request_tbl")
+    .select("id, requester_id")
+    .eq("id", requestId);
+
+  if (!isSuperAdmin && !isOfficial) {
+    // Residents can only access their own request history
+    accessQuery = accessQuery.eq("requester_id", userData.user.id);
+  }
+
+  const { data: accessData } = await accessQuery.maybeSingle();
+
+  if (!accessData) {
+    return { success: false, message: "You dont own this request" };
+  }
+
   const { data, error } = await supabase
     .from("request_history_tbl")
-    .select("*")
+    .select(`
+      *,
+      updater:official_tbl!request_history_tbl_updater_id_fkey (
+        firstname,
+        lastname,
+        role
+      )
+    `)
     .eq("request_id", requestId)
     .order("updated_at", { ascending: true });
 
@@ -221,12 +252,11 @@ export const getRequestHistory = async (requestId) => {
 
   const enriched = data.map((history) => ({
     ...history,
-    official_name:
-      history.official?.firstname && history.official?.lastname
-        ? `${history.official.firstname} ${history.official.lastname}`
-        : "Unassigned",
+    updater_name:
+      history.updater?.firstname && history.updater?.lastname
+        ? `${history.updater.firstname} ${history.updater.lastname}`
+        : "System",
   }));
 
   return { success: true, data: enriched };
 };
-

@@ -177,7 +177,7 @@ const Home = () => {
           console.log("GET COMPLAINTS:", result);
         }}
       >
-        Get Complaints GOODS
+        Get Complaints GOODS -kulang superadmin   
       </button>
       <button
         onClick={async () => {
@@ -185,11 +185,11 @@ const Home = () => {
           console.log("GET COMPLAINT BY ID:", result);
         }}
       >
-        Get Complaint #1 GOODS
+        Get Complaint #1 GOODS - kulang superadmin
       </button>
       <button
         onClick={async () => {
-          const result = await deleteComplaint(32);
+          const result = await deleteComplaint(26);
           console.log("DELETE COMPLAINT:", result);
         }}
       >
@@ -201,7 +201,7 @@ const Home = () => {
           console.log("GET COMPLAINT HISTORY:", result);
         }}
       >
-        Get Complaint #1 History GOODS -kulang nalang superadmin
+        Get Complaint #1 History GOODS -kulang superadmin
       </button>
 
       <h2>REQUESTS</h2>
@@ -229,7 +229,7 @@ const Home = () => {
       </button>
       <button
         onClick={async () => {
-          const result = await getRequestById(3);
+          const result = await getRequestById(34);
           console.log("GET REQUEST BY ID:", result);
         }}
       >
@@ -237,7 +237,7 @@ const Home = () => {
       </button>
       <button
         onClick={async () => {
-          const result = await deleteRequest(4);
+          const result = await deleteRequest(34);
           console.log("DELETE REQUEST:", result);
         }}
       >
@@ -246,7 +246,7 @@ const Home = () => {
       </button>
       <button
         onClick={async () => {
-          const result = await getRequestHistory(1);
+          const result = await getRequestHistory(34);
           console.log("GET REQUEST HISTORY:", result);
         }}
       >

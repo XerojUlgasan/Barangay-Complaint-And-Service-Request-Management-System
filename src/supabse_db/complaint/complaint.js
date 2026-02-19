@@ -1,11 +1,36 @@
 import supabase from "../supabase_client";
 
+// Helper function to check user role without causing 406 errors
+const checkUserRole = async (userId) => {
+  const { data: superadminData } = await supabase
+    .from("superadmin_tbl")
+    .select("id")
+    .eq("auth_uid", userId);
+  
+  const { data: officialData } = await supabase
+    .from("official_tbl")
+    .select("id")
+    .eq("auth_uid", userId);
+
+  return {
+    isSuperAdmin: superadminData && superadminData.length > 0,
+    isOfficial: officialData && officialData.length > 0
+  };
+};
+
 export const insertComplaint = async (type, inci_date, inci_loc, desc) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
 
   if (authError || !userData || !userData.user) {
     console.log("No authenticated user found.");
     return { success: false, message: "Not authenticated" };
+  }
+
+  // Check if user is official or superadmin - they cannot insert complaints
+  const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
+
+  if (isSuperAdmin || isOfficial) {
+    return { success: false, message: "Officials and superadmin cannot insert complaints" };
   }
   
   const { data, error } = await supabase
@@ -36,21 +61,7 @@ export const getComplaints = async () => {
     return { success: false, message: "Not authenticated" };
   }
 
-  // Check Superadmin
-  const { data: superadminData } = await supabase
-    .from("superadmin_tbl")
-    .select("id")
-    .eq("auth_uid", userData.user.id)
-    .single();
-  const isSuperAdmin = !!superadminData;
-
-  // Check Official
-  const { data: officialData } = await supabase
-    .from("official_tbl")
-    .select("id")
-    .eq("auth_uid", userData.user.id)
-    .single();
-  const isOfficial = !!officialData;
+  const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
 
   let query = supabase
     .from("complaint_tbl")
@@ -69,12 +80,8 @@ export const getComplaints = async () => {
     `)
     .order("created_at", { ascending: false });
 
-  if (isSuperAdmin) {
-    // Superadmin can view all
-  } else if (isOfficial) {
-    // Officials can view only their assigned complaints
-    console.log("Officials not authenticated for full complaint list");
-    query = query.eq("assigned_official_id", userData.user.id);
+  if (isSuperAdmin || isOfficial) {
+    // Officials and superadmin can view all complaints
   } else {
     // Residents can view only their own complaints
     query = query.eq("complainant_id", userData.user.id);
@@ -107,21 +114,7 @@ export const getComplaintById = async (complaintId) => {
     return { success: false, message: "Not authenticated" };
   }
 
-  // Check Superadmin
-  const { data: superadminData } = await supabase
-    .from("superadmin_tbl")
-    .select("id")
-    .eq("auth_uid", userData.user.id)
-    .single();
-  const isSuperAdmin = !!superadminData;
-
-  // Check Official
-  const { data: officialData } = await supabase
-    .from("official_tbl")
-    .select("id")
-    .eq("auth_uid", userData.user.id)
-    .single();
-  const isOfficial = !!officialData;
+  const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
 
   let query = supabase
     .from("complaint_tbl")
@@ -140,22 +133,20 @@ export const getComplaintById = async (complaintId) => {
     `)
     .eq("id", complaintId);
 
-  if (!isSuperAdmin) {
-    if (isOfficial) {
-      query = query.eq("assigned_official_id", userData.user.id);
-    } else {
-      query = query.eq("complainant_id", userData.user.id);
-    }
+  if (!isSuperAdmin && !isOfficial) {
+    // Residents can only view their own complaints
+    query = query.eq("complainant_id", userData.user.id);
   }
 
-  const { data, error } = await query.single();
+  const { data, error } = await query.maybeSingle();
 
-  if (error || !data) {
-    if (isOfficial) {
-      return { success: false, message: "Officials not authenticated" };
-    }
+  if (error) {
     console.error("Error fetching complaint:", error);
     return { success: false, message: "Failed to fetch complaint" };
+  }
+
+  if (!data) {
+    return { success: false, message: "You dont own this complaint" };
   }
 
   return { 
@@ -172,7 +163,6 @@ export const getComplaintById = async (complaintId) => {
   };
 };
 
-
 export const deleteComplaint = async (complaintId) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
   
@@ -180,24 +170,25 @@ export const deleteComplaint = async (complaintId) => {
     return { success: false, message: "Not authenticated" };
   }
 
-  // Check Superadmin
-  const { data: superadminData } = await supabase
-    .from("superadmin_tbl")
-    .select("id")
-    .eq("auth_uid", userData.user.id)
-    .single();
-  const isSuperAdmin = !!superadminData;
-
-  // Check Official
-  const { data: officialData } = await supabase
-    .from("official_tbl")
-    .select("id")
-    .eq("auth_uid", userData.user.id)
-    .single();
-  const isOfficial = !!officialData;
+  const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
 
   if (isSuperAdmin || isOfficial) {
     return { success: false, message: "Officials and superadmin cant delete complaints" };
+  }
+
+  // Check if complaint exists and is owned by the resident
+  const { data: complaintData } = await supabase
+    .from("complaint_tbl")
+    .select("id, complainant_id")
+    .eq("id", complaintId)
+    .maybeSingle();
+
+  if (!complaintData) {
+    return { success: false, message: "Complaint does not exist" };
+  }
+
+  if (complaintData.complainant_id !== userData.user.id) {
+    return { success: false, message: "Complaint is not owned by the logged in resident" };
   }
 
   const { error } = await supabase
@@ -221,23 +212,26 @@ export const getComplaintHistory = async (complaintId) => {
     return { success: false, message: "Not authenticated" };
   }
 
-  // Check Superadmin
-  const { data: superadminData } = await supabase
-    .from("superadmin_tbl")
-    .select("id")
-    .eq("auth_uid", userData.user.id)
-    .single();
-  const isSuperAdmin = !!superadminData;
+  const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
 
-  // Check Official
-  const { data: officialData } = await supabase
-    .from("official_tbl")
-    .select("id")
-    .eq("auth_uid", userData.user.id)
-    .single();
-  const isOfficial = !!officialData;
+  // First verify user has access to this complaint
+  let accessQuery = supabase
+    .from("complaint_tbl")
+    .select("id, complainant_id")
+    .eq("id", complaintId);
 
-  let query = supabase
+  if (!isSuperAdmin && !isOfficial) {
+    // Residents can only access their own complaint history
+    accessQuery = accessQuery.eq("complainant_id", userData.user.id);
+  }
+
+  const { data: accessData } = await accessQuery.maybeSingle();
+
+  if (!accessData) {
+    return { success: false, message: "You dont own this complaint" };
+  }
+
+  const { data, error } = await supabase
     .from("complaint_history_tbl")
     .select(`
       *,
@@ -245,24 +239,10 @@ export const getComplaintHistory = async (complaintId) => {
         firstname,
         lastname,
         role
-      ),
-      complaint:complaint_tbl!complaint_history_tbl_complaint_id_fkey (
-        assigned_official_id,
-        complainant_id
       )
     `)
     .eq("complaint_id", complaintId)
     .order("updated_at", { ascending: true });
-
-  if (!isSuperAdmin) {
-    if (isOfficial) {
-      query = query.eq("complaint.assigned_official_id", userData.user.id);
-    } else {
-      query = query.eq("complaint.complainant_id", userData.user.id);
-    }
-  }
-
-  const { data, error } = await query;
 
   if (error) {
     console.error("Error fetching complaint history:", error);
