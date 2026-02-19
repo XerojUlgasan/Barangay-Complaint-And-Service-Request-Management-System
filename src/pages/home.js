@@ -321,7 +321,7 @@ const Home = () => {
       </button>
       <button
         onClick={async () => {
-          const result = await getResidentById(1);
+          const result = await getResidentById("e3d38c4e-81fa-4213-b742-54f2b26c804c");
           console.log("GET RESIDENT BY ID:", result);
         }}
       >
