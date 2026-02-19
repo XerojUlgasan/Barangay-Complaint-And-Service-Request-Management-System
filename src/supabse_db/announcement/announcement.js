@@ -7,6 +7,16 @@ export const postAnnouncement = async (category, priority, title, content) => {
     return { success: false, message: "Not authenticated" };
   }
 
+  // Check if user is superadmin (required for INSERT per RLS policy)
+  const { data: superadminData } = await supabase
+    .from("superadmin_tbl")
+    .select("id")
+    .eq("auth_uid", userData.user.id);
+
+  if (!superadminData || superadminData.length === 0) {
+    return { success: false, message: "Only superadmins can post announcements" };
+  }
+
   const { data, error } = await supabase
     .from("announcement_tbl")
     .insert({
@@ -14,6 +24,7 @@ export const postAnnouncement = async (category, priority, title, content) => {
       priority: priority,
       title: title,
       content: content,
+      announcer: userData.user.id
     })
     .select()
     .single();
@@ -84,13 +95,13 @@ export const updateAnnouncement = async (
     return { success: false, message: "Not authenticated" };
   }
 
+  // Check if user is superadmin (without .single() to avoid 406)
   const { data: superadminData } = await supabase
     .from("superadmin_tbl")
     .select("id")
-    .eq("auth_uid", userData.user.id)
-    .single();
+    .eq("auth_uid", userData.user.id);
 
-  if (!superadminData) {
+  if (!superadminData || superadminData.length === 0) {
     return {
       success: false,
       message: "Only superadmins can update announcements",
@@ -122,13 +133,13 @@ export const deleteAnnouncement = async (id) => {
     return { success: false, message: "Not authenticated" };
   }
 
+  // Check if user is superadmin (without .single() to avoid 406)
   const { data: superadminData } = await supabase
     .from("superadmin_tbl")
     .select("id")
-    .eq("auth_uid", userData.user.id)
-    .single();
+    .eq("auth_uid", userData.user.id);
 
-  if (!superadminData) {
+  if (!superadminData || superadminData.length === 0) {
     return {
       success: false,
       message: "Only superadmins can delete announcements",
