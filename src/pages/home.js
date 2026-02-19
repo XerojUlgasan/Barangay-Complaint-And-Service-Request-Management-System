@@ -181,7 +181,7 @@ const Home = () => {
       </button>
       <button
         onClick={async () => {
-          const result = await getComplaintById(26);
+          const result = await getComplaintById(30);
           console.log("GET COMPLAINT BY ID:", result);
         }}
       >
@@ -189,7 +189,7 @@ const Home = () => {
       </button>
       <button
         onClick={async () => {
-          const result = await deleteComplaint(26);
+          const result = await deleteComplaint(30);
           console.log("DELETE COMPLAINT:", result);
         }}
       >
@@ -197,7 +197,7 @@ const Home = () => {
       </button>
       <button
         onClick={async () => {
-          const result = await getComplaintHistory(26);
+          const result = await getComplaintHistory(30);
           console.log("GET COMPLAINT HISTORY:", result);
         }}
       >

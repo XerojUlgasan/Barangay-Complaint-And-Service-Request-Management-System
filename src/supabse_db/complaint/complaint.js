@@ -146,7 +146,7 @@ export const getComplaintById = async (complaintId) => {
   }
 
   if (!data) {
-    return { success: false, message: "You dont own this complaint" };
+    return { success: false, message: "Complaint does not exist or you don't have access to it" };
   }
 
   return { 
@@ -184,7 +184,7 @@ export const deleteComplaint = async (complaintId) => {
     .maybeSingle();
 
   if (!complaintData) {
-    return { success: false, message: "Complaint does not exist" };
+    return { success: false, message: "Complaint does not exist or you don't have access to it" };
   }
 
   if (complaintData.complainant_id !== userData.user.id) {
@@ -228,7 +228,7 @@ export const getComplaintHistory = async (complaintId) => {
   const { data: accessData } = await accessQuery.maybeSingle();
 
   if (!accessData) {
-    return { success: false, message: "You dont own this complaint" };
+    return { success: false, message: "Complaint does not exist or you don't have access to it" };
   }
 
   const { data, error } = await supabase
