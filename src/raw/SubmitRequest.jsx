@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { insertRequest } from '../supabse_db/request/request'; // adjust path if needed
 import './userlanding.css';
 
 const SubmitRequest = () => {
@@ -17,14 +18,37 @@ const SubmitRequest = () => {
     attachments: []
   });
 
+  const [submitError, setSubmitError] = useState('');
+  const [submitLoading, setSubmitLoading] = useState(false);
+
   const handleBack = () => {
     navigate('/dashboard');
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
-    navigate('/dashboard');
+    setSubmitError('');
+    setSubmitLoading(true);
+
+    const subject = formData.subject;
+    const description = formData.description;
+
+    let cert_type = null;
+    if (formData.requestType === 'Complaint') {
+      cert_type = formData.complaintType;
+    } else if (formData.requestType === 'Certificate Request') {
+      cert_type = formData.certificateType;
+    }
+
+    const result = await insertRequest(subject, description, cert_type);
+
+    setSubmitLoading(false);
+
+    if (result.success) {
+      navigate('/dashboard');
+    } else {
+      setSubmitError(result.message || 'Failed to submit request. Please try again.');
+    }
   };
 
   const handleCancel = () => {
@@ -157,7 +181,6 @@ const SubmitRequest = () => {
                 {/* COMPLAINT FIELDS */}
                 {isComplaint && (
                   <>
-                    {/* Complaint Type */}
                     <div className="form-group">
                       <label htmlFor="complaintType">Complaint Type</label>
                       <select
@@ -178,7 +201,6 @@ const SubmitRequest = () => {
                       </select>
                     </div>
 
-                    {/* Incident Date */}
                     <div className="form-group">
                       <label htmlFor="incidentDate">Incident Date</label>
                       <input
@@ -192,7 +214,6 @@ const SubmitRequest = () => {
                       />
                     </div>
 
-                    {/* Incident Location */}
                     <div className="form-group">
                       <label htmlFor="incidentLocation">Incident Location</label>
                       <input
@@ -207,7 +228,6 @@ const SubmitRequest = () => {
                       />
                     </div>
 
-                    {/* Subject */}
                     <div className="form-group">
                       <label htmlFor="subject">Subject</label>
                       <input
@@ -222,7 +242,6 @@ const SubmitRequest = () => {
                       />
                     </div>
 
-                    {/* Description */}
                     <div className="form-group">
                       <label htmlFor="description">Description</label>
                       <textarea
@@ -242,7 +261,6 @@ const SubmitRequest = () => {
                 {/* CERTIFICATE REQUEST FIELDS */}
                 {isCertificate && (
                   <>
-                    {/* Certificate Type */}
                     <div className="form-group">
                       <label htmlFor="certificateType">Certificate Type</label>
                       <select
@@ -262,7 +280,6 @@ const SubmitRequest = () => {
                       </select>
                     </div>
 
-                    {/* Subject */}
                     <div className="form-group">
                       <label htmlFor="subject">Subject</label>
                       <input
@@ -277,7 +294,6 @@ const SubmitRequest = () => {
                       />
                     </div>
 
-                    {/* Description */}
                     <div className="form-group">
                       <label htmlFor="description">Description</label>
                       <textarea
@@ -291,7 +307,6 @@ const SubmitRequest = () => {
                       />
                     </div>
 
-                    {/* Attachments */}
                     <div className="form-group">
                       <label>
                         Attachments (Valid ID, etc.)
@@ -299,7 +314,6 @@ const SubmitRequest = () => {
                       </label>
 
                       <div className="attachments-area">
-                        {/* Uploaded files */}
                         {formData.attachments.map((file, index) => (
                           <div key={index} className="attachment-item">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -321,7 +335,6 @@ const SubmitRequest = () => {
                           </div>
                         ))}
 
-                        {/* Add File button */}
                         <button
                           type="button"
                           className="add-file-btn"
@@ -350,14 +363,27 @@ const SubmitRequest = () => {
                   </>
                 )}
 
+                {/* ERROR MESSAGE */}
+                {submitError && (
+                  <div style={{
+                    color: '#dc2626',
+                    fontSize: '13px',
+                    marginBottom: '8px',
+                    textAlign: 'center'
+                  }}>
+                    {submitError}
+                  </div>
+                )}
+
                 <div className="form-actions">
-                  <button type="submit" className="btn-submit">
-                    Submit Request
+                  <button type="submit" className="btn-submit" disabled={submitLoading}>
+                    {submitLoading ? 'Submitting...' : 'Submit Request'}
                   </button>
-                  <button type="button" onClick={handleCancel} className="btn-cancel">
+                  <button type="button" onClick={handleCancel} className="btn-cancel" disabled={submitLoading}>
                     Cancel
                   </button>
                 </div>
+
               </form>
             </div>
           </div>

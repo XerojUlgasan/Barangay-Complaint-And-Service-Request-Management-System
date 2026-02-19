@@ -22,6 +22,9 @@ import Homepage from "./raw/Homepage";        // ← changed from ./pages/Homepa
 import Login from "./raw/Login";
 import UserLanding from "./raw/Userlanding";
 import SubmitRequest from "./raw/SubmitRequest";
+import MyRequest from "./raw/Myrequest";
+import Announcements from "./raw/Announcements";
+
 
 // --- Official pages ---
 import OfficialDashboard from "./pages/official/OfficialDashboard";
@@ -63,8 +66,8 @@ function App() {
         <Route path="/homepage"      element={<Homepage />} />
         <Route path="/login"         element={<Login />} />
         <Route path="/dashboard"     element={<UserLanding />} />
-        <Route path="/requests"      element={<UserLanding />} />
-        <Route path="/announcements" element={<UserLanding />} />
+        <Route path="/requests"      element={<MyRequest />} />
+        <Route path="/announcements" element={<Announcements />} />
         <Route path="/submit"        element={<SubmitRequest />} />
         <Route path="/user"          element={<UserPage />} />
         <Route path="/testingan"     element={<Home />} />

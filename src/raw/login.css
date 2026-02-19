@@ -179,8 +179,8 @@
 }
 
 .login-page #container2 {
-    min-height: 70%;
     padding-bottom: 40px;
+    padding: 10px;
 }
 
 .login-page .active-toggle {
@@ -205,4 +205,46 @@
 .login-page .new-user-container {
     min-height: 700px !important;
     padding: 40px;
+}
+
+/* Add these to your existing login.css */
+
+.login-page .step-circle.completed {
+  background-color: #198754;
+}
+
+.login-page .step-line.active {
+  background-color: #198754;
+}
+
+.login-page .btn-back {
+  width: 100% !important;
+  font-weight: 500;
+  font-size: 13px;
+  padding: 12px;
+  background-color: transparent !important;
+  border: 1px solid #ccc !important;
+  color: #555 !important;
+  margin-top: 4px;
+}
+
+.login-page .btn-back:hover {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+.login-page .login-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7280;
+  text-decoration: none;
+  margin-bottom: 12px;
+  transition: color 0.15s ease;
+}
+
+.login-page .login-back-btn:hover {
+  color: #059669;
 }
