@@ -223,7 +223,7 @@ const Home = () => {
           console.log("GET REQUESTS:", result);
         }}
       >
-        Get Requests GOODS <font color="red"><b>-kulang superadmin</b></font>
+        Get Requests GOODS <font color="red"><b>-kulang superadmin</b></font> 
       </button>
       <button
         onClick={async () => {
@@ -265,12 +265,12 @@ const Home = () => {
           console.log("GET ASSIGNED REQUESTS:", result);
         }}
       >
-        Get Assigned Requests
+        Get Assigned Requests GOODS
       </button>
             <button
         onClick={async () => {
           const result = await updateComplaintStatus(
-            26,
+            44,
             "resolved",
             "Issue resolved",
             "low",
@@ -278,12 +278,12 @@ const Home = () => {
           console.log("UPDATE COMPLAINT STATUS:", result);
         }}
       >
-        Update Complaint #1 GOODS Status TODO : sa database: add status enum
+        Update Complaint #1 GOODS Status <font color="red"><b>-TODO sa database: add status enum</b></font>
       </button>
               <button
         onClick={async () => {
           const result = await updateRequestStatus(
-            46,
+            35,
             "approved",
             "Approved by official",
           );
