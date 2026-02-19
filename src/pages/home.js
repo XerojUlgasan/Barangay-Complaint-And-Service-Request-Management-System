@@ -40,7 +40,7 @@ import {
 
 import {
     getOfficialProfile,
-
+    getResidentProfile,
 } from "../supabse_db/profile/profile";
 
 import {
@@ -145,6 +145,15 @@ const Home = () => {
       >
         Get Official Profile GOODS 
       </button>
+            <button
+        onClick={async () => {
+          const result = await getResidentProfile();
+          console.log("GET RESIDENT PROFILE:", result);
+        }}
+      >
+        Get Resident Profile
+      </button>
+
       <h2>COMPLAINTS</h2>
       <button 
         onClick={async () => {
@@ -180,11 +189,11 @@ const Home = () => {
       </button>
       <button
         onClick={async () => {
-          const result = await deleteComplaint(14);
+          const result = await deleteComplaint(32);
           console.log("DELETE COMPLAINT:", result);
         }}
       >
-        Delete Complaint #1 NOT GOODS NOT DELETING (MAYBE DUE TO RLS)
+        Delete Complaint #1 GOODS
       </button>
       <button
         onClick={async () => {
@@ -192,8 +201,7 @@ const Home = () => {
           console.log("GET COMPLAINT HISTORY:", result);
         }}
       >
-        Get Complaint #1 History NOT GOODS (NOT RECORDING HISTORY MAYBE DUE TO
-        TRIGGER) -gets history but showing on all roles
+        Get Complaint #1 History GOODS -kulang nalang superadmin
       </button>
 
       <h2>REQUESTS</h2>
@@ -322,7 +330,7 @@ const Home = () => {
       </button>
       <button
         onClick={async () => {
-          const result = await getAnnouncementById(1363);
+          const result = await getAnnouncementById(1368);
           console.log("GET ANNOUNCEMENT #1:", result);
         }}
       >
@@ -332,7 +340,7 @@ const Home = () => {
         <button
         onClick={async () => {
           const result = await updateAnnouncement(
-            1363,
+            1368,
             "general",
             "high",
             "Updated Title",
@@ -345,7 +353,7 @@ const Home = () => {
       </button>
       <button
         onClick={async () => {
-          const result = await deleteAnnouncement(1363);
+          const result = await deleteAnnouncement(1368);
           console.log("DELETE ANNOUNCEMENT:", result);
         }}
       >

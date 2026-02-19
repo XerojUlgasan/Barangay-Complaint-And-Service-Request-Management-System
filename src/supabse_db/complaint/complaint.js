@@ -36,13 +36,21 @@ export const getComplaints = async () => {
     return { success: false, message: "Not authenticated" };
   }
 
+  // Check Superadmin
+  const { data: superadminData } = await supabase
+    .from("superadmin_tbl")
+    .select("id")
+    .eq("auth_uid", userData.user.id)
+    .single();
+  const isSuperAdmin = !!superadminData;
+
+  // Check Official
   const { data: officialData } = await supabase
     .from("official_tbl")
     .select("id")
     .eq("auth_uid", userData.user.id)
     .single();
-
-  const isAdmin = !!officialData;
+  const isOfficial = !!officialData;
 
   let query = supabase
     .from("complaint_tbl")
@@ -61,7 +69,14 @@ export const getComplaints = async () => {
     `)
     .order("created_at", { ascending: false });
 
-  if (!isAdmin) {
+  if (isSuperAdmin) {
+    // Superadmin can view all
+  } else if (isOfficial) {
+    // Officials can view only their assigned complaints
+    console.log("Officials not authenticated for full complaint list");
+    query = query.eq("assigned_official_id", userData.user.id);
+  } else {
+    // Residents can view only their own complaints
     query = query.eq("complainant_id", userData.user.id);
   }
 
@@ -92,7 +107,23 @@ export const getComplaintById = async (complaintId) => {
     return { success: false, message: "Not authenticated" };
   }
 
-  const { data, error } = await supabase
+  // Check Superadmin
+  const { data: superadminData } = await supabase
+    .from("superadmin_tbl")
+    .select("id")
+    .eq("auth_uid", userData.user.id)
+    .single();
+  const isSuperAdmin = !!superadminData;
+
+  // Check Official
+  const { data: officialData } = await supabase
+    .from("official_tbl")
+    .select("id")
+    .eq("auth_uid", userData.user.id)
+    .single();
+  const isOfficial = !!officialData;
+
+  let query = supabase
     .from("complaint_tbl")
     .select(`
       *,
@@ -107,10 +138,22 @@ export const getComplaintById = async (complaintId) => {
         role
       )
     `)
-    .eq("id", complaintId)
-    .single();
+    .eq("id", complaintId);
 
-  if (error) {
+  if (!isSuperAdmin) {
+    if (isOfficial) {
+      query = query.eq("assigned_official_id", userData.user.id);
+    } else {
+      query = query.eq("complainant_id", userData.user.id);
+    }
+  }
+
+  const { data, error } = await query.single();
+
+  if (error || !data) {
+    if (isOfficial) {
+      return { success: false, message: "Officials not authenticated" };
+    }
     console.error("Error fetching complaint:", error);
     return { success: false, message: "Failed to fetch complaint" };
   }
@@ -129,49 +172,32 @@ export const getComplaintById = async (complaintId) => {
   };
 };
 
-export const updateComplaintStatus = async (complaintId, status, remarks = null, priority_level = null) => {
-  const { data: userData, error: authError } = await supabase.auth.getUser();
-  
-  if (authError || !userData || !userData.user) {
-    return { success: false, message: "Not authenticated" };
-  }
-
-  const { data: officialData } = await supabase
-    .from("official_tbl")
-    .select("id")
-    .eq("auth_uid", userData.user.id)
-    .single();
-
-  if (!officialData) {
-    return { success: false, message: "Only officials can update complaint status" };
-  }
-
-  const { error } = await supabase
-    .from("complaint_tbl")
-    .update({
-      status: status,
-      remarks: remarks,
-      priority_level: priority_level,
-      updated_by: userData.user.id,
-      updated_at: new Date().toISOString()
-    })
-    .eq("id", complaintId)
-    .select("id")
-    .single();
-
-  if (error) {
-    console.error("Error updating complaint:", error);
-    return { success: false, message: "Failed to update complaint" };
-  }
-
-  return { success: true, message: "Complaint updated successfully" };
-};
 
 export const deleteComplaint = async (complaintId) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
   
   if (authError || !userData || !userData.user) {
     return { success: false, message: "Not authenticated" };
+  }
+
+  // Check Superadmin
+  const { data: superadminData } = await supabase
+    .from("superadmin_tbl")
+    .select("id")
+    .eq("auth_uid", userData.user.id)
+    .single();
+  const isSuperAdmin = !!superadminData;
+
+  // Check Official
+  const { data: officialData } = await supabase
+    .from("official_tbl")
+    .select("id")
+    .eq("auth_uid", userData.user.id)
+    .single();
+  const isOfficial = !!officialData;
+
+  if (isSuperAdmin || isOfficial) {
+    return { success: false, message: "Officials and superadmin cant delete complaints" };
   }
 
   const { error } = await supabase
@@ -195,7 +221,23 @@ export const getComplaintHistory = async (complaintId) => {
     return { success: false, message: "Not authenticated" };
   }
 
-  const { data, error } = await supabase
+  // Check Superadmin
+  const { data: superadminData } = await supabase
+    .from("superadmin_tbl")
+    .select("id")
+    .eq("auth_uid", userData.user.id)
+    .single();
+  const isSuperAdmin = !!superadminData;
+
+  // Check Official
+  const { data: officialData } = await supabase
+    .from("official_tbl")
+    .select("id")
+    .eq("auth_uid", userData.user.id)
+    .single();
+  const isOfficial = !!officialData;
+
+  let query = supabase
     .from("complaint_history_tbl")
     .select(`
       *,
@@ -203,10 +245,24 @@ export const getComplaintHistory = async (complaintId) => {
         firstname,
         lastname,
         role
+      ),
+      complaint:complaint_tbl!complaint_history_tbl_complaint_id_fkey (
+        assigned_official_id,
+        complainant_id
       )
     `)
     .eq("complaint_id", complaintId)
     .order("updated_at", { ascending: true });
+
+  if (!isSuperAdmin) {
+    if (isOfficial) {
+      query = query.eq("complaint.assigned_official_id", userData.user.id);
+    } else {
+      query = query.eq("complaint.complainant_id", userData.user.id);
+    }
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("Error fetching complaint history:", error);
@@ -222,4 +278,3 @@ export const getComplaintHistory = async (complaintId) => {
 
   return { success: true, data: enriched };
 };
-
