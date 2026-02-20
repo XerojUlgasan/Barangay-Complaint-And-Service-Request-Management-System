@@ -1,28 +1,58 @@
 import supabase from "../supabase_client";
 
 export const getAssignedComplaints = async () => {
-  const { data, error } = await supabase.from("complaint_tbl").select("*") .eq("assigned_official_id", (await supabase.auth.getUser()).data.user.id ); // Replace with actual official ID
+  const { data, error } = await supabase.from("complaint_tbl").select("*") .eq("assigned_official_id", (await supabase.auth.getUser()).data.user.id );
   if (error) {
     console.log(error);
-    return;
+    return [];
   }
 
-  if (data) {
-    console.log(data);
-    return;
-  }
+  return data || [];
 };
 
 export const getAssignedRequests = async () => {
-  const { data, error } = await supabase.from("request_tbl").select("*") .eq("assigned_official_id", (await supabase.auth.getUser()).data.user.id ); // Replace with actual official ID
-  if (error) {
-    console.log(error);
-    return;
-  }
+  try {
+    const { data, error } = await supabase
+      .from("request_tbl")
+      .select(
+        `
+        *,
+        member:sample_household_members_tbl!request_tbl_user_id_fkey (
+          firstname,
+          lastname
+        )
+      `,
+      )
+      .order("created_at", { ascending: false });
 
-  if (data) {
-    console.log(data);
-    return;
+    if (error) {
+      console.error('Supabase error fetching requests:', error);
+      return [];
+    }
+
+    console.log('Database returned requests:', data);
+
+    // Enrich data with requester_name
+    const enriched = (data || []).map((request) => {
+      const enrichedRequest = {
+        ...request,
+        requester_name:
+          request.member?.firstname && request.member?.lastname
+            ? `${request.member.firstname} ${request.member.lastname}`
+            : "Unknown",
+      };
+      console.log('Enriched request:', enrichedRequest.id, {
+        status: enrichedRequest.request_status,
+        requester: enrichedRequest.requester_name,
+      });
+      return enrichedRequest;
+    });
+
+    console.log('Total enriched requests:', enriched.length);
+    return enriched;
+  } catch (error) {
+    console.error('Error in getAssignedRequests:', error);
+    return [];
   }
 };
 
@@ -51,10 +81,15 @@ export const updateRequestStatus = async (
     };
   }
 
+  // Normalize status to lowercase to match database format
+  const normalizedStatus = (status || 'pending').toLowerCase();
+
+  console.log('Updating request with status:', status, '-> normalized:', normalizedStatus);
+
   const { error } = await supabase
     .from("request_tbl")
     .update({
-      request_status: status,
+      request_status: normalizedStatus,
       remarks: remarks,
       assigned_official_id: userData.user.id,
       updated_at: new Date().toISOString(),

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, FileText } from 'lucide-react';
 import '../styles/RequestDetail.css';
 
@@ -30,9 +31,19 @@ import '../styles/RequestDetail.css';
 const RequestDetail = ({ request, isOpen, onClose, onSave }) => {
   // State for form fields that can be edited
   const [formData, setFormData] = useState({
-    status: request?.status || 'IN_PROGRESS',
-    internalNotes: request?.internalNotes || '',
+    status: 'IN_PROGRESS',
+    internalNotes: '',
   });
+
+  // Update formData when request prop changes
+  useEffect(() => {
+    if (request) {
+      setFormData({
+        status: request.status || 'IN_PROGRESS',
+        internalNotes: request.internalNotes || '',
+      });
+    }
+  }, [request, isOpen]);
 
   // Available status options for dropdown
   const statusOptions = [
@@ -80,6 +91,13 @@ const RequestDetail = ({ request, isOpen, onClose, onSave }) => {
     onClose();
   };
 
+  // Handle overlay click - close modal when clicking outside
+  const handleOverlayClick = (e) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   // Don't render if modal is not open
   if (!isOpen || !request) return null;
 
@@ -99,13 +117,13 @@ const RequestDetail = ({ request, isOpen, onClose, onSave }) => {
 
   const statusBadge = getStatusBadge();
 
-  return (
+  const modalContent = (
     <>
       {/* Modal Overlay - semi-transparent background */}
-      <div className="modal-overlay" onClick={onClose}></div>
+      <div className="modal-overlay" onClick={handleOverlayClick}></div>
 
       {/* Modal Dialog - main content area */}
-      <div className="modal-dialog">
+      <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
         {/* Modal Header with status badge and ID */}
         <div className="modal-header">
           <div className="modal-header-content">
@@ -213,6 +231,8 @@ const RequestDetail = ({ request, isOpen, onClose, onSave }) => {
       </div>
     </>
   );
+
+  return createPortal(modalContent, document.body);
 };
 
 export default RequestDetail;

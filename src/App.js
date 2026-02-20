@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 // TODO: Sanitize user inputs for security
@@ -12,6 +12,8 @@ import {
   registerByEmail,
   checkUserRole,
 } from "./supabse_db/auth/auth";
+import { getOfficialProfile } from './supabse_db/profile/profile';
+import supabase from './supabse_db/supabase_client';
 
 // --- Shared Layout (Official/Admin) ---
 import Layout from "./components/Layout";
@@ -46,7 +48,59 @@ function UserPage() {
 }
 
 function App() {
-  const [userName] = useState("Barangay Official");
+  const [userName, setUserName] = useState("Barangay Official");
+  const [userLoading, setUserLoading] = useState(true);
+
+  // Load logged-in user's display name once on app start
+  useEffect(() => {
+    let mounted = true;
+
+    const loadUserName = async () => {
+      try {
+        if (mounted) setUserLoading(true);
+
+        // Try to fetch official profile first
+        const profileRes = await getOfficialProfile();
+        if (profileRes && profileRes.success && profileRes.data) {
+          const p = profileRes.data;
+          const full = [p.firstname, p.middlename, p.lastname].filter(Boolean).join(' ');
+          if (full) {
+            if (mounted) setUserName(full);
+            return;
+          }
+        }
+
+        // Fallback to auth user info
+        const userResp = await supabase.auth.getUser();
+        const user = userResp.data?.user;
+        if (user && mounted) {
+          const fallback = user.user_metadata?.full_name || user.email || user.id;
+          setUserName(fallback || 'Barangay User');
+        }
+      } catch (err) {
+        console.error('Error loading user name for header:', err);
+      } finally {
+        if (mounted) setUserLoading(false);
+      }
+    };
+
+    // Initial load
+    loadUserName();
+
+    // Subscribe to auth state changes so header updates immediately on login/logout
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      // When auth changes, reload username
+      loadUserName();
+    });
+
+    return () => {
+      mounted = false;
+      // cleanup subscription
+      if (data && data.subscription && typeof data.subscription.unsubscribe === 'function') {
+        data.subscription.unsubscribe();
+      }
+    };
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -82,6 +136,7 @@ function App() {
                 { path: '/BarangayOfficial/requests', label: 'Requests', icon: <FileText size={18} /> },
               ]}
               userName={userName}
+              userLoading={userLoading}
               onLogout={handleLogout}
             />
           }
@@ -102,6 +157,7 @@ function App() {
                 { path: '/BarangayAdmin/users', label: 'Users', icon: <Users size={18} /> },
               ]}
               userName={userName}
+              userLoading={userLoading}
               onLogout={handleLogout}
             />
           }

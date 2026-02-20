@@ -124,7 +124,9 @@
 /* Individual filter option item */
 .filter-item {
   width: 100%;
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   padding: 0.75rem 1rem;
   background: none;
   border: none;
@@ -133,6 +135,14 @@
   text-align: left;
   cursor: pointer;
   transition: all 0.2s ease;
+}
+
+/* Color dot indicator before filter text */
+.filter-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 /* Hover state for filter option */
