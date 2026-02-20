@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, Calendar, User, ArrowRight } from 'lucide-react';
 import RequestDetail from '../../components/RequestDetail';
+import { getAssignedRequests, updateRequestStatus } from '../../supabse_db/official/official';
 import '../../styles/Requests.css';
 
 export default function OfficialRequests() {
@@ -10,43 +11,104 @@ export default function OfficialRequests() {
 
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setRequests([
-      {
-        id: 1,
-        title: 'Certificate of Indigency Request',
-        type: 'CERTIFICATE OF INDIGENCY',
-        status: 'IN_PROGRESS',
-        submittedBy: 'user',
-        submissionDate: '2/5/2026, 12:00:00 AM',
-        updatedDate: '2/6/2026',
-        statusColor: '#4A90E2',
-        borderColor: 'transparent',
-        description: 'Need certificate for medical assistance',
-        internalNotes: 'Processing documents',
-      },
-      {
-        id: 2,
-        title: 'Barangay Clearance Request',
-        type: 'BARANGAY CLEARANCE',
-        status: 'COMPLETED',
-        submittedBy: 'user',
-        submissionDate: '2/1/2026',
-        updatedDate: '2/3/2026',
-        statusColor: '#50C878',
-        borderColor: '#50C878',
-        description: 'Need barangay clearance for employment',
-        internalNotes: 'All requirements verified. Approved.',
-      },
-    ]);
+    fetchAssignedRequests();
   }, []);
+
+  const fetchAssignedRequests = async () => {
+    try {
+      const data = await getAssignedRequests();
+      console.log('Raw data from getAssignedRequests:', data);
+      
+      if (data && Array.isArray(data)) {
+        // Format data to match component requirements
+        const formattedRequests = data.map(req => {
+          // Normalize status to uppercase
+          const normalizedStatus = (req.request_status || 'PENDING').toUpperCase();
+          
+          console.log('Formatting request:', req.id, {
+            subject: req.subject,
+            request_status: req.request_status,
+            normalizedStatus: normalizedStatus,
+            certificate_type: req.certificate_type,
+            requester_name: req.requester_name,
+          });
+          
+          return {
+            id: req.id,
+            title: req.subject || 'Untitled Request',
+            type: req.certificate_type || 'REQUEST',
+            status: normalizedStatus,
+            submittedBy: req.requester_name || 'User',
+            submissionDate: req.created_at ? new Date(req.created_at).toLocaleDateString() : 'N/A',
+            updatedDate: req.updated_at ? new Date(req.updated_at).toLocaleDateString() : 'N/A',
+            statusColor: getStatusColor(normalizedStatus),
+            borderColor: getBorderColor(normalizedStatus),
+            description: req.description || 'No description provided',
+            internalNotes: req.remarks || '',
+          };
+        });
+        
+        console.log('Formatted requests:', formattedRequests);
+        setRequests(formattedRequests);
+      }
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching assigned requests:', error);
+      setLoading(false);
+    }
+  };
+
+  const getStatusColor = (status) => {
+    const colorMap = {
+      'PENDING': '#FDB750',
+      'IN_PROGRESS': '#4A90E2',
+      'COMPLETED': '#50C878',
+      'REJECTED': '#EF4444',
+    };
+    return colorMap[status] || '#6B7280';
+  };
+
+  const getBorderColor = (status) => {
+    const borderMap = {
+      'PENDING': 'transparent',
+      'IN_PROGRESS': 'transparent',
+      'COMPLETED': '#50C878',
+      'REJECTED': '#EF4444',
+    };
+    return borderMap[status] || 'transparent';
+  };
 
   const filterOptions = ['All Status', 'In Progress', 'Completed', 'Pending', 'Rejected'];
 
   const handleFilterChange = (option) => {
     setFilterStatus(option);
     setIsFilterOpen(false);
+  };
+
+  const getFilteredRequests = () => {
+    if (filterStatus === 'All Status') {
+      console.log('Showing all requests:', requests.length);
+      return requests;
+    }
+
+    const statusMap = {
+      'In Progress': 'IN_PROGRESS',
+      'Completed': 'COMPLETED',
+      'Pending': 'PENDING',
+      'Rejected': 'REJECTED',
+    };
+
+    const dbStatus = statusMap[filterStatus];
+    console.log('Filtering by status:', filterStatus, '-> DB status:', dbStatus);
+    console.log('All requests with status values:', requests.map(r => ({ id: r.id, status: r.status })));
+    
+    const filtered = requests.filter(req => req.status === dbStatus);
+    console.log('Filtered results:', filtered.length);
+    
+    return filtered;
   };
 
   const handleViewDetails = (requestId) => {
@@ -62,20 +124,36 @@ export default function OfficialRequests() {
     setSelectedRequest(null);
   };
 
-  const handleSaveRequest = (updatedData) => {
-    setRequests(prevRequests =>
-      prevRequests.map(req =>
-        req.id === updatedData.requestId
-          ? {
-              ...req,
-              status: updatedData.status,
-              internalNotes: updatedData.internalNotes,
-              updatedDate: new Date().toLocaleDateString(),
-            }
-          : req
-      )
-    );
-    console.log('Saving request update:', updatedData);
+  const handleSaveRequest = async (updatedData) => {
+    try {
+      console.log('Saving request with data:', updatedData);
+      
+      // Save to database
+      const result = await updateRequestStatus(
+        updatedData.requestId,
+        updatedData.status,
+        updatedData.internalNotes
+      );
+
+      if (result.success) {
+        console.log('Request saved successfully! Refreshing list...');
+        
+        // Refresh the requests list to get updated data from database
+        await fetchAssignedRequests();
+        
+        // Close modal after successful update
+        handleCloseModal();
+        
+        console.log('Request updated successfully:', updatedData);
+        alert('Request updated successfully!');
+      } else {
+        console.error('Failed to update request:', result.message);
+        alert('Error: ' + result.message);
+      }
+    } catch (error) {
+      console.error('Error saving request update:', error);
+      alert('Error saving request: ' + error.message);
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -137,8 +215,12 @@ export default function OfficialRequests() {
       </div>
 
       <div className="requests-list">
-        {requests.length > 0 ? (
-          requests.map((request) => {
+        {loading ? (
+          <div className="empty-state">
+            <p>Loading requests...</p>
+          </div>
+        ) : getFilteredRequests().length > 0 ? (
+          getFilteredRequests().map((request) => {
             const statusBadge = getStatusBadge(request.status);
             return (
               <div

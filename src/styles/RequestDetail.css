@@ -28,6 +28,7 @@
   background-color: rgba(0, 0, 0, 0.5);
   z-index: 999;
   animation: fadeIn 0.2s ease;
+  pointer-events: auto;
 }
 
 /* Fade in animation for overlay */
@@ -61,6 +62,7 @@
   display: flex;
   flex-direction: column;
   animation: slideUp 0.3s ease;
+  pointer-events: auto;
 }
 
 /* Slide up animation for modal entrance */
@@ -125,6 +127,7 @@
   align-items: center;
   justify-content: center;
   transition: color 0.2s ease;
+  pointer-events: auto;
 }
 
 .modal-close-btn:hover {
@@ -277,6 +280,7 @@
   background-color: #ffffff;
   cursor: pointer;
   transition: border-color 0.2s ease;
+  pointer-events: auto;
 }
 
 .form-select:hover {
@@ -300,6 +304,7 @@
   background-color: #ffffff;
   resize: vertical;
   transition: border-color 0.2s ease;
+  pointer-events: auto;
 }
 
 .form-textarea:hover {
@@ -343,6 +348,7 @@
   cursor: pointer;
   border-radius: 8px;
   transition: all 0.2s ease;
+  pointer-events: auto;
 }
 
 .btn-close:hover {
@@ -362,6 +368,7 @@
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
+  pointer-events: auto;
 }
 
 .btn-save:hover {

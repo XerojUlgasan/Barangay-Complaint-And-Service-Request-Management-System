@@ -37,12 +37,14 @@
 .stat-card {
   background-color: var(--color-white, #fff);
   border-radius: 12px;
-  padding: 1.5rem;
+  padding: 1.5rem 1.5rem 1.5rem 100px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
   box-shadow: var(--shadow-sm);
   transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
 }
 
 .stat-card:hover {
@@ -75,7 +77,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-left: 1rem;
+  position: absolute;
+  left: 18px;
+  top: 18px;
 }
 
 /* Charts Section */
