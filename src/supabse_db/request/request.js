@@ -62,6 +62,30 @@ export const getRequests = async () => {
 
   const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
 
+  console.log('getRequests: auth user id=', userData.user.id);
+  try {
+    console.log('getRequests: roles =>', JSON.stringify({ isSuperAdmin, isOfficial }));
+  } catch (e) {
+    console.log('getRequests: roles =>', { isSuperAdmin, isOfficial });
+  }
+
+  // First try a simple query without joins to check if data exists
+  const { data: simpleData, error: simpleError } = await supabase
+    .from("request_tbl")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  console.log('getRequests: Simple query (no joins) returned:', simpleData ? simpleData.length : 0, 'records');
+  if (simpleData && simpleData.length > 0) {
+    console.log('getRequests: First record:', simpleData[0]);
+  }
+  if (simpleError) {
+    console.error('getRequests: Simple query error:', simpleError);
+    console.error('getRequests: Error code:', simpleError.code);
+    console.error('getRequests: Error message:', simpleError.message);
+  }
+
+  // Now try with joins
   let query = supabase
     .from("request_tbl")
     .select(`
@@ -84,12 +108,39 @@ export const getRequests = async () => {
     query = query.eq("requester_id", userData.user.id);
   }
 
+  // Log whether we are applying requester filter
+  if (!isSuperAdmin && !isOfficial) {
+    console.log('getRequests: applying requester_id filter for', userData.user.id);
+  } else {
+    console.log('getRequests: no requester_id filter applied (superadmin/official)');
+  }
+
   const { data, error } = await query;
+
+  try {
+    console.log('getRequests: query returned:', Array.isArray(data) ? data.length : typeof data, JSON.stringify((Array.isArray(data) && data.length > 0) ? data.slice(0,5) : data));
+  } catch (e) {
+    console.log('getRequests: query returned:', Array.isArray(data) ? data.length : typeof data, data && data.slice ? data.slice(0,5) : data);
+  }
 
   if (error) {
     console.error("Error fetching requests:", error);
+    console.error("Error details:", { message: error.message, code: error.code, details: error.details });
+    // If join fails, fall back to simple query
+    if (simpleData && simpleData.length > 0) {
+      console.log('getRequests: Join failed, returning simple query results');
+      const enriched = simpleData.map((request) => ({
+        ...request,
+        requester_name: "Unknown",
+        assigned_official_name: null,
+      }));
+      return { success: true, data: enriched };
+    }
     return { success: false, message: "Failed to fetch requests" };
   }
+
+  console.log('getRequests: No error, data is:', data);
+  console.log('getRequests: Raw data preview:', data && data.length > 0 ? data[0] : 'No data');
 
   const enriched = data.map((request) => ({
     ...request,

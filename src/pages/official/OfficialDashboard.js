@@ -45,14 +45,31 @@ const OfficialDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const complaints = await getAssignedComplaints();
-      const requests = await getAssignedRequests();
+      const complaintsResult = await getAssignedComplaints();
+      const requestsResult = await getAssignedRequests();
 
-      console.log('Dashboard - Complaints:', complaints);
-      console.log('Dashboard - Requests:', requests);
+      console.log('Dashboard - Complaints Result:', complaintsResult);
+      console.log('Dashboard - Requests Result:', requestsResult);
+
+      // Handle error responses from database functions
+      if (!complaintsResult.success || !requestsResult.success) {
+        console.error('Failed to fetch dashboard data:', {
+          complaintsError: complaintsResult.message,
+          requestsError: requestsResult.message
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Unwrap data from successful responses
+      const complaints = complaintsResult.data || [];
+      const requests = requestsResult.data || [];
+
+      console.log('Dashboard - Unwrapped Complaints:', complaints);
+      console.log('Dashboard - Unwrapped Requests:', requests);
 
       // Combine both complaints and requests
-      const allTasks = [...(complaints || []), ...(requests || [])];
+      const allTasks = [...complaints, ...requests];
 
       // Helper function to normalize status to uppercase for comparison
       const getNormalizedStatus = (task) => {

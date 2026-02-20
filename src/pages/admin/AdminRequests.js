@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, X } from 'lucide-react';
 import '../../styles/BarangayAdmin.css';
+import { getRequests } from '../../supabse_db/request/request';
+import { getAllResidents, getAllOfficials } from '../../supabse_db/superadmin/superadmin';
 
 const SAMPLE_REQUESTS = [
   {
@@ -77,11 +79,71 @@ export default function AdminRequests() {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [requests, setRequests] = useState(SAMPLE_REQUESTS);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Transform database request data to match UI format
+  const transformRequestData = (dbRequest) => {
+    return {
+      id: dbRequest.id,
+      title: dbRequest.subject || 'Untitled Request',
+      subtitle: dbRequest.certificate_type || 'Service Request',
+      status: dbRequest.status || 'Pending',
+      submittedBy: dbRequest.requester_name || 'Unknown',
+      date: dbRequest.created_at ? new Date(dbRequest.created_at).toISOString().split('T')[0] : 'N/A',
+      lastUpdate: dbRequest.updated_at ? new Date(dbRequest.updated_at).toISOString().split('T')[0] : dbRequest.created_at ? new Date(dbRequest.created_at).toISOString().split('T')[0] : 'N/A',
+      assignedOfficial: dbRequest.assigned_official_name || 'Unassigned',
+      description: dbRequest.description || 'No description provided',
+      response: dbRequest.remarks || 'No response yet'
+    };
+  };
+
+  // Fetch requests on component mount
+  useEffect(() => {
+    const fetchRequests = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        console.log('AdminRequests: Starting fetch...');
+        const result = await getRequests();
+        console.log('AdminRequests: getRequests result:', result);
+        
+        if (result.success && Array.isArray(result.data)) {
+          console.log('AdminRequests: Raw data from DB:', result.data);
+          // Transform the data to match UI expectations
+          const transformedRequests = result.data.map(req => transformRequestData(req));
+          console.log('AdminRequests: Transformed data:', transformedRequests);
+          
+          // If database returned results, use them; otherwise use sample data
+          if (transformedRequests.length > 0) {
+            setRequests(transformedRequests);
+          } else {
+            console.log('AdminRequests: No data in database, using sample data');
+            setRequests(SAMPLE_REQUESTS);
+          }
+        } else {
+          console.error('AdminRequests: Failed to fetch requests:', result.message);
+          setError(result.message || 'Failed to fetch requests');
+          // Keep sample data visible if fetch fails
+          setRequests(SAMPLE_REQUESTS);
+        }
+      } catch (err) {
+        console.error('AdminRequests: Catch error:', err);
+        setError('Error fetching requests: ' + err.message);
+        setRequests(SAMPLE_REQUESTS);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRequests();
+  }, []);
 
   // Filter requests based on status
   const filteredRequests = selectedStatus === 'All Status'
-    ? SAMPLE_REQUESTS
-    : SAMPLE_REQUESTS.filter(req => req.status === selectedStatus);
+    ? requests
+    : requests.filter(req => req.status === selectedStatus);
 
   // Close modal on escape key
   useEffect(() => {
@@ -119,6 +181,32 @@ export default function AdminRequests() {
         <h2 className="page-title">System-wide Requests</h2>
         <p className="page-subtitle">Global monitoring of all service requests and complaints.</p>
       </div>
+
+      {/* Error Display */}
+      {error && (
+        <div style={{ 
+          padding: '1rem', 
+          marginBottom: '1.5rem', 
+          backgroundColor: '#fee2e2', 
+          borderRadius: '0.5rem',
+          color: '#991b1b'
+        }}>
+          Error: {error}
+        </div>
+      )}
+
+      {/* Loading Display */}
+      {loading && (
+        <div style={{ 
+          padding: '1rem', 
+          marginBottom: '1.5rem', 
+          backgroundColor: '#dbeafe', 
+          borderRadius: '0.5rem',
+          color: '#1e40af'
+        }}>
+          Loading requests...
+        </div>
+      )}
 
       {/* Filter Section */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1.5rem' }}>

@@ -21,7 +21,7 @@ import '../styles/Layout.css';
  * @param {string} userName - Name of logged-in user to display in header
  * @param {function} onLogout - Callback for logout action from header
  */
-const Layout = ({ menuItems = [], userName = 'Barangay Official', onLogout, userLoading = false }) => {
+const Layout = ({ menuItems = [], userName = 'Barangay Official', userRole = null, onLogout, userLoading = false }) => {
   return (
     <div className="app-layout">
       {/* Left Sidebar - navigation menu; receives menu configuration */}
@@ -30,7 +30,7 @@ const Layout = ({ menuItems = [], userName = 'Barangay Official', onLogout, user
       {/* Main wrapper - contains header and content area */}
       <div className="main-wrapper">
         {/* Top Header - page title and user account dropdown */}
-        <Header menuItems={menuItems} userName={userName} userLoading={userLoading} onLogout={onLogout} />
+        <Header menuItems={menuItems} userName={userName} userRole={userRole} userLoading={userLoading} onLogout={onLogout} />
 
         {/* Main Content Area - renders nested routes via Outlet */}
         <main className="main-content">
