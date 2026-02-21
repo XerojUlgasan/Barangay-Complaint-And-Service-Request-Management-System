@@ -18,11 +18,12 @@ import Layout from "./components/Layout";
 import { LayoutDashboard, FileText, Megaphone, Users } from 'lucide-react';
 
 // --- Public / User-facing pages ---
-import Homepage from "./raw/Homepage";        // ← changed from ./pages/Homepage
+import Homepage from "./raw/Homepage";
 import Login from "./raw/Login";
 import UserLanding from "./raw/Userlanding";
 import SubmitRequest from "./raw/SubmitRequest";
 import MyRequest from "./raw/Myrequest";
+import MyComplaints from "./raw/Mycomplaints";
 import Announcements from "./raw/Announcements";
 
 
@@ -67,10 +68,13 @@ function App() {
         <Route path="/login"         element={<Login />} />
         <Route path="/dashboard"     element={<UserLanding />} />
         <Route path="/requests"      element={<MyRequest />} />
+        <Route path="/complaints"    element={<MyComplaints />} />
         <Route path="/announcements" element={<Announcements />} />
         <Route path="/submit"        element={<SubmitRequest />} />
         <Route path="/user"          element={<UserPage />} />
         <Route path="/testingan"     element={<Home />} />
+        <Route path="/submit/certificate" element={<SubmitRequest />} />
+        <Route path="/submit/complaint"   element={<SubmitRequest />} />
 
         {/* OFFICIAL PORTAL ROUTES */}
         <Route
