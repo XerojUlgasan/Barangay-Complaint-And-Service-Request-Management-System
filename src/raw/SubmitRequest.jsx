@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { insertRequest } from '../supabse_db/request/request';
 import { insertComplaint } from '../supabse_db/complaint/complaint';
+import { uploadAnImage } from '../supabse_db/uploadImages';
 import supabase from '../supabse_db/supabase_client';
 import './userlanding.css';
 
@@ -57,29 +58,60 @@ const SubmitRequest = () => {
     setSubmitError('');
     setSubmitLoading(true);
 
-    let result;
+    try {
+      let result;
 
-    if (isComplaint) {
-      result = await insertComplaint(
-        formData.complaintType,
-        formData.incidentDate,
-        formData.incidentLocation,
-        formData.description
-      );
-    } else {
-      result = await insertRequest(
-        formData.subject,
-        formData.description,
-        formData.certificateType
-      );
-    }
+      // 1. Create the complaint or request first
+      if (isComplaint) {
+        result = await insertComplaint(
+          formData.complaintType,
+          formData.incidentDate,
+          formData.incidentLocation,
+          formData.description
+        );
+      } else {
+        result = await insertRequest(
+          formData.subject,
+          formData.description,
+          formData.certificateType
+        );
+      }
 
-    setSubmitLoading(false);
+      if (!result.success) {
+        setSubmitError(result.message || 'Failed to submit. Please try again.');
+        setSubmitLoading(false);
+        return;
+      }
 
-    if (result.success) {
+      // 2. If successful and there are attachments, upload them
+      if (formData.attachments.length > 0) {
+        const recordId = result.data.id; // Get the ID of the newly created record
+        const uploadType = isComplaint ? 'complaint' : 'request';
+
+        // Upload each attachment to Supabase Storage
+        const uploadPromises = formData.attachments.map(file => 
+          uploadAnImage(file, uploadType, recordId)
+        );
+
+        // Wait for all uploads to complete
+        const uploadResults = await Promise.all(uploadPromises);
+
+        // Check if any uploads failed (optional: log warnings)
+        const failedUploads = uploadResults.filter(r => !r.success);
+        if (failedUploads.length > 0) {
+          console.warn('Some files failed to upload:', failedUploads);
+          // Note: The complaint/request is already created, so we proceed anyway
+        }
+      }
+
+      // 3. Navigate to the appropriate page after successful submission
+      setSubmitLoading(false);
       navigate(isComplaint ? '/complaints' : '/requests');
-    } else {
-      setSubmitError(result.message || 'Failed to submit. Please try again.');
+
+    } catch (error) {
+      console.error('Error submitting:', error);
+      setSubmitError('An unexpected error occurred. Please try again.');
+      setSubmitLoading(false);
     }
   };
 
