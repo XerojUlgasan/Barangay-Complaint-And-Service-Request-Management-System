@@ -279,7 +279,7 @@ const Home = () => {
           console.log("UPDATE COMPLAINT STATUS:", result);
         }}
       >
-        Update Complaint #1 Status GOODS
+        Update Complaint #1 Status GOODS<font color="red"><b>-TODO sa database: add status enum</b></font>
       </button>
               <button
         onClick={async () => {
