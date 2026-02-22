@@ -1,6 +1,11 @@
 import supabase from "../supabase_client";
 
 var member_id = null;
+var fname = null;
+var lname = null;
+var mname = null;
+var bdate = null;
+var house_id = null;
 
 // CHECK USER ROLE (resident, official, super_admin)
 export const checkUserRole = async (uid) => {
@@ -23,7 +28,7 @@ export const checkHouseholdMember = async (
   firstname,
   lastname,
   middlename,
-  birthdate
+  birthdate,
 ) => {
   let query = supabase
     .from("sample_household_members_tbl")
@@ -62,6 +67,11 @@ export const checkHouseholdMember = async (
 
   // SAVE MEMBER ID
   member_id = data.id;
+  fname = firstname;
+  lname = lastname;
+  mname = middlename;
+  bdate = birthdate;
+  house_id = household_id;
 
   if (data.is_activated) {
     console.log("MEMBER ALREADY ACTIVATED (EMAIL ALREADY REGISTERED)");
@@ -112,6 +122,14 @@ export const registerByEmail = async (email, password) => {
     return {
       success: false,
       message: "This household member is already registered.",
+    };
+  }
+
+  const bindSuccess = await bindEmailToResident(email);
+  if (!bindSuccess) {
+    console.log("WARNING: Failed to bind auth UID to household member");
+    return {
+      success: false,
     };
   }
 
@@ -185,6 +203,12 @@ export const loginByEmail = async (email, password) => {
     console.log(data);
     console.log("LOGGED IN");
 
+    const { error } = await supabase.rpc("activate_resident");
+
+    if (error) {
+      console.log("failed to activate resident : ", error);
+    }
+
     const userRole = await checkUserRole(data.user.id);
 
     return {
@@ -247,31 +271,46 @@ const checkMemberId = async () => {
   return false;
 };
 
-const bindAuthuidToResident = async () => {
-  const userResponse = await supabase.auth.getUser();
-  const user = userResponse.data?.user;
+const bindEmailToResident = async (email) => {
+  // const userResponse = await supabase.auth.getUser();
+  // const user = userResponse.data?.user;
 
-  if (!user) {
-    console.log("No authenticated user found.");
-    return false;
-  }
+  // if (!user) {
+  //   console.log("No authenticated user found.");
+  //   return false;
+  // }
 
   console.log("MEMBER ID : " + member_id);
+  console.log(
+    "Binding with - fname:",
+    fname,
+    "lname:",
+    lname,
+    "mname:",
+    mname,
+    "bdate:",
+    bdate,
+    "house_id:",
+    house_id,
+    "email:",
+    email,
+  );
 
-  const { data, error } = await supabase
-    .from("sample_household_members_tbl")
-    .update({
-      auth_uid: user.id,
-      is_activated: true,
-    })
-    .eq("id", member_id)
-    .select("id");
+  const { data, error } = await supabase.rpc("bind_email_to_resident_new", {
+    p_fname: fname,
+    p_lname: lname,
+    p_mname: mname || null,
+    p_bdate: bdate,
+    p_house_id: house_id,
+    p_email: email,
+  });
 
   if (error) {
-    console.log(error.message);
+    console.log("RPC ERROR:", error.message);
+    console.log("Full error:", error);
     return false;
   }
 
-  console.log("UPDATED HOUSEHOLD MEMBER ID : " + data[0].id);
+  console.log(`BINDING SUCCESSFULL TO : ${fname} ${lname}`);
   return true;
 };
