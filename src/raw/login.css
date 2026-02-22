@@ -6,12 +6,19 @@
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    width: 100vw;
-    position: fixed;
-    top: 0;
-    left: 0;
+    width: 100%;
+    position: relative;
+    margin: 0;
+    padding: 20px 0;
+    box-sizing: border-box;
+}
+
+/* Ensure html and body don't block scrolling */
+html, body {
+    height: 100%;
     margin: 0;
     padding: 0;
+    overflow-y: auto;
 }
 
 .login-page .container-fluid {
@@ -25,6 +32,15 @@
     flex-direction: column;
     align-items: center;
     padding: 20px;
+
+    /* Responsive: margin auto centers it, and top/bottom margin gives breathing room */
+    margin: 20px auto;
+
+    /* Remove fixed min-heights so content determines height */
+    min-height: unset !important;
+
+    /* If somehow the container is taller than viewport, allow internal scroll as fallback */
+    max-height: none;
 }
 
 .login-page .shield-button {
@@ -181,6 +197,7 @@
 .login-page #container2 {
     padding-bottom: 40px;
     padding: 10px;
+    margin-top: -10px;
 }
 
 .login-page .active-toggle {
@@ -198,13 +215,13 @@
     background-color: rgba(5, 150, 105, 0.1) !important;
 }
 
+/* Removed fixed min-heights — now height is content-driven */
 .login-page .sign-in-container {
-    min-height: 550px !important;
+    padding-bottom: 30px;
 }
 
 .login-page .new-user-container {
-    min-height: 700px !important;
-    padding: 40px;
+    padding: 20px 30px 40px;
 }
 
 /* Add these to your existing login.css */
@@ -247,4 +264,32 @@
 
 .login-page .login-back-btn:hover {
   color: #059669;
+}
+
+/* ── Responsive tweaks ── */
+
+/* On very small screens, reduce horizontal padding so form isn't cramped */
+@media (max-width: 400px) {
+  .login-page .container-fluid {
+    padding: 16px 12px;
+    border-radius: 16px;
+  }
+
+  .login-page .new-user-container {
+    padding: 16px 12px 30px;
+  }
+
+  .login-page .container-fluid h5 {
+    font-size: 20px !important;
+  }
+
+  .login-page .shield-button {
+    width: 55px;
+    height: 55px;
+  }
+
+  .login-page .shield-icon {
+    width: 28px;
+    height: 28px;
+  }
 }

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import supabase from '../supabse_db/supabase_client';
-import { getAnnouncements } from '../supabse_db/announcement/announcement'; // adjust path if needed
+import { getAnnouncements } from '../supabse_db/announcement/announcement';
+import { logout } from '../supabse_db/auth/auth';
 import './userlanding.css';
 
 const Announcements = () => {
@@ -10,6 +11,8 @@ const Announcements = () => {
   const [userName, setUserName] = useState('');
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -30,7 +33,6 @@ const Announcements = () => {
         }
       }
 
-      // ✅ Using getAnnouncements function
       const result = await getAnnouncements();
       if (result.success) setAnnouncements(result.data);
 
@@ -39,6 +41,17 @@ const Announcements = () => {
 
     fetchData();
   }, []);
+
+  const handleLogoutConfirm = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
+  const closeSidebar = () => setSidebarOpen(false);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
@@ -70,8 +83,42 @@ const Announcements = () => {
     <div className="user-landing-page">
       <div className="layout">
 
+        {/* LOGOUT MODAL */}
+        {showLogoutModal && (
+          <div className="logout-modal-overlay" onClick={() => setShowLogoutModal(false)}>
+            <div className="logout-modal" onClick={e => e.stopPropagation()}>
+              <div className="logout-modal-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" width="32" height="32">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+              </div>
+              <h3 className="logout-modal-title">Logout</h3>
+              <p className="logout-modal-message">Are you sure you want to logout?</p>
+              <div className="logout-modal-actions">
+                <button className="logout-modal-no" onClick={() => setShowLogoutModal(false)}>No, Stay</button>
+                <button className="logout-modal-yes" onClick={handleLogoutConfirm}>Yes, Logout</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MOBILE SIDEBAR OVERLAY */}
+        <div
+          className={`sidebar-overlay${sidebarOpen ? ' visible' : ''}`}
+          onClick={closeSidebar}
+        />
+
         {/* SIDEBAR */}
-        <aside className="sidebar">
+        <aside className={`sidebar${sidebarOpen ? ' open' : ''}`}>
+          <button className="sidebar-close" onClick={closeSidebar} aria-label="Close menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+
           <div className="logo-section">
             <div className="logo-icon">
               <svg viewBox="0 0 24 24" className="shield-logo">
@@ -86,7 +133,7 @@ const Announcements = () => {
 
           <div className="menu">
             <h4>GENERAL</h4>
-            <a href="/dashboard">
+            <a href="/dashboard" onClick={closeSidebar}>
               <svg viewBox="0 0 24 24">
                 <path d="M3 12l9-9 9 9"/><path d="M9 21V9h6v12"/>
               </svg>
@@ -94,13 +141,21 @@ const Announcements = () => {
             </a>
 
             <h4>SERVICES</h4>
-            <a href="/requests">
+            <a href="/requests" onClick={closeSidebar}>
               <svg viewBox="0 0 24 24">
                 <path d="M4 4h16v16H4z"/><path d="M8 2v4M16 2v4M4 10h16"/>
               </svg>
               My Requests
             </a>
-            <a href="/announcements" className="active">
+            <a href="/complaints" onClick={closeSidebar}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+              My Complaints
+            </a>
+            <a href="/announcements" className="active" onClick={closeSidebar}>
               <svg viewBox="0 0 24 24">
                 <path d="M3 11l18-5v10l-18-5v4"/>
               </svg>
@@ -114,15 +169,28 @@ const Announcements = () => {
 
           {/* TOPBAR */}
           <div className="topbar">
+            <button
+              className="hamburger-btn"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open menu"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                <line x1="3" y1="6" x2="21" y2="6"/>
+                <line x1="3" y1="12" x2="21" y2="12"/>
+                <line x1="3" y1="18" x2="21" y2="18"/>
+              </svg>
+            </button>
             <h3>Announcements</h3>
             <div className="user">
               <div className="user-text">
                 <strong>{userName || 'Loading...'}</strong>
                 <span>Resident</span>
               </div>
-              <button onClick={() => navigate(-1)} className="back-button" title="Go back">
+              <button onClick={() => setShowLogoutModal(true)} className="back-button" title="Logout">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
                 </svg>
               </button>
             </div>
