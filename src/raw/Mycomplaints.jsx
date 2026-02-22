@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getRequests, getRequestHistory } from '../supabse_db/request/request';
+import { getComplaints, getComplaintHistory } from '../supabse_db/complaint/complaint';
 import { logout } from '../supabse_db/auth/auth';
 import supabase from '../supabse_db/supabase_client';
 import './userlanding.css';
 
-const MyRequests = () => {
+const MyComplaints = () => {
   const navigate = useNavigate();
 
-  const [requests, setRequests] = useState([]);
+  const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('');
   const [filter, setFilter] = useState('All Status');
@@ -19,7 +19,7 @@ const MyRequests = () => {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historyData, setHistoryData] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [selectedComplaint, setSelectedComplaint] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -40,8 +40,8 @@ const MyRequests = () => {
         }
       }
 
-      const result = await getRequests();
-      if (result.success) setRequests(result.data);
+      const result = await getComplaints();
+      if (result.success) setComplaints(result.data);
 
       setLoading(false);
     };
@@ -58,13 +58,13 @@ const MyRequests = () => {
     }
   };
 
-  const handleViewHistory = async (req) => {
-    setSelectedRequest(req);
+  const handleViewHistory = async (complaint) => {
+    setSelectedComplaint(complaint);
     setShowHistoryModal(true);
     setHistoryLoading(true);
     setHistoryData([]);
 
-    const result = await getRequestHistory(req.id);
+    const result = await getComplaintHistory(complaint.id);
     if (result.success) {
       const sorted = [...result.data].sort((a, b) => {
         const dateA = new Date(a.updated_at || a.created_at);
@@ -81,8 +81,8 @@ const MyRequests = () => {
   const normalize = (str) => (str || '').toLowerCase().replace(/[\s_-]/g, '');
 
   const filtered = filter === 'All Status'
-    ? requests
-    : requests.filter(r => normalize(r.request_status) === normalize(filter));
+    ? complaints
+    : complaints.filter(c => normalize(c.status) === normalize(filter));
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
@@ -101,10 +101,10 @@ const MyRequests = () => {
 
   const getBadgeClass = (status) => {
     const n = normalize(status);
-    if (n === 'completed')  return 'badge completed';
-    if (n === 'inprogress') return 'badge progress';
-    if (n === 'pending')    return 'badge pending';
-    if (n === 'rejected')   return 'badge rejected';
+    if (n === 'resolved' || n === 'completed') return 'badge completed';
+    if (n === 'inprogress')                    return 'badge progress';
+    if (n === 'pending')                       return 'badge pending';
+    if (n === 'rejected' || n === 'dismissed') return 'badge rejected';
     return 'badge';
   };
 
@@ -115,9 +115,9 @@ const MyRequests = () => {
 
   const getTimelineDot = (status) => {
     const n = normalize(status);
-    if (n === 'completed')  return '#059669';
-    if (n === 'inprogress') return '#2563eb';
-    if (n === 'rejected')   return '#dc2626';
+    if (n === 'resolved' || n === 'completed') return '#059669';
+    if (n === 'inprogress')                    return '#2563eb';
+    if (n === 'rejected' || n === 'dismissed') return '#dc2626';
     return '#f59e0b';
   };
 
@@ -152,14 +152,15 @@ const MyRequests = () => {
             <div className="history-modal" onClick={e => e.stopPropagation()}>
               <div className="history-modal-header">
                 <div>
-                  <h3 className="history-modal-title">Request History</h3>
-                  {selectedRequest && (
-                    <p className="history-modal-sub">{selectedRequest.subject}</p>
+                  <h3 className="history-modal-title">Complaint History</h3>
+                  {selectedComplaint && (
+                    <p className="history-modal-sub">{selectedComplaint.complaint_type}</p>
                   )}
                 </div>
                 <button className="history-modal-close" onClick={() => setShowHistoryModal(false)}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
-                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
                   </svg>
                 </button>
               </div>
@@ -172,16 +173,19 @@ const MyRequests = () => {
                   <div className="history-timeline">
                     {historyData.map((item, index) => (
                       <div className="timeline-item" key={item.id || index}>
-                        <div className="timeline-dot" style={{ backgroundColor: getTimelineDot(item.request_status) }} />
+                        <div className="timeline-dot" style={{ backgroundColor: getTimelineDot(item.status) }} />
                         {index < historyData.length - 1 && <div className="timeline-line" />}
                         <div className="timeline-content">
-                          <div className="timeline-status">{formatStatus(item.request_status)}</div>
+                          <div className="timeline-status">{formatStatus(item.status)}</div>
+                          {item.priority_level && (
+                            <div className="timeline-priority">Priority: {item.priority_level}</div>
+                          )}
                           {item.remarks && (
                             <div className="timeline-remarks">"{item.remarks}"</div>
                           )}
                           <div className="timeline-meta">
-                            {item.official_name && (
-                              <span className="timeline-official">by {item.official_name}</span>
+                            {item.updater_name && (
+                              <span className="timeline-official">by {item.updater_name}</span>
                             )}
                             <span className="timeline-date">{formatDateTime(item.updated_at || item.created_at)}</span>
                           </div>
@@ -232,13 +236,13 @@ const MyRequests = () => {
             </a>
 
             <h4>SERVICES</h4>
-            <a href="/requests" className="active" onClick={closeSidebar}>
+            <a href="/requests" onClick={closeSidebar}>
               <svg viewBox="0 0 24 24">
                 <path d="M4 4h16v16H4z"/><path d="M8 2v4M16 2v4M4 10h16"/>
               </svg>
               My Requests
             </a>
-            <a href="/complaints" onClick={closeSidebar}>
+            <a href="/complaints" className="active" onClick={closeSidebar}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
                 <line x1="12" y1="9" x2="12" y2="13"/>
@@ -271,7 +275,7 @@ const MyRequests = () => {
                 <line x1="3" y1="18" x2="21" y2="18"/>
               </svg>
             </button>
-            <h3>My Requests</h3>
+            <h3>My Complaints</h3>
             <div className="user">
               <div className="user-text">
                 <strong>{userName || 'Loading...'}</strong>
@@ -289,8 +293,8 @@ const MyRequests = () => {
 
           {/* CONTENT */}
           <div className="mr-content">
-            <h1 className="mr-page-title">My Requests</h1>
-            <p className="mr-page-sub">Track and manage your submitted requests</p>
+            <h1 className="mr-page-title">My Complaints</h1>
+            <p className="mr-page-sub">Track and manage your submitted complaints</p>
 
             <div className="mr-filter-bar">
               <svg viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" width="18" height="18">
@@ -300,64 +304,79 @@ const MyRequests = () => {
                 <option>All Status</option>
                 <option>Pending</option>
                 <option>In Progress</option>
-                <option>Completed</option>
+                <option>Resolved</option>
                 <option>Rejected</option>
+                <option>Dismissed</option>
               </select>
-              <span className="mr-count">{filtered.length} request{filtered.length !== 1 ? 's' : ''}</span>
+              <span className="mr-count">{filtered.length} complaint{filtered.length !== 1 ? 's' : ''}</span>
             </div>
 
             {loading ? (
-              <p style={{ color: '#888' }}>Loading requests...</p>
+              <p style={{ color: '#888' }}>Loading complaints...</p>
             ) : filtered.length === 0 ? (
-              <p style={{ color: '#888' }}>No requests found.</p>
+              <p style={{ color: '#888' }}>No complaints found.</p>
             ) : (
               <div className="mr-grid">
-                {filtered.map(req => (
-                  <div className="mr-card" key={req.id}>
+                {filtered.map(complaint => (
+                  <div className="mr-card" key={complaint.id}>
                     <div className="mr-card-header">
                       <div className="mr-card-title-block">
-                        {normalize(req.request_status) === 'completed' ? (
+                        {normalize(complaint.status) === 'resolved' || normalize(complaint.status) === 'completed' ? (
                           <svg viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" width="18" height="18">
                             <circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/>
                           </svg>
                         ) : (
-                          <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="18" height="18">
-                            <circle cx="12" cy="12" r="10"/>
-                            <line x1="12" y1="8" x2="12" y2="12"/>
-                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" width="18" height="18">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                            <line x1="12" y1="9" x2="12" y2="13"/>
+                            <line x1="12" y1="17" x2="12.01" y2="17"/>
                           </svg>
                         )}
                         <div>
-                          <div className="mr-card-title">{req.subject}</div>
-                          <div className="mr-card-type">{req.request_type}</div>
+                          <div className="mr-card-title">{complaint.complaint_type}</div>
+                          <div className="mr-card-type">
+                            {complaint.priority_level ? `Priority: ${complaint.priority_level}` : 'No priority set'}
+                          </div>
                         </div>
                       </div>
-                      <span className={getBadgeClass(req.request_status)}>
-                        {formatStatus(req.request_status)}
+                      <span className={getBadgeClass(complaint.status)}>
+                        {formatStatus(complaint.status) || 'Pending'}
                       </span>
                     </div>
 
-                    <p className="mr-description">{req.description}</p>
+                    <p className="mr-description">{complaint.description}</p>
 
                     <div className="mr-meta">
                       <div className="mr-meta-row">
                         <span>Submitted:</span>
-                        <span>{formatDate(req.created_at)}</span>
+                        <span>{formatDate(complaint.created_at)}</span>
                       </div>
                       <div className="mr-meta-row">
                         <span>Assigned:</span>
-                        <span>{req.assigned_official_name || '—'}</span>
+                        <span>{complaint.assigned_official_name || '—'}</span>
                       </div>
+                      {complaint.incident_date && (
+                        <div className="mr-meta-row">
+                          <span>Incident Date:</span>
+                          <span>{formatDate(complaint.incident_date)}</span>
+                        </div>
+                      )}
+                      {complaint.incident_location && (
+                        <div className="mr-meta-row">
+                          <span>Location:</span>
+                          <span>{complaint.incident_location}</span>
+                        </div>
+                      )}
                     </div>
 
-                    {req.remarks && (
+                    {complaint.remarks && (
                       <div className="mr-notes">
-                        <div className="mr-notes-label">Notes:</div>
-                        {req.remarks}
+                        <div className="mr-notes-label">Remarks:</div>
+                        {complaint.remarks}
                       </div>
                     )}
 
-                    <button className="history-btn" onClick={() => handleViewHistory(req)}>
+                    <button className="history-btn" onClick={() => handleViewHistory(complaint)}>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
                         <circle cx="12" cy="12" r="10"/>
                         <polyline points="12 6 12 12 16 14"/>
@@ -376,4 +395,4 @@ const MyRequests = () => {
   );
 };
 
-export default MyRequests;
+export default MyComplaints;
