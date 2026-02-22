@@ -174,7 +174,15 @@ export const updateRequestStatus = async (
   }
 
   // Validate status against allowed enum values
-  const validStatuses = ["pending", "processing", "completed", "rejected"];
+  const validStatuses = [
+    "pending",
+    "in_progress",
+    "completed",
+    "rejected",
+    "for_compliance",
+    "non_compliant",
+    "for_validation",
+  ];
   if (!validStatuses.includes(status)) {
     console.error(
       `Invalid status value: ${status}. Must be one of: ${validStatuses.join(", ")}`,
@@ -244,10 +252,12 @@ export const updateComplaintStatus = async (
   // Validate status against allowed enum values
   const validStatuses = [
     "pending",
-    "under_review",
-    "investigating",
-    "resolved",
-    "closed",
+    "in_progress",
+    "completed",
+    "rejected",
+    "for_compliance",
+    "non_compliant",
+    "for_validation",
   ];
   if (status && !validStatuses.includes(status)) {
     console.warn(
