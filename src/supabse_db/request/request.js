@@ -6,7 +6,7 @@ const checkUserRole = async (userId) => {
     .from("superadmin_tbl")
     .select("id")
     .eq("auth_uid", userId);
-  
+
   const { data: officialData } = await supabase
     .from("official_tbl")
     .select("id")
@@ -14,7 +14,7 @@ const checkUserRole = async (userId) => {
 
   return {
     isSuperAdmin: superadminData && superadminData.length > 0,
-    isOfficial: officialData && officialData.length > 0
+    isOfficial: officialData && officialData.length > 0,
   };
 };
 
@@ -30,7 +30,10 @@ export const insertRequest = async (subj, desc, cert_type) => {
   const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
 
   if (isSuperAdmin || isOfficial) {
-    return { success: false, message: "Officials and superadmin cannot insert requests" };
+    return {
+      success: false,
+      message: "Officials and superadmin cannot insert requests",
+    };
   }
 
   const { data, error } = await supabase
@@ -62,11 +65,14 @@ export const getRequests = async () => {
 
   const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
 
-  console.log('getRequests: auth user id=', userData.user.id);
+  console.log("getRequests: auth user id=", userData.user.id);
   try {
-    console.log('getRequests: roles =>', JSON.stringify({ isSuperAdmin, isOfficial }));
+    console.log(
+      "getRequests: roles =>",
+      JSON.stringify({ isSuperAdmin, isOfficial }),
+    );
   } catch (e) {
-    console.log('getRequests: roles =>', { isSuperAdmin, isOfficial });
+    console.log("getRequests: roles =>", { isSuperAdmin, isOfficial });
   }
 
   // First try a simple query without joins to check if data exists
@@ -75,20 +81,25 @@ export const getRequests = async () => {
     .select("*")
     .order("created_at", { ascending: false });
 
-  console.log('getRequests: Simple query (no joins) returned:', simpleData ? simpleData.length : 0, 'records');
+  console.log(
+    "getRequests: Simple query (no joins) returned:",
+    simpleData ? simpleData.length : 0,
+    "records",
+  );
   if (simpleData && simpleData.length > 0) {
-    console.log('getRequests: First record:', simpleData[0]);
+    console.log("getRequests: First record:", simpleData[0]);
   }
   if (simpleError) {
-    console.error('getRequests: Simple query error:', simpleError);
-    console.error('getRequests: Error code:', simpleError.code);
-    console.error('getRequests: Error message:', simpleError.message);
+    console.error("getRequests: Simple query error:", simpleError);
+    console.error("getRequests: Error code:", simpleError.code);
+    console.error("getRequests: Error message:", simpleError.message);
   }
 
   // Now try with joins
   let query = supabase
     .from("request_tbl")
-    .select(`
+    .select(
+      `
       *,
       member:sample_household_members_tbl!request_tbl_user_id_fkey (
         firstname,
@@ -100,7 +111,8 @@ export const getRequests = async () => {
         lastname,
         role
       )
-    `)
+    `,
+    )
     .order("created_at", { ascending: false });
 
   if (!isSuperAdmin && !isOfficial) {
@@ -110,25 +122,44 @@ export const getRequests = async () => {
 
   // Log whether we are applying requester filter
   if (!isSuperAdmin && !isOfficial) {
-    console.log('getRequests: applying requester_id filter for', userData.user.id);
+    console.log(
+      "getRequests: applying requester_id filter for",
+      userData.user.id,
+    );
   } else {
-    console.log('getRequests: no requester_id filter applied (superadmin/official)');
+    console.log(
+      "getRequests: no requester_id filter applied (superadmin/official)",
+    );
   }
 
   const { data, error } = await query;
 
   try {
-    console.log('getRequests: query returned:', Array.isArray(data) ? data.length : typeof data, JSON.stringify((Array.isArray(data) && data.length > 0) ? data.slice(0,5) : data));
+    console.log(
+      "getRequests: query returned:",
+      Array.isArray(data) ? data.length : typeof data,
+      JSON.stringify(
+        Array.isArray(data) && data.length > 0 ? data.slice(0, 5) : data,
+      ),
+    );
   } catch (e) {
-    console.log('getRequests: query returned:', Array.isArray(data) ? data.length : typeof data, data && data.slice ? data.slice(0,5) : data);
+    console.log(
+      "getRequests: query returned:",
+      Array.isArray(data) ? data.length : typeof data,
+      data && data.slice ? data.slice(0, 5) : data,
+    );
   }
 
   if (error) {
     console.error("Error fetching requests:", error);
-    console.error("Error details:", { message: error.message, code: error.code, details: error.details });
+    console.error("Error details:", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+    });
     // If join fails, fall back to simple query
     if (simpleData && simpleData.length > 0) {
-      console.log('getRequests: Join failed, returning simple query results');
+      console.log("getRequests: Join failed, returning simple query results");
       const enriched = simpleData.map((request) => ({
         ...request,
         requester_name: "Unknown",
@@ -139,8 +170,11 @@ export const getRequests = async () => {
     return { success: false, message: "Failed to fetch requests" };
   }
 
-  console.log('getRequests: No error, data is:', data);
-  console.log('getRequests: Raw data preview:', data && data.length > 0 ? data[0] : 'No data');
+  console.log("getRequests: No error, data is:", data);
+  console.log(
+    "getRequests: Raw data preview:",
+    data && data.length > 0 ? data[0] : "No data",
+  );
 
   const enriched = data.map((request) => ({
     ...request,
@@ -175,13 +209,17 @@ export const getRequestById = async (requestId) => {
 
   if (!requestExists) {
     console.log("Request does not exist or you don't have access to it");
-    return { success: false, message: "Request does not exist or you don't have access to it" };
+    return {
+      success: false,
+      message: "Request does not exist or you don't have access to it",
+    };
   }
 
   // Now check if user has access to this request
   let query = supabase
     .from("request_tbl")
-    .select(`
+    .select(
+      `
       *,
       member:sample_household_members_tbl!request_tbl_user_id_fkey (
         firstname,
@@ -193,7 +231,8 @@ export const getRequestById = async (requestId) => {
         lastname,
         role
       )
-    `)
+    `,
+    )
     .eq("id", requestId);
 
   if (!isSuperAdmin && !isOfficial) {
@@ -206,12 +245,18 @@ export const getRequestById = async (requestId) => {
   if (error) {
     console.error("Error fetching request:", error);
     console.log("Request does not exist or you don't have access to it");
-    return { success: false, message: "Request does not exist or you don't have access to it" };
+    return {
+      success: false,
+      message: "Request does not exist or you don't have access to it",
+    };
   }
 
   if (!data) {
     console.log("Request does not exist or you don't have access to it");
-    return { success: false, message: "Request does not exist or you don't have access to it" };
+    return {
+      success: false,
+      message: "Request does not exist or you don't have access to it",
+    };
   }
 
   return {
@@ -230,6 +275,47 @@ export const getRequestById = async (requestId) => {
   };
 };
 
+export const markRequestResidentComplied = async (requestId) => {
+  const { data: userData, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !userData || !userData.user) {
+    return { success: false, message: "Not authenticated" };
+  }
+
+  const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
+
+  if (isSuperAdmin || isOfficial) {
+    return {
+      success: false,
+      message: "Officials and superadmin cannot submit compliance",
+    };
+  }
+
+  const { data: requestData } = await supabase
+    .from("request_tbl")
+    .select("id, requester_id")
+    .eq("id", requestId)
+    .maybeSingle();
+
+  if (!requestData || requestData.requester_id !== userData.user.id) {
+    return {
+      success: false,
+      message: "Request does not exist or you don't have access to it",
+    };
+  }
+
+  const { error } = await supabase.rpc("set_request_compliant", {
+    request_id: requestId,
+  });
+
+  if (error) {
+    console.error("Error updating request compliance status:", error);
+    return { success: false, message: "Failed to update request status" };
+  }
+
+  return { success: true, message: "Request marked as resident complied" };
+};
+
 export const deleteRequest = async (requestId) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
 
@@ -240,7 +326,10 @@ export const deleteRequest = async (requestId) => {
   const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
 
   if (isSuperAdmin || isOfficial) {
-    return { success: false, message: "Officials and superadmin cant delete requests" };
+    return {
+      success: false,
+      message: "Officials and superadmin cant delete requests",
+    };
   }
 
   // Check if request exists and is owned by the resident
@@ -252,12 +341,18 @@ export const deleteRequest = async (requestId) => {
 
   if (!requestData) {
     console.log("Request does not exist or you don't have access to it");
-    return { success: false, message: "Request does not exist or you don't have access to it" };
+    return {
+      success: false,
+      message: "Request does not exist or you don't have access to it",
+    };
   }
 
   if (requestData.requester_id !== userData.user.id) {
     console.log("Request does not exist or you don't have access to it");
-    return { success: false, message: "Request does not exist or you don't have access to it" };
+    return {
+      success: false,
+      message: "Request does not exist or you don't have access to it",
+    };
   }
 
   const { error } = await supabase
@@ -292,7 +387,10 @@ export const getRequestHistory = async (requestId) => {
 
   if (!requestExists) {
     console.log("Request does not exist or you don't have access to it");
-    return { success: false, message: "Request does not exist or you don't have access to it" };
+    return {
+      success: false,
+      message: "Request does not exist or you don't have access to it",
+    };
   }
 
   // Now verify user has access to this request
@@ -310,19 +408,24 @@ export const getRequestHistory = async (requestId) => {
 
   if (!accessData) {
     console.log("Request does not exist or you don't have access to it");
-    return { success: false, message: "Request does not exist or you don't have access to it" };
+    return {
+      success: false,
+      message: "Request does not exist or you don't have access to it",
+    };
   }
 
   const { data, error } = await supabase
     .from("request_history_tbl")
-    .select(`
+    .select(
+      `
       *,
       updater:official_tbl!request_history_tbl_updater_id_fkey (
         firstname,
         lastname,
         role
       )
-    `)
+    `,
+    )
     .eq("request_id", requestId)
     .order("updated_at", { ascending: true });
 
