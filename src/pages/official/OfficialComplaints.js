@@ -1,88 +1,66 @@
 import React, { useState, useEffect } from "react";
-import { ChevronDown, Calendar, User, ArrowRight } from "lucide-react";
+import { ChevronDown, User, Calendar, ArrowRight } from "lucide-react";
+import { getAssignedComplaints } from "../../supabse_db/official/official";
+import { updateComplaintStatus } from "../../supabse_db/official/official";
 import RequestDetail from "../../components/RequestDetail";
-import {
-  getAssignedRequests,
-  updateRequestStatus,
-} from "../../supabse_db/official/official";
 import "../../styles/Requests.css";
 
-export default function OfficialRequests() {
-  const [requests, setRequests] = useState([]);
+export default function OfficialComplaints() {
+  const [complaints, setComplaints] = useState([]);
   const [filterStatus, setFilterStatus] = useState("All Status");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
-  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchAssignedRequests();
+    fetchAssignedComplaints();
   }, []);
 
-  const fetchAssignedRequests = async () => {
+  const fetchAssignedComplaints = async () => {
     try {
-      const result = await getAssignedRequests();
-      console.log("Raw result from getAssignedRequests:", result);
+      const result = await getAssignedComplaints();
+      console.log("Raw result from getAssignedComplaints:", result);
 
       // Handle error responses from database function
       if (!result.success) {
-        console.error("Failed to fetch assigned requests:", result.message);
+        console.error("Failed to fetch complaints:", result.message);
         setLoading(false);
         return;
       }
 
       // Unwrap data from successful response
       const data = result.data || [];
-      if (data && Array.isArray(data)) {
-        // Format data to match component requirements
-        const formattedRequests = data.map((req) => {
-          // Normalize status to uppercase
-          const normalizedStatus = (
-            req.request_status || "PENDING"
-          ).toUpperCase();
-          const lowercaseStatus = (
-            req.request_status || "pending"
-          ).toLowerCase();
+      console.log("Fetched complaints:", data);
 
-          console.log("Formatting request:", req.id, {
-            subject: req.subject,
-            request_status: req.request_status,
-            normalizedStatus: normalizedStatus,
-            certificate_type: req.certificate_type,
-            requester_name: req.requester_name,
-          });
+      // Add additional fields for UI
+      const complaintsWithUI = data.map((complaint) => ({
+        ...complaint,
+        id: complaint.id,
+        title: complaint.complaint_type || "Complaint",
+        submittedBy: complaint.complainant_name || "Unknown",
+        submissionDate: complaint.created_at
+          ? new Date(complaint.created_at).toLocaleDateString()
+          : "N/A",
+        updatedDate: complaint.updated_at
+          ? new Date(complaint.updated_at).toLocaleDateString()
+          : "N/A",
+        type: complaint.complaint_type,
+        status: complaint.status || "pending",
+        statusColor: getStatusColorForUI(complaint.status),
+        borderColor: getBorderColorForUI(complaint.status),
+      }));
 
-          return {
-            id: req.id,
-            title: req.subject || "Untitled Request",
-            type: req.certificate_type || "REQUEST",
-            status: normalizedStatus,
-            submittedBy: req.requester_name || "User",
-            submissionDate: req.created_at
-              ? new Date(req.created_at).toLocaleDateString()
-              : "N/A",
-            updatedDate: req.updated_at
-              ? new Date(req.updated_at).toLocaleDateString()
-              : "N/A",
-            statusColor: getStatusColor(lowercaseStatus),
-            borderColor: getBorderColor(lowercaseStatus),
-            description: req.description || "No description provided",
-            internalNotes: req.remarks || "",
-          };
-        });
-
-        console.log("Formatted requests:", formattedRequests);
-        setRequests(formattedRequests);
-      }
+      setComplaints(complaintsWithUI);
       setLoading(false);
     } catch (error) {
-      console.error("Error fetching assigned requests:", error);
+      console.error("Error fetching assigned complaints:", error);
       setLoading(false);
     }
   };
 
-  const getStatusColor = (status) => {
+  const getStatusColorForUI = (status) => {
     const colorMap = {
       pending: "#F59E0B", // Warm Amber/Gold
       in_progress: "#0EA5E9", // Sky Blue
@@ -95,7 +73,7 @@ export default function OfficialRequests() {
     return colorMap[status] || "#6B7280";
   };
 
-  const getBorderColor = (status) => {
+  const getBorderColorForUI = (status) => {
     const borderMap = {
       pending: "#F59E0B", // Warm Amber/Gold
       in_progress: "#0EA5E9", // Sky Blue
@@ -124,10 +102,9 @@ export default function OfficialRequests() {
     setIsFilterOpen(false);
   };
 
-  const getFilteredRequests = () => {
+  const getFilteredComplaints = () => {
     if (filterStatus === "All Status") {
-      console.log("Showing all requests:", requests.length);
-      return requests;
+      return complaints;
     }
 
     const statusMap = {
@@ -148,22 +125,22 @@ export default function OfficialRequests() {
       dbStatus,
     );
     console.log(
-      "All requests with status values:",
-      requests.map((r) => ({ id: r.id, status: r.status })),
+      "All complaints with status values:",
+      complaints.map((c) => ({ id: c.id, status: c.status })),
     );
 
-    const filtered = requests.filter(
-      (req) => req.status.toLowerCase() === dbStatus,
+    const filtered = complaints.filter(
+      (complaint) => complaint.status.toLowerCase() === dbStatus,
     );
     console.log("Filtered results:", filtered.length);
 
     return filtered;
   };
 
-  const handleViewDetails = (requestId) => {
-    const request = requests.find((req) => req.id === requestId);
-    if (request) {
-      setSelectedRequest(request);
+  const handleViewDetails = (complaintId) => {
+    const complaint = complaints.find((c) => c.id === complaintId);
+    if (complaint) {
+      setSelectedComplaint(complaint);
       setIsDetailModalOpen(true);
       setIsFilterOpen(false); // Close filter dropdown when modal opens
     }
@@ -171,60 +148,33 @@ export default function OfficialRequests() {
 
   const handleCloseModal = () => {
     setIsDetailModalOpen(false);
-    setSelectedRequest(null);
+    setSelectedComplaint(null);
   };
 
-  const handleSaveRequest = async (updatedData) => {
+  const handleSaveComplaint = async (updatedData) => {
     try {
-      console.log("Saving request with data:", updatedData);
-
-      // Map frontend status (uppercase) to database status (lowercase)
-      const statusMap = {
-        PENDING: "pending",
-        IN_PROGRESS: "in_progress",
-        COMPLETED: "completed",
-        REJECTED: "rejected",
-      };
-
-      const dbStatus =
-        statusMap[updatedData.status] || updatedData.status.toLowerCase();
-      console.log(
-        "Converting status:",
+      const result = await updateComplaintStatus(
+        selectedComplaint.id,
         updatedData.status,
-        "-> DB status:",
-        dbStatus,
-      );
-
-      // Save to database
-      const result = await updateRequestStatus(
-        updatedData.requestId,
-        dbStatus,
-        updatedData.internalNotes,
+        updatedData.remarks,
+        updatedData.priority_level,
       );
 
       if (result.success) {
-        console.log("Request saved successfully! Refreshing list...");
-
-        // Refresh the requests list to get updated data from database
-        await fetchAssignedRequests();
-
-        // Close modal after successful update
+        console.log("Complaint updated successfully");
+        fetchAssignedComplaints();
         handleCloseModal();
-
-        console.log("Request updated successfully:", updatedData);
-        alert("Request updated successfully!");
       } else {
-        console.error("Failed to update request:", result.message);
-        alert("Error: " + result.message);
+        console.error("Failed to update complaint:", result.message);
       }
     } catch (error) {
-      console.error("Error saving request update:", error);
-      alert("Error saving request: " + error.message);
+      console.error("Error saving complaint:", error);
     }
   };
 
   const getStatusBadge = (status) => {
-    const lowercaseStatus = status.toLowerCase();
+    const lowercaseStatus =
+      typeof status === "string" ? status.toLowerCase() : status;
     const statusMap = {
       pending: { label: "PENDING", color: "#F59E0B" },
       in_progress: { label: "IN PROGRESS", color: "#0EA5E9" },
@@ -236,7 +186,7 @@ export default function OfficialRequests() {
     };
     return (
       statusMap[lowercaseStatus] || {
-        label: status.toUpperCase(),
+        label: typeof status === "string" ? status.toUpperCase() : status,
         color: "#6B7280",
       }
     );
@@ -245,9 +195,9 @@ export default function OfficialRequests() {
   return (
     <div className="requests-container">
       <div className="requests-header">
-        <h1 className="requests-title">Assigned Requests</h1>
+        <h1 className="requests-title">Assigned Complaints</h1>
         <p className="requests-subtitle">
-          Review and manage citizen service requests
+          Review and manage citizen complaints
         </p>
       </div>
 
@@ -298,16 +248,16 @@ export default function OfficialRequests() {
       <div className="requests-list">
         {loading ? (
           <div className="empty-state">
-            <p>Loading requests...</p>
+            <p>Loading complaints...</p>
           </div>
-        ) : getFilteredRequests().length > 0 ? (
-          getFilteredRequests().map((request) => {
-            const statusBadge = getStatusBadge(request.status);
+        ) : getFilteredComplaints().length > 0 ? (
+          getFilteredComplaints().map((complaint) => {
+            const statusBadge = getStatusBadge(complaint.status);
             return (
               <div
-                key={request.id}
+                key={complaint.id}
                 className="request-card"
-                style={{ borderLeft: `4px solid ${request.borderColor}` }}
+                style={{ borderLeft: `4px solid ${complaint.borderColor}` }}
               >
                 <div className="request-badge">
                   <span
@@ -316,20 +266,20 @@ export default function OfficialRequests() {
                   >
                     {statusBadge.label}
                   </span>
-                  <span className="type-badge">{request.type}</span>
+                  <span className="type-badge">{complaint.type}</span>
                 </div>
 
-                <h3 className="request-title">{request.title}</h3>
+                <h3 className="request-title">{complaint.title}</h3>
 
                 <div className="request-metadata">
                   <div className="metadata-item">
                     <User size={16} />
-                    <span>{request.submittedBy}</span>
+                    <span>{complaint.submittedBy}</span>
                   </div>
 
                   <div className="metadata-item">
                     <Calendar size={16} />
-                    <span>{request.submissionDate}</span>
+                    <span>Incident: {complaint.submissionDate}</span>
                   </div>
 
                   <div className="metadata-item">
@@ -348,13 +298,13 @@ export default function OfficialRequests() {
                         strokeLinecap="round"
                       />
                     </svg>
-                    <span>Updated: {request.updatedDate}</span>
+                    <span>Updated: {complaint.updatedDate}</span>
                   </div>
                 </div>
 
                 <button
                   className="view-details-btn"
-                  onClick={() => handleViewDetails(request.id)}
+                  onClick={() => handleViewDetails(complaint.id)}
                 >
                   View Details
                   <ArrowRight size={18} />
@@ -364,17 +314,17 @@ export default function OfficialRequests() {
           })
         ) : (
           <div className="empty-state">
-            <p>No requests found</p>
+            <p>No complaints found</p>
           </div>
         )}
       </div>
 
       <RequestDetail
-        request={selectedRequest}
-        itemType="request"
+        request={selectedComplaint}
+        itemType="complaint"
         isOpen={isDetailModalOpen}
         onClose={handleCloseModal}
-        onSave={handleSaveRequest}
+        onSave={handleSaveComplaint}
       />
     </div>
   );

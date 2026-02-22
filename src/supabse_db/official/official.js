@@ -6,7 +6,7 @@ const checkUserRole = async (userId) => {
     .from("superadmin_tbl")
     .select("id")
     .eq("auth_uid", userId);
-  
+
   const { data: officialData } = await supabase
     .from("official_tbl")
     .select("id")
@@ -14,7 +14,7 @@ const checkUserRole = async (userId) => {
 
   return {
     isSuperAdmin: superadminData && superadminData.length > 0,
-    isOfficial: officialData && officialData.length > 0
+    isOfficial: officialData && officialData.length > 0,
   };
 };
 
@@ -26,17 +26,21 @@ export const getAssignedComplaints = async () => {
     return { success: false, message: "Not authenticated" };
   }
 
-  const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
+  const { isOfficial } = await checkUserRole(userData.user.id);
 
   // Only officials can view assigned complaints
   if (!isOfficial) {
     console.log("Complaint does not exist or you don't have access to it");
-    return { success: false, message: "Complaint does not exist or you don't have access to it" };
+    return {
+      success: false,
+      message: "Complaint does not exist or you don't have access to it",
+    };
   }
 
   const { data, error } = await supabase
     .from("complaint_tbl")
-    .select(`
+    .select(
+      `
       *,
       member:sample_household_members_tbl!complaint_tbl_complainant_id_fkey (
         firstname,
@@ -48,7 +52,8 @@ export const getAssignedComplaints = async () => {
         lastname,
         role
       )
-    `)
+    `,
+    )
     .eq("assigned_official_id", userData.user.id)
     .order("created_at", { ascending: false });
 
@@ -57,14 +62,16 @@ export const getAssignedComplaints = async () => {
     return { success: false, message: "Failed to fetch assigned complaints" };
   }
 
-  const enriched = data.map(complaint => ({
+  const enriched = data.map((complaint) => ({
     ...complaint,
-    complainant_name: complaint.member?.firstname && complaint.member?.lastname
-      ? `${complaint.member.firstname} ${complaint.member.lastname}`
-      : "Unknown",
-    assigned_official_name: complaint.official?.firstname && complaint.official?.lastname
-      ? `${complaint.official.firstname} ${complaint.official.lastname}`
-      : null
+    complainant_name:
+      complaint.member?.firstname && complaint.member?.lastname
+        ? `${complaint.member.firstname} ${complaint.member.lastname}`
+        : "Unknown",
+    assigned_official_name:
+      complaint.official?.firstname && complaint.official?.lastname
+        ? `${complaint.official.firstname} ${complaint.official.lastname}`
+        : null,
   }));
 
   return { success: true, data: enriched };
@@ -78,17 +85,21 @@ export const getAssignedRequests = async () => {
     return { success: false, message: "Not authenticated" };
   }
 
-  const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
+  const { isOfficial } = await checkUserRole(userData.user.id);
 
   // Only officials can view assigned requests
   if (!isOfficial) {
     console.log("Request does not exist or you don't have access to it");
-    return { success: false, message: "Request does not exist or you don't have access to it" };
+    return {
+      success: false,
+      message: "Request does not exist or you don't have access to it",
+    };
   }
 
   const { data, error } = await supabase
     .from("request_tbl")
-    .select(`
+    .select(
+      `
       *,
       member:sample_household_members_tbl!request_tbl_user_id_fkey (
         firstname,
@@ -100,7 +111,8 @@ export const getAssignedRequests = async () => {
         lastname,
         role
       )
-    `)
+    `,
+    )
     .eq("assigned_official_id", userData.user.id)
     .order("created_at", { ascending: false });
 
@@ -109,32 +121,41 @@ export const getAssignedRequests = async () => {
     return { success: false, message: "Failed to fetch assigned requests" };
   }
 
-  const enriched = data.map(request => ({
+  const enriched = data.map((request) => ({
     ...request,
-    requester_name: request.member?.firstname && request.member?.lastname
-      ? `${request.member.firstname} ${request.member.lastname}`
-      : "Unknown",
-    assigned_official_name: request.official?.firstname && request.official?.lastname
-      ? `${request.official.firstname} ${request.official.lastname}`
-      : null
+    requester_name:
+      request.member?.firstname && request.member?.lastname
+        ? `${request.member.firstname} ${request.member.lastname}`
+        : "Unknown",
+    assigned_official_name:
+      request.official?.firstname && request.official?.lastname
+        ? `${request.official.firstname} ${request.official.lastname}`
+        : null,
   }));
 
   return { success: true, data: enriched };
 };
 
-export const updateRequestStatus = async (requestId, status, remarks = null) => {
+export const updateRequestStatus = async (
+  requestId,
+  status,
+  remarks = null,
+) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
 
   if (authError || !userData || !userData.user) {
     return { success: false, message: "Not authenticated" };
   }
 
-  const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
+  const { isOfficial } = await checkUserRole(userData.user.id);
 
   // Only officials can update request status
   if (!isOfficial) {
     console.log("Request does not exist or you don't have access to it");
-    return { success: false, message: "Request does not exist or you don't have access to it" };
+    return {
+      success: false,
+      message: "Request does not exist or you don't have access to it",
+    };
   }
 
   // Verify the request exists
@@ -146,14 +167,22 @@ export const updateRequestStatus = async (requestId, status, remarks = null) => 
 
   if (!requestData) {
     console.log("Request does not exist or you don't have access to it");
-    return { success: false, message: "Request does not exist or you don't have access to it" };
+    return {
+      success: false,
+      message: "Request does not exist or you don't have access to it",
+    };
   }
 
   // Validate status against allowed enum values
-  const validStatuses = ['pending', 'processing', 'completed', 'rejected'];
+  const validStatuses = ["pending", "processing", "completed", "rejected"];
   if (!validStatuses.includes(status)) {
-    console.error(`Invalid status value: ${status}. Must be one of: ${validStatuses.join(', ')}`);
-    return { success: false, message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` };
+    console.error(
+      `Invalid status value: ${status}. Must be one of: ${validStatuses.join(", ")}`,
+    );
+    return {
+      success: false,
+      message: `Invalid status. Must be one of: ${validStatuses.join(", ")}`,
+    };
   }
 
   const { error } = await supabase
@@ -162,7 +191,7 @@ export const updateRequestStatus = async (requestId, status, remarks = null) => 
       request_status: status,
       remarks: remarks,
       updated_at: new Date().toISOString(),
-      updated_by: userData.user.id
+      updated_by: userData.user.id,
     })
     .eq("id", requestId);
 
@@ -174,19 +203,27 @@ export const updateRequestStatus = async (requestId, status, remarks = null) => 
   return { success: true, message: "Request updated successfully" };
 };
 
-export const updateComplaintStatus = async (complaintId, status, remarks = null, priority_level = null) => {
+export const updateComplaintStatus = async (
+  complaintId,
+  status,
+  remarks = null,
+  priority_level = null,
+) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
 
   if (authError || !userData || !userData.user) {
     return { success: false, message: "Not authenticated" };
   }
 
-  const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
+  const { isOfficial } = await checkUserRole(userData.user.id);
 
   // Only officials can update complaint status
   if (!isOfficial) {
     console.log("Complaint does not exist or you don't have access to it");
-    return { success: false, message: "Complaint does not exist or you don't have access to it" };
+    return {
+      success: false,
+      message: "Complaint does not exist or you don't have access to it",
+    };
   }
 
   // Verify the complaint exists
@@ -198,18 +235,29 @@ export const updateComplaintStatus = async (complaintId, status, remarks = null,
 
   if (!complaintData) {
     console.log("Complaint does not exist or you don't have access to it");
-    return { success: false, message: "Complaint does not exist or you don't have access to it" };
+    return {
+      success: false,
+      message: "Complaint does not exist or you don't have access to it",
+    };
   }
 
   // Validate status against allowed enum values
-  const validStatuses = ['pending', 'under_review', 'investigating', 'resolved', 'closed'];
+  const validStatuses = [
+    "pending",
+    "under_review",
+    "investigating",
+    "resolved",
+    "closed",
+  ];
   if (status && !validStatuses.includes(status)) {
-    console.warn(`Status "${status}" may not be valid. Allowed: ${validStatuses.join(', ')}`);
+    console.warn(
+      `Status "${status}" may not be valid. Allowed: ${validStatuses.join(", ")}`,
+    );
   }
 
   const updateData = {
     updated_by: userData.user.id,
-    updated_at: new Date().toISOString()
+    updated_at: new Date().toISOString(),
   };
 
   if (status) updateData.status = status;
@@ -225,7 +273,6 @@ export const updateComplaintStatus = async (complaintId, status, remarks = null,
     console.error("Error updating complaint:", error);
     return { success: false, message: "Failed to update complaint" };
   }
-
 
   return { success: true, message: "Complaint updated successfully" };
 };

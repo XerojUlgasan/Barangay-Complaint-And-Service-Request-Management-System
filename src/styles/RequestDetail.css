@@ -221,6 +221,113 @@
 }
 
 /* ============================================
+   IMAGES SECTION
+   ============================================
+*/
+
+/* Images section - container for attached images */
+.images-section {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background-color: #f9fafb;
+  border-radius: 8px;
+}
+
+/* Header for images section */
+.images-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.images-header svg {
+  color: #50c878;
+  flex-shrink: 0;
+}
+
+/* Image gallery grid */
+.images-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 1rem;
+}
+
+/* Image thumbnail button */
+.image-thumbnail-btn {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.image-thumbnail-btn:hover {
+  border-color: #50c878;
+  transform: scale(1.05);
+}
+
+/* Image inside thumbnail */
+.image-thumbnail-btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 0.2s ease;
+}
+
+/* Overlay on hover */
+.image-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.image-thumbnail-btn:hover .image-overlay {
+  opacity: 1;
+}
+
+.view-text {
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background-color: rgba(80, 200, 120, 0.9);
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+}
+
+/* Loading state */
+.images-loading {
+  color: #9ca3af;
+  font-size: 0.95rem;
+  margin: 0;
+  text-align: center;
+  padding: 1rem;
+}
+
+/* No images message */
+.no-images {
+  color: #9ca3af;
+  font-size: 0.95rem;
+  margin: 0;
+  text-align: center;
+  padding: 1rem;
+  font-style: italic;
+}
+
+/* ============================================
    UPDATE PROGRESS SECTION
    ============================================
 */

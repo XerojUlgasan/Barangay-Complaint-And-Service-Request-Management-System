@@ -1,56 +1,97 @@
-import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { X, FileText } from 'lucide-react';
-import '../styles/RequestDetail.css';
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { X, FileText, Image as ImageIcon } from "lucide-react";
+import ImageLightbox from "./ImageLightbox";
+import { fetchImagesForItem } from "../supabse_db/uploadImages";
+import "../styles/RequestDetail.css";
 
 /**
  * RequestDetail Modal Component
- * 
- * This component displays a modal dialog showing detailed information about a service request.
+ *
+ * This component displays a modal dialog showing detailed information about a service request or complaint.
  * Features:
  * - Displays request information (citizen name, submission date, description)
+ * - Displays attached images in a lightbox gallery
  * - Allows official to update request status with dropdown
  * - Provides textarea for internal notes and official responses
  * - Save and Update functionality
  * - Close modal on completion
- * 
+ *
  * Props:
  * @param {object} request - Request object containing:
  *   - id: Request ID
  *   - title: Request title
- *   - type: Type of request
  *   - status: Current status
  *   - submittedBy: Who submitted the request
  *   - submissionDate: When request was submitted
  *   - description: Request description
  *   - internalNotes: Current internal notes (if any)
+ * @param {string} itemType - Type of item: 'request' or 'complaint'
  * @param {boolean} isOpen - Whether modal is visible
  * @param {function} onClose - Callback to close modal
  * @param {function} onSave - Callback when save button is clicked
  */
-const RequestDetail = ({ request, isOpen, onClose, onSave }) => {
+const RequestDetail = ({
+  request,
+  itemType = "request",
+  isOpen,
+  onClose,
+  onSave,
+}) => {
   // State for form fields that can be edited
   const [formData, setFormData] = useState({
-    status: 'IN_PROGRESS',
-    internalNotes: '',
+    status: "IN_PROGRESS",
+    internalNotes: "",
   });
+
+  // State for images
+  const [images, setImages] = useState([]);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [imagesLoading, setImagesLoading] = useState(false);
 
   // Update formData when request prop changes
   useEffect(() => {
     if (request) {
       setFormData({
-        status: request.status || 'IN_PROGRESS',
-        internalNotes: request.internalNotes || '',
+        status: request.status || "IN_PROGRESS",
+        internalNotes: request.internalNotes || "",
       });
+
+      // Fetch images when modal opens
+      fetchImages();
     }
-  }, [request, isOpen]);
+  }, [request, isOpen, itemType]);
+
+  // Fetch images from Supabase Storage
+  const fetchImages = async () => {
+    if (!request || !request.id) return;
+
+    setImagesLoading(true);
+    try {
+      const result = await fetchImagesForItem(itemType, request.id);
+      if (result.success) {
+        setImages(result.images || []);
+        console.log(
+          `Fetched ${result.count} images for ${itemType} ${request.id}`,
+        );
+      } else {
+        console.error("Error fetching images:", result.error);
+        setImages([]);
+      }
+    } catch (error) {
+      console.error("Error fetching images:", error);
+      setImages([]);
+    } finally {
+      setImagesLoading(false);
+    }
+  };
 
   // Available status options for dropdown
   const statusOptions = [
-    { value: 'PENDING', label: 'Pending' },
-    { value: 'IN_PROGRESS', label: 'In Progress' },
-    { value: 'COMPLETED', label: 'Completed' },
-    { value: 'REJECTED', label: 'Rejected' },
+    { value: "PENDING", label: "Pending" },
+    { value: "IN_PROGRESS", label: "In Progress" },
+    { value: "COMPLETED", label: "Completed" },
+    { value: "REJECTED", label: "Rejected" },
   ];
 
   /**
@@ -59,7 +100,7 @@ const RequestDetail = ({ request, isOpen, onClose, onSave }) => {
    */
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
@@ -67,12 +108,12 @@ const RequestDetail = ({ request, isOpen, onClose, onSave }) => {
 
   /**
    * Handle save button click
-   * 
+   *
    * This function:
    * 1. Calls the onSave callback with updated form data
    * 2. Includes request ID for database update
    * 3. Closes the modal after saving
-   * 
+   *
    * TODO: Implement API call to update request in Supabase
    * const updateRequest = async (requestId, updates) => {
    *   const { data, error } = await supabase
@@ -107,12 +148,14 @@ const RequestDetail = ({ request, isOpen, onClose, onSave }) => {
    */
   const getStatusBadge = () => {
     const statusMap = {
-      PENDING: { color: '#FDB750', label: 'PENDING' },
-      IN_PROGRESS: { color: '#4A90E2', label: 'IN PROGRESS' },
-      COMPLETED: { color: '#50C878', label: 'COMPLETED' },
-      REJECTED: { color: '#EF4444', label: 'REJECTED' },
+      PENDING: { color: "#FDB750", label: "PENDING" },
+      IN_PROGRESS: { color: "#4A90E2", label: "IN PROGRESS" },
+      COMPLETED: { color: "#50C878", label: "COMPLETED" },
+      REJECTED: { color: "#EF4444", label: "REJECTED" },
     };
-    return statusMap[formData.status] || { color: '#6B7280', label: formData.status };
+    return (
+      statusMap[formData.status] || { color: "#6B7280", label: formData.status }
+    );
   };
 
   const statusBadge = getStatusBadge();
@@ -178,6 +221,35 @@ const RequestDetail = ({ request, isOpen, onClose, onSave }) => {
             <p className="description-text">"{request.description}"</p>
           </div>
 
+          {/* Attached Images Section */}
+          <div className="images-section">
+            <div className="images-header">
+              <ImageIcon size={20} />
+              <label className="detail-label">ATTACHED IMAGES</label>
+            </div>
+            {imagesLoading ? (
+              <p className="images-loading">Loading images...</p>
+            ) : images.length > 0 ? (
+              <div className="images-gallery">
+                {images.map((image, index) => (
+                  <button
+                    key={index}
+                    className="image-thumbnail-btn"
+                    onClick={() => setIsLightboxOpen(true)}
+                    title="Click to view"
+                  >
+                    <img src={image.url} alt={`Attachment ${index + 1}`} />
+                    <div className="image-overlay">
+                      <span className="view-text">View</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="no-images">No images are attached</p>
+            )}
+          </div>
+
           {/* UPDATE PROGRESS Section - form for official to update status */}
           <div className="update-progress-section">
             <div className="update-progress-header">
@@ -194,7 +266,7 @@ const RequestDetail = ({ request, isOpen, onClose, onSave }) => {
                 onChange={handleInputChange}
                 className="form-select"
               >
-                {statusOptions.map(option => (
+                {statusOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -204,7 +276,9 @@ const RequestDetail = ({ request, isOpen, onClose, onSave }) => {
 
             {/* Internal Notes / Official Response Textarea */}
             <div className="form-group">
-              <label className="form-label">Internal Notes / Official Response</label>
+              <label className="form-label">
+                Internal Notes / Official Response
+              </label>
               <textarea
                 name="internalNotes"
                 value={formData.internalNotes}
@@ -229,6 +303,13 @@ const RequestDetail = ({ request, isOpen, onClose, onSave }) => {
           </button>
         </div>
       </div>
+
+      {/* Image Lightbox */}
+      <ImageLightbox
+        images={images}
+        isOpen={isLightboxOpen}
+        onClose={() => setIsLightboxOpen(false)}
+      />
     </>
   );
 

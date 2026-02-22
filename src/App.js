@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { useState, useEffect } from "react";
-import 'bootstrap/dist/css/bootstrap.min.css';
+import "bootstrap/dist/css/bootstrap.min.css";
 
 // TODO: Sanitize user inputs for security
 
@@ -12,12 +12,12 @@ import {
   registerByEmail,
   checkUserRole,
 } from "./supabse_db/auth/auth";
-import { getOfficialProfile } from './supabse_db/profile/profile';
-import supabase from './supabse_db/supabase_client';
+import { getOfficialProfile } from "./supabse_db/profile/profile";
+import supabase from "./supabse_db/supabase_client";
 
 // --- Shared Layout (Official/Admin) ---
 import Layout from "./components/Layout";
-import { LayoutDashboard, FileText, Megaphone, Users } from 'lucide-react';
+import { LayoutDashboard, FileText, Megaphone, Users } from "lucide-react";
 
 // --- Public / User-facing pages ---
 import Homepage from "./raw/Homepage";
@@ -28,17 +28,16 @@ import MyRequest from "./raw/Myrequest";
 import MyComplaints from "./raw/Mycomplaints";
 import Announcements from "./raw/Announcements";
 
-
 // --- Official pages ---
 import OfficialDashboard from "./pages/official/OfficialDashboard";
 import OfficialRequests from "./pages/official/OfficialRequests";
+import OfficialComplaints from "./pages/official/OfficialComplaints";
 
 // --- Admin pages ---
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
 import AdminRequests from "./pages/admin/AdminRequests";
 import AdminUsers from "./pages/admin/AdminUsers";
-
 
 //test
 import Home from "./pages/home";
@@ -67,7 +66,7 @@ function App() {
 
         if (!user) {
           if (mounted) {
-            setUserName('Barangay User');
+            setUserName("Barangay User");
             setUserRole(null);
           }
           return;
@@ -75,42 +74,47 @@ function App() {
 
         // Check if user is superadmin
         const { data: superadminData } = await supabase
-          .from('superadmin_tbl')
-          .select('id')
-          .eq('auth_uid', user.id);
+          .from("superadmin_tbl")
+          .select("id")
+          .eq("auth_uid", user.id);
 
         if (superadminData && superadminData.length > 0) {
-          if (mounted) setUserRole('superadmin');
+          if (mounted) setUserRole("superadmin");
           // Get superadmin name from profile if available
           const profileRes = await getOfficialProfile();
           if (profileRes && profileRes.success && profileRes.data) {
             const p = profileRes.data;
-            const full = [p.firstname, p.middlename, p.lastname].filter(Boolean).join(' ');
+            const full = [p.firstname, p.middlename, p.lastname]
+              .filter(Boolean)
+              .join(" ");
             if (full && mounted) {
               setUserName(full);
               return;
             }
           }
-          const fallback = user.user_metadata?.full_name || user.email || user.id;
-          if (mounted) setUserName(fallback || 'Barangay Admin');
+          const fallback =
+            user.user_metadata?.full_name || user.email || user.id;
+          if (mounted) setUserName(fallback || "Barangay Admin");
           return;
         }
 
         // Check if user is official
         const { data: officialData } = await supabase
-          .from('official_tbl')
-          .select('id')
-          .eq('auth_uid', user.id);
+          .from("official_tbl")
+          .select("id")
+          .eq("auth_uid", user.id);
 
         if (officialData && officialData.length > 0) {
-          if (mounted) setUserRole('official');
+          if (mounted) setUserRole("official");
         }
 
         // Get official profile
         const profileRes = await getOfficialProfile();
         if (profileRes && profileRes.success && profileRes.data) {
           const p = profileRes.data;
-          const full = [p.firstname, p.middlename, p.lastname].filter(Boolean).join(' ');
+          const full = [p.firstname, p.middlename, p.lastname]
+            .filter(Boolean)
+            .join(" ");
           if (full && mounted) {
             setUserName(full);
             return;
@@ -119,9 +123,9 @@ function App() {
 
         // Fallback to auth user info
         const fallback = user.user_metadata?.full_name || user.email || user.id;
-        if (mounted) setUserName(fallback || 'Barangay User');
+        if (mounted) setUserName(fallback || "Barangay User");
       } catch (err) {
-        console.error('Error loading user name for header:', err);
+        console.error("Error loading user name for header:", err);
       } finally {
         if (mounted) setUserLoading(false);
       }
@@ -139,7 +143,11 @@ function App() {
     return () => {
       mounted = false;
       // cleanup subscription
-      if (data && data.subscription && typeof data.subscription.unsubscribe === 'function') {
+      if (
+        data &&
+        data.subscription &&
+        typeof data.subscription.unsubscribe === "function"
+      ) {
         data.subscription.unsubscribe();
       }
     };
@@ -157,20 +165,19 @@ function App() {
   return (
     <Router>
       <Routes>
-
         {/* PUBLIC / USER-FACING ROUTES */}
-        <Route path="/"              element={<Homepage />} />
-        <Route path="/homepage"      element={<Homepage />} />
-        <Route path="/login"         element={<Login />} />
-        <Route path="/dashboard"     element={<UserLanding />} />
-        <Route path="/requests"      element={<MyRequest />} />
-        <Route path="/complaints"    element={<MyComplaints />} />
+        <Route path="/" element={<Homepage />} />
+        <Route path="/homepage" element={<Homepage />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/dashboard" element={<UserLanding />} />
+        <Route path="/requests" element={<MyRequest />} />
+        <Route path="/complaints" element={<MyComplaints />} />
         <Route path="/announcements" element={<Announcements />} />
-        <Route path="/submit"        element={<SubmitRequest />} />
-        <Route path="/user"          element={<UserPage />} />
-        <Route path="/testingan"     element={<Home />} />
+        <Route path="/submit" element={<SubmitRequest />} />
+        <Route path="/user" element={<UserPage />} />
+        <Route path="/testingan" element={<Home />} />
         <Route path="/submit/certificate" element={<SubmitRequest />} />
-        <Route path="/submit/complaint"   element={<SubmitRequest />} />
+        <Route path="/submit/complaint" element={<SubmitRequest />} />
 
         {/* OFFICIAL PORTAL ROUTES */}
         <Route
@@ -178,8 +185,22 @@ function App() {
           element={
             <Layout
               menuItems={[
-                { path: '/BarangayOfficial', label: 'Dashboard', icon: <LayoutDashboard size={18} />, end: true },
-                { path: '/BarangayOfficial/requests', label: 'Requests', icon: <FileText size={18} /> },
+                {
+                  path: "/BarangayOfficial",
+                  label: "Dashboard",
+                  icon: <LayoutDashboard size={18} />,
+                  end: true,
+                },
+                {
+                  path: "/BarangayOfficial/requests",
+                  label: "Requests",
+                  icon: <FileText size={18} />,
+                },
+                {
+                  path: "/BarangayOfficial/complaints",
+                  label: "Complaints",
+                  icon: <Megaphone size={18} />,
+                },
               ]}
               userName={userName}
               userRole={userRole}
@@ -190,6 +211,7 @@ function App() {
         >
           <Route index element={<OfficialDashboard />} />
           <Route path="requests" element={<OfficialRequests />} />
+          <Route path="complaints" element={<OfficialComplaints />} />
         </Route>
 
         {/* ADMIN PORTAL ROUTES */}
@@ -198,10 +220,27 @@ function App() {
           element={
             <Layout
               menuItems={[
-                { path: '/BarangayAdmin', label: 'Dashboard', icon: <LayoutDashboard size={18} />, end: true },
-                { path: '/BarangayAdmin/announcements', label: 'Announcements', icon: <Megaphone size={18} /> },
-                { path: '/BarangayAdmin/requests', label: 'Requests', icon: <FileText size={18} /> },
-                { path: '/BarangayAdmin/users', label: 'Users', icon: <Users size={18} /> },
+                {
+                  path: "/BarangayAdmin",
+                  label: "Dashboard",
+                  icon: <LayoutDashboard size={18} />,
+                  end: true,
+                },
+                {
+                  path: "/BarangayAdmin/announcements",
+                  label: "Announcements",
+                  icon: <Megaphone size={18} />,
+                },
+                {
+                  path: "/BarangayAdmin/requests",
+                  label: "Requests",
+                  icon: <FileText size={18} />,
+                },
+                {
+                  path: "/BarangayAdmin/users",
+                  label: "Users",
+                  icon: <Users size={18} />,
+                },
               ]}
               userName={userName}
               userRole={userRole}
@@ -222,10 +261,27 @@ function App() {
           element={
             <Layout
               menuItems={[
-                { path: '/BarangayAdmin', label: 'Dashboard', icon: <LayoutDashboard size={18} />, end: true },
-                { path: '/BarangayAdmin/announcements', label: 'Announcements', icon: <Megaphone size={18} /> },
-                { path: '/BarangayAdmin/requests', label: 'Requests', icon: <FileText size={18} /> },
-                { path: '/BarangayAdmin/users', label: 'Users', icon: <Users size={18} /> },
+                {
+                  path: "/BarangayAdmin",
+                  label: "Dashboard",
+                  icon: <LayoutDashboard size={18} />,
+                  end: true,
+                },
+                {
+                  path: "/BarangayAdmin/announcements",
+                  label: "Announcements",
+                  icon: <Megaphone size={18} />,
+                },
+                {
+                  path: "/BarangayAdmin/requests",
+                  label: "Requests",
+                  icon: <FileText size={18} />,
+                },
+                {
+                  path: "/BarangayAdmin/users",
+                  label: "Users",
+                  icon: <Users size={18} />,
+                },
               ]}
               userName={userName}
               userLoading={userLoading}
@@ -235,10 +291,9 @@ function App() {
         >
           <Route index element={<AdminDashboard />} />
           <Route path="announcements" element={<AdminAnnouncements />} />
-          <Route path="requests"      element={<AdminRequests />} />
-          <Route path="users"         element={<AdminUsers />} />
+          <Route path="requests" element={<AdminRequests />} />
+          <Route path="users" element={<AdminUsers />} />
         </Route>
-
       </Routes>
     </Router>
   );

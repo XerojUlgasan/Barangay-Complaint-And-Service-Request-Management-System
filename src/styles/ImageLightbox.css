@@ -1,0 +1,296 @@
+/* ============================================
+   IMAGE LIGHTBOX STYLES
+   ============================================ */
+
+/* Lightbox Overlay - full screen semi-transparent background */
+.lightbox-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.95);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Lightbox Container - main wrapper */
+.lightbox-container {
+  position: relative;
+  width: 90%;
+  max-width: 900px;
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #1a1a1a;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Close Button */
+.lightbox-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10;
+  background-color: rgba(0, 0, 0, 0.6);
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.lightbox-close:hover {
+  background-color: rgba(0, 0, 0, 0.9);
+  transform: scale(1.1);
+}
+
+/* Image Wrapper - flexbox for centering */
+.lightbox-image-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background-color: #000000;
+  position: relative;
+}
+
+/* Main Image */
+.lightbox-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  animation: zoomIn 0.3s ease;
+}
+
+@keyframes zoomIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Navigation Buttons */
+.lightbox-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20;
+  background-color: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.lightbox-nav:hover {
+  background-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.lightbox-prev {
+  left: 1rem;
+}
+
+.lightbox-next {
+  right: 1rem;
+}
+
+/* Footer Section */
+.lightbox-footer {
+  background-color: #2a2a2a;
+  border-top: 1px solid #404040;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 120px;
+}
+
+/* Image Info */
+.lightbox-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.lightbox-counter {
+  color: #999999;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.lightbox-filename {
+  color: #e5e7eb;
+  font-size: 0.875rem;
+  margin: 0;
+  word-break: break-all;
+  text-align: right;
+}
+
+/* Thumbnail Gallery */
+.lightbox-thumbnails {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding: 0.5rem 0;
+}
+
+.lightbox-thumbnails::-webkit-scrollbar {
+  height: 6px;
+}
+
+.lightbox-thumbnails::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+.lightbox-thumbnails::-webkit-scrollbar-thumb {
+  background: #404040;
+  border-radius: 3px;
+}
+
+.lightbox-thumbnails::-webkit-scrollbar-thumb:hover {
+  background: #505050;
+}
+
+/* Thumbnail Item */
+.lightbox-thumbnail {
+  min-width: 80px;
+  width: 80px;
+  height: 80px;
+  border: 2px solid #404040;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  background-color: #1a1a1a;
+  padding: 0;
+  transition: all 0.2s ease;
+  opacity: 0.7;
+}
+
+.lightbox-thumbnail:hover {
+  opacity: 1;
+  border-color: #606060;
+}
+
+.lightbox-thumbnail.active {
+  border-color: #50c878;
+  opacity: 1;
+}
+
+.lightbox-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .lightbox-container {
+    width: 95%;
+    height: 85vh;
+  }
+
+  .lightbox-nav {
+    width: 48px;
+    height: 48px;
+  }
+
+  .lightbox-prev {
+    left: 0.5rem;
+  }
+
+  .lightbox-next {
+    right: 0.5rem;
+  }
+
+  .lightbox-footer {
+    min-height: 100px;
+  }
+
+  .lightbox-thumbnail {
+    min-width: 70px;
+    width: 70px;
+    height: 70px;
+  }
+}
+
+@media (max-width: 480px) {
+  .lightbox-container {
+    width: 98%;
+    height: 90vh;
+  }
+
+  .lightbox-close {
+    width: 40px;
+    height: 40px;
+  }
+
+  .lightbox-nav {
+    width: 40px;
+    height: 40px;
+  }
+
+  .lightbox-prev {
+    left: 0.25rem;
+  }
+
+  .lightbox-next {
+    right: 0.25rem;
+  }
+
+  .lightbox-footer {
+    min-height: 80px;
+    padding: 0.75rem;
+  }
+
+  .lightbox-thumbnail {
+    min-width: 60px;
+    width: 60px;
+    height: 60px;
+  }
+}
