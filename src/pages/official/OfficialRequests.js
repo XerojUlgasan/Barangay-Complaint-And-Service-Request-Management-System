@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ChevronDown, Calendar, User, ArrowRight } from "lucide-react";
+import { ChevronDown, Calendar, User, Clock, ArrowRight } from "lucide-react";
 import RequestDetail from "../../components/RequestDetail";
 import {
   getAssignedRequests,
@@ -326,32 +326,33 @@ export default function OfficialRequests() {
 
                 <div className="request-metadata">
                   <div className="metadata-item">
-                    <User size={16} />
-                    <span>{request.submittedBy}</span>
+                    <User size={16} color="#6B7280" />
+                    <div>
+                      <span className="metadata-label">Submitted by</span>
+                      <span className="metadata-value">
+                        {request.submittedBy}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="metadata-item">
-                    <Calendar size={16} />
-                    <span>{request.submissionDate}</span>
+                    <Calendar size={16} color="#6B7280" />
+                    <div>
+                      <span className="metadata-label">Date Submitted</span>
+                      <span className="metadata-value">
+                        {request.submissionDate}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="metadata-item">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                      <circle
-                        cx="8"
-                        cy="8"
-                        r="7"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                      />
-                      <path
-                        d="M8 4V8L11 11"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                    <span>Updated: {request.updatedDate}</span>
+                    <Clock size={16} color="#6B7280" />
+                    <div>
+                      <span className="metadata-label">Last Updated</span>
+                      <span className="metadata-value">
+                        {request.updatedDate}
+                      </span>
+                    </div>
                   </div>
                 </div>
 

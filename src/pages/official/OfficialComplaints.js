@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ChevronDown, User, Calendar, ArrowRight } from "lucide-react";
+import { ChevronDown, User, Calendar, Clock, ArrowRight } from "lucide-react";
 import { getAssignedComplaints } from "../../supabse_db/official/official";
 import { updateComplaintStatus } from "../../supabse_db/official/official";
 import RequestDetail from "../../components/RequestDetail";
@@ -287,32 +287,33 @@ export default function OfficialComplaints() {
 
                 <div className="request-metadata">
                   <div className="metadata-item">
-                    <User size={16} />
-                    <span>{complaint.submittedBy}</span>
+                    <User size={16} color="#6B7280" />
+                    <div>
+                      <span className="metadata-label">Complainant</span>
+                      <span className="metadata-value">
+                        {complaint.submittedBy}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="metadata-item">
-                    <Calendar size={16} />
-                    <span>Incident: {complaint.submissionDate}</span>
+                    <Calendar size={16} color="#6B7280" />
+                    <div>
+                      <span className="metadata-label">Incident Date</span>
+                      <span className="metadata-value">
+                        {complaint.submissionDate}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="metadata-item">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                      <circle
-                        cx="8"
-                        cy="8"
-                        r="7"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                      />
-                      <path
-                        d="M8 4V8L11 11"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                    <span>Updated: {complaint.updatedDate}</span>
+                    <Clock size={16} color="#6B7280" />
+                    <div>
+                      <span className="metadata-label">Last Updated</span>
+                      <span className="metadata-value">
+                        {complaint.updatedDate}
+                      </span>
+                    </div>
                   </div>
                 </div>
 

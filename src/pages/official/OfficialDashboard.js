@@ -78,11 +78,13 @@ const OfficialDashboard = () => {
         (r) => r.request_status === "for_validation",
       ).length,
     };
-    stats.active = stats.pending + stats.inProgress + stats.forCompliance + stats.forValidation;
+    stats.active =
+      stats.pending +
+      stats.inProgress +
+      stats.forCompliance +
+      stats.forValidation;
     stats.completionRate =
-      stats.total > 0
-        ? Math.round((stats.completed / stats.total) * 100)
-        : 0;
+      stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
     return stats;
   };
 
@@ -100,11 +102,13 @@ const OfficialDashboard = () => {
       forValidation: complaints.filter((c) => c.status === "for_validation")
         .length,
     };
-    stats.active = stats.pending + stats.inProgress + stats.forCompliance + stats.forValidation;
+    stats.active =
+      stats.pending +
+      stats.inProgress +
+      stats.forCompliance +
+      stats.forValidation;
     stats.completionRate =
-      stats.total > 0
-        ? Math.round((stats.completed / stats.total) * 100)
-        : 0;
+      stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
     return stats;
   };
 
@@ -153,7 +157,7 @@ const OfficialDashboard = () => {
   // Get request type distribution (only for requests)
   const getRequestTypeDistribution = () => {
     if (activeTab !== "requests") return [];
-    
+
     const typeCount = {};
     requests.forEach((req) => {
       const type = req.certificate_type || "Other";
@@ -186,8 +190,7 @@ const OfficialDashboard = () => {
       .slice(0, 5)
       .map((item) => ({
         id: item.id,
-        title:
-          item.certificate_type || item.complaint_type || "Untitled",
+        title: item.certificate_type || item.complaint_type || "Untitled",
         submittedBy:
           item.profiles?.full_name || item.profiles?.email || "Unknown",
         status: item[statusField],
@@ -320,8 +323,7 @@ const OfficialDashboard = () => {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns:
-                activeTab === "requests" ? "1fr 1fr" : "1fr",
+              gridTemplateColumns: activeTab === "requests" ? "1fr 1fr" : "1fr",
               gap: "1.5rem",
               marginBottom: "2rem",
             }}
@@ -368,11 +370,11 @@ const OfficialDashboard = () => {
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={requestTypeDistribution}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                    <XAxis 
-                      dataKey="name" 
-                      stroke="#6B7280" 
-                      angle={-15} 
-                      textAnchor="end" 
+                    <XAxis
+                      dataKey="name"
+                      stroke="#6B7280"
+                      angle={-15}
+                      textAnchor="end"
                       height={80}
                       tick={{ fontSize: 11 }}
                     />
@@ -422,7 +424,8 @@ const OfficialDashboard = () => {
                 ))
               ) : (
                 <p style={{ color: "#6B7280" }}>
-                  No recent {activeTab === "requests" ? "requests" : "complaints"} yet.
+                  No recent{" "}
+                  {activeTab === "requests" ? "requests" : "complaints"} yet.
                 </p>
               )}
             </div>
