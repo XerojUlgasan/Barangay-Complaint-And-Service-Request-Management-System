@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { ChevronDown, User, Calendar, Clock, ArrowRight } from "lucide-react";
 import { getAssignedComplaints } from "../../supabse_db/official/official";
 import { updateComplaintStatus } from "../../supabse_db/official/official";
+import { fetchImagesForItem } from "../../supabse_db/uploadImages";
 import RequestDetail from "../../components/RequestDetail";
 import "../../styles/Requests.css";
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getRequests, getRequestHistory } from '../supabse_db/request/request';
 import { logout } from '../supabse_db/auth/auth';
+import { uploadAnImage } from '../supabse_db/uploadImages';
 import supabase from '../supabse_db/supabase_client';
 import './userlanding.css';
 
@@ -20,6 +21,12 @@ const MyRequests = () => {
   const [historyData, setHistoryData] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
+
+  // Compliance modal state
+  const [showComplianceModal, setShowComplianceModal] = useState(false);
+  const [complianceRequest, setComplianceRequest] = useState(null);
+  const [complianceFiles, setComplianceFiles] = useState([]);
+  const [complianceUploading, setComplianceUploading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -74,6 +81,59 @@ const MyRequests = () => {
       setHistoryData(sorted);
     }
     setHistoryLoading(false);
+  };
+
+  const handleOpenComplianceModal = (req) => {
+    setComplianceRequest(req);
+    setComplianceFiles([]);
+    setShowComplianceModal(true);
+  };
+
+  const handleComplianceFileChange = (e) => {
+    const newFiles = Array.from(e.target.files);
+    setComplianceFiles(prev => [...prev, ...newFiles]);
+  };
+
+  const handleRemoveComplianceFile = (index) => {
+    setComplianceFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmitCompliance = async () => {
+    if (complianceFiles.length === 0) {
+      alert('Please attach at least one file before submitting');
+      return;
+    }
+
+    setComplianceUploading(true);
+    try {
+      let allSuccess = true;
+      const uploadedPaths = [];
+
+      for (const file of complianceFiles) {
+        const result = await uploadAnImage(file, 'compliance', complianceRequest.id);
+
+        if (result.success) {
+          uploadedPaths.push(result.path);
+        } else {
+          allSuccess = false;
+          console.error(`Error uploading ${file.name}:`, result.error);
+        }
+      }
+
+      if (allSuccess) {
+        alert(`Successfully submitted ${uploadedPaths.length} compliance file(s)!`);
+        setShowComplianceModal(false);
+        setComplianceRequest(null);
+        setComplianceFiles([]);
+      } else {
+        alert('Some files failed to upload. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error in submission:', error);
+      alert('An error occurred while submitting the compliance files');
+    } finally {
+      setComplianceUploading(false);
+    }
   };
 
   const closeSidebar = () => setSidebarOpen(false);
@@ -189,6 +249,150 @@ const MyRequests = () => {
                       </div>
                     ))}
                   </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* COMPLIANCE MODAL */}
+        {showComplianceModal && (
+          <div className="logout-modal-overlay" onClick={() => setShowComplianceModal(false)}>
+            <div className="compliance-modal" onClick={e => e.stopPropagation()}>
+              <div className="compliance-modal-header">
+                <div>
+                  <h3 className="compliance-modal-title">Submit Compliance</h3>
+                  {complianceRequest && (
+                    <p className="compliance-modal-sub">{complianceRequest.subject}</p>
+                  )}
+                </div>
+                <button className="compliance-modal-close" onClick={() => setShowComplianceModal(false)}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+              <div className="compliance-modal-body">
+                {complianceRequest && (
+                  <>
+                    <div className="compliance-section">
+                      <div className="compliance-info-box">
+                        <div className="compliance-info-item">
+                          <label className="compliance-label">Current Status</label>
+                          <div className={`compliance-status-badge ${normalize(complianceRequest.request_status)}`}>
+                            {formatStatus(complianceRequest.request_status)}
+                          </div>
+                        </div>
+
+                        {complianceRequest.remarks && (
+                          <div className="compliance-info-item">
+                            <label className="compliance-label">Remarks</label>
+                            <p className="compliance-remarks">{complianceRequest.remarks}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="compliance-section">
+                      <label className="compliance-label">Attach Compliance Files</label>
+                      <div className={`compliance-file-input-wrapper ${complianceFiles.length > 0 ? 'has-file' : ''}`}>
+                        <input
+                          type="file"
+                          id="compliance-file-input"
+                          onChange={handleComplianceFileChange}
+                          accept="image/*"
+                          multiple
+                          className="compliance-file-input"
+                        />
+                        <label htmlFor="compliance-file-input" className="compliance-file-label">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="24" height="24">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                          </svg>
+                          <span>
+                            {complianceFiles.length > 0 
+                              ? `${complianceFiles.length} file${complianceFiles.length > 1 ? 's' : ''} selected` 
+                              : 'Click to upload or drag & drop'
+                            }
+                          </span>
+                          {complianceFiles.length === 0 && <span className="compliance-file-hint">PNG, JPG, GIF up to 10MB each</span>}
+                        </label>
+                        {complianceFiles.length > 0 && (
+                          <div className="compliance-file-success">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                              <circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/>
+                            </svg>
+                            {complianceFiles.length} file{complianceFiles.length > 1 ? 's' : ''} ready
+                          </div>
+                        )}
+                      </div>
+
+                      {/* File Previews */}
+                      {complianceFiles.length > 0 && (
+                        <div className="compliance-file-previews">
+                          {complianceFiles.map((file, index) => (
+                            <div key={index} className="compliance-file-preview-item">
+                              <div className="compliance-preview-image-wrapper">
+                                <img 
+                                  src={URL.createObjectURL(file)} 
+                                  alt={`Preview ${index + 1}`}
+                                  className="compliance-preview-image"
+                                />
+                              </div>
+                              <div className="compliance-preview-info">
+                                <p className="compliance-preview-name" title={file.name}>{file.name}</p>
+                                <p className="compliance-preview-size">
+                                  {(file.size / 1024 / 1024).toFixed(2)} MB
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                className="compliance-preview-remove"
+                                onClick={() => handleRemoveComplianceFile(index)}
+                                title="Remove this file"
+                              >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="compliance-actions">
+                      <button 
+                        className="compliance-cancel-btn" 
+                        onClick={() => setShowComplianceModal(false)}
+                        disabled={complianceUploading}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        className="compliance-submit-btn"
+                        onClick={handleSubmitCompliance}
+                        disabled={complianceUploading || complianceFiles.length === 0}
+                      >
+                        {complianceUploading ? (
+                          <>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" className="spinner-icon">
+                              <circle cx="12" cy="12" r="10"/>
+                            </svg>
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                              <circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/>
+                            </svg>
+                            Submit Compliance
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -364,6 +568,18 @@ const MyRequests = () => {
                       </svg>
                       View History
                     </button>
+
+                    {normalize(req.request_status) === 'forcompliance' && (
+                      <button 
+                        className="compliance-btn" 
+                        onClick={() => handleOpenComplianceModal(req)}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                          <path d="M12 5v14M5 12h14"/>
+                        </svg>
+                        Submit Compliance
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
