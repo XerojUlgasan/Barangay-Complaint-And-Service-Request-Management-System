@@ -92,6 +92,9 @@ const RequestDetail = ({
     { value: "IN_PROGRESS", label: "In Progress" },
     { value: "COMPLETED", label: "Completed" },
     { value: "REJECTED", label: "Rejected" },
+    { value: "FOR_COMPLIANCE", label: "For Compliance" },
+    { value: "NON_COMPLIANT", label: "Non Compliant" },
+    { value: "FOR_VALIDATION", label: "For Validation" },
   ];
 
   /**
@@ -148,10 +151,13 @@ const RequestDetail = ({
    */
   const getStatusBadge = () => {
     const statusMap = {
-      PENDING: { color: "#FDB750", label: "PENDING" },
-      IN_PROGRESS: { color: "#4A90E2", label: "IN PROGRESS" },
-      COMPLETED: { color: "#50C878", label: "COMPLETED" },
+      PENDING: { color: "#F59E0B", label: "PENDING" },
+      IN_PROGRESS: { color: "#0EA5E9", label: "IN PROGRESS" },
+      COMPLETED: { color: "#10B981", label: "COMPLETED" },
       REJECTED: { color: "#EF4444", label: "REJECTED" },
+      FOR_COMPLIANCE: { color: "#8B5CF6", label: "FOR COMPLIANCE" },
+      NON_COMPLIANT: { color: "#EC4899", label: "NON COMPLIANT" },
+      FOR_VALIDATION: { color: "#06B6D4", label: "FOR VALIDATION" },
     };
     return (
       statusMap[formData.status] || { color: "#6B7280", label: formData.status }

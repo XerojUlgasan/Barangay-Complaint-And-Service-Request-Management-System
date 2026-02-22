@@ -184,6 +184,9 @@ export default function OfficialRequests() {
         IN_PROGRESS: "in_progress",
         COMPLETED: "completed",
         REJECTED: "rejected",
+        FOR_COMPLIANCE: "for_compliance",
+        NON_COMPLIANT: "non_compliant",
+        FOR_VALIDATION: "for_validation",
       };
 
       const dbStatus =
