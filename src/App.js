@@ -20,11 +20,12 @@ import Layout from "./components/Layout";
 import { LayoutDashboard, FileText, Megaphone, Users } from 'lucide-react';
 
 // --- Public / User-facing pages ---
-import Homepage from "./raw/Homepage";        // ← changed from ./pages/Homepage
+import Homepage from "./raw/Homepage";
 import Login from "./raw/Login";
 import UserLanding from "./raw/Userlanding";
 import SubmitRequest from "./raw/SubmitRequest";
 import MyRequest from "./raw/Myrequest";
+import MyComplaints from "./raw/Mycomplaints";
 import Announcements from "./raw/Announcements";
 
 
@@ -49,6 +50,7 @@ function UserPage() {
 
 function App() {
   const [userName, setUserName] = useState("Barangay Official");
+  const [userRole, setUserRole] = useState(null); // 'superadmin', 'official', or null
   const [userLoading, setUserLoading] = useState(true);
 
   // Load logged-in user's display name once on app start
@@ -59,24 +61,65 @@ function App() {
       try {
         if (mounted) setUserLoading(true);
 
-        // Try to fetch official profile first
+        // Get current user
+        const userResp = await supabase.auth.getUser();
+        const user = userResp.data?.user;
+
+        if (!user) {
+          if (mounted) {
+            setUserName('Barangay User');
+            setUserRole(null);
+          }
+          return;
+        }
+
+        // Check if user is superadmin
+        const { data: superadminData } = await supabase
+          .from('superadmin_tbl')
+          .select('id')
+          .eq('auth_uid', user.id);
+
+        if (superadminData && superadminData.length > 0) {
+          if (mounted) setUserRole('superadmin');
+          // Get superadmin name from profile if available
+          const profileRes = await getOfficialProfile();
+          if (profileRes && profileRes.success && profileRes.data) {
+            const p = profileRes.data;
+            const full = [p.firstname, p.middlename, p.lastname].filter(Boolean).join(' ');
+            if (full && mounted) {
+              setUserName(full);
+              return;
+            }
+          }
+          const fallback = user.user_metadata?.full_name || user.email || user.id;
+          if (mounted) setUserName(fallback || 'Barangay Admin');
+          return;
+        }
+
+        // Check if user is official
+        const { data: officialData } = await supabase
+          .from('official_tbl')
+          .select('id')
+          .eq('auth_uid', user.id);
+
+        if (officialData && officialData.length > 0) {
+          if (mounted) setUserRole('official');
+        }
+
+        // Get official profile
         const profileRes = await getOfficialProfile();
         if (profileRes && profileRes.success && profileRes.data) {
           const p = profileRes.data;
           const full = [p.firstname, p.middlename, p.lastname].filter(Boolean).join(' ');
-          if (full) {
-            if (mounted) setUserName(full);
+          if (full && mounted) {
+            setUserName(full);
             return;
           }
         }
 
         // Fallback to auth user info
-        const userResp = await supabase.auth.getUser();
-        const user = userResp.data?.user;
-        if (user && mounted) {
-          const fallback = user.user_metadata?.full_name || user.email || user.id;
-          setUserName(fallback || 'Barangay User');
-        }
+        const fallback = user.user_metadata?.full_name || user.email || user.id;
+        if (mounted) setUserName(fallback || 'Barangay User');
       } catch (err) {
         console.error('Error loading user name for header:', err);
       } finally {
@@ -121,10 +164,13 @@ function App() {
         <Route path="/login"         element={<Login />} />
         <Route path="/dashboard"     element={<UserLanding />} />
         <Route path="/requests"      element={<MyRequest />} />
+        <Route path="/complaints"    element={<MyComplaints />} />
         <Route path="/announcements" element={<Announcements />} />
         <Route path="/submit"        element={<SubmitRequest />} />
         <Route path="/user"          element={<UserPage />} />
         <Route path="/testingan"     element={<Home />} />
+        <Route path="/submit/certificate" element={<SubmitRequest />} />
+        <Route path="/submit/complaint"   element={<SubmitRequest />} />
 
         {/* OFFICIAL PORTAL ROUTES */}
         <Route
@@ -136,6 +182,7 @@ function App() {
                 { path: '/BarangayOfficial/requests', label: 'Requests', icon: <FileText size={18} /> },
               ]}
               userName={userName}
+              userRole={userRole}
               userLoading={userLoading}
               onLogout={handleLogout}
             />
@@ -148,6 +195,30 @@ function App() {
         {/* ADMIN PORTAL ROUTES */}
         <Route
           path="/BarangayAdmin"
+          element={
+            <Layout
+              menuItems={[
+                { path: '/BarangayAdmin', label: 'Dashboard', icon: <LayoutDashboard size={18} />, end: true },
+                { path: '/BarangayAdmin/announcements', label: 'Announcements', icon: <Megaphone size={18} /> },
+                { path: '/BarangayAdmin/requests', label: 'Requests', icon: <FileText size={18} /> },
+                { path: '/BarangayAdmin/users', label: 'Users', icon: <Users size={18} /> },
+              ]}
+              userName={userName}
+              userRole={userRole}
+              userLoading={userLoading}
+              onLogout={handleLogout}
+            />
+          }
+        >
+          <Route index element={<AdminDashboard />} />
+          <Route path="announcements" element={<AdminAnnouncements />} />
+          <Route path="requests" element={<AdminRequests />} />
+          <Route path="users" element={<AdminUsers />} />
+        </Route>
+
+        {/* FALLBACK */}
+        <Route
+          path="/BarangayAdmin-old"
           element={
             <Layout
               menuItems={[

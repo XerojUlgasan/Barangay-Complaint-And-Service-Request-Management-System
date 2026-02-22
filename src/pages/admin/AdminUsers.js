@@ -1,22 +1,68 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, User, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { getAllOfficials, getAllResidents } from '../../supabse_db/superadmin/superadmin';
 import '../../styles/BarangayAdmin.css';
 
 export default function AdminUsers() {
-  const officials = [
-    { id: 1, name: 'Maria Santos', username: 'msantos', status: 'Available', assigned: 12 },
-    { id: 2, name: 'Pedro Gonzales', username: 'pgonzales', status: 'Busy', assigned: 5 },
-    { id: 3, name: 'Ana Reyes', username: 'areyes', status: 'Offline', assigned: 0 },
-    { id: 4, name: 'Carlos Dela Cruz', username: 'cdelacruz', status: 'Available', assigned: 8 },
-  ];
+  const [officials, setOfficials] = useState([]);
+  const [residents, setResidents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const residents = [
-    { id: 1, household: 'BRG-2026-001234', name: 'Juan Dela Cruz', username: 'juandel', address: '123 Mabini St.', registered: '2025-11-03', total: 3 },
-    { id: 2, household: 'BRG-2026-001235', name: 'Maria Clara', username: 'mclarah', address: '56 Rizal Ave.', registered: '2025-12-11', total: 1 },
-    { id: 3, household: 'BRG-2026-001236', name: 'Pedro Santos', username: 'pedros', address: '77 Mabini St.', registered: '2026-01-02', total: 2 },
-    { id: 4, household: 'BRG-2026-001237', name: 'Ana Lopez', username: 'analopez', address: '8 Bonifacio Rd.', registered: '2026-01-15', total: 0 },
-    { id: 5, household: 'BRG-2026-001238', name: 'Liza Perez', username: 'lperz', address: '12 Del Pilar', registered: '2026-02-01', total: 4 },
-  ];
+  // Fetch officials and residents on component mount
+  useEffect(() => {
+    fetchUsersData();
+  }, []);
+
+  const fetchUsersData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch all officials
+      const officialsResult = await getAllOfficials();
+      if (officialsResult.success && Array.isArray(officialsResult.data)) {
+        const formattedOfficials = officialsResult.data.map(official => ({
+          id: official.id,
+          name: official.full_name || 'Unknown',
+          username: official.role || 'N/A',
+          status: 'Available', // Default status (can be updated based on business logic)
+          assigned: 0, // This would require joining with requests table
+          email: official.email || 'N/A',
+          role: official.role || 'Official',
+        }));
+        setOfficials(formattedOfficials);
+        console.log('Officials loaded:', formattedOfficials);
+      } else {
+        console.error('Failed to fetch officials:', officialsResult.message);
+      }
+
+      // Fetch all residents
+      const residentsResult = await getAllResidents();
+      if (residentsResult.success && Array.isArray(residentsResult.data)) {
+        const formattedResidents = residentsResult.data.map(resident => ({
+          id: resident.id,
+          household: resident.household?.id || 'N/A',
+          name: resident.full_name || 'Unknown',
+          username: resident.username || 'N/A',
+          address: resident.address || 'N/A',
+          registered: resident.created_at ? new Date(resident.created_at).toLocaleDateString() : 'N/A',
+          total: 0, // This would require joining with requests table
+          email: resident.email || 'N/A',
+        }));
+        setResidents(formattedResidents);
+        console.log('Residents loaded:', formattedResidents);
+      } else {
+        console.error('Failed to fetch residents:', residentsResult.message);
+      }
+
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching users data:', err);
+      setError(err.message);
+      setLoading(false);
+    }
+  };
 
   const badgeFor = (status) => {
     if (status === 'Available') return { className: 'status-badge available', icon: <CheckCircle size={14} /> };
@@ -33,76 +79,104 @@ export default function AdminUsers() {
         </div>
       </div>
 
-      <div className="users-grid">
-        <section className="users-card">
-          <div className="card-header">
-            <div className="card-header-left"><Users size={20} /> <span>Barangay Officials</span></div>
-            <div className="card-header-right muted">{officials.length} officials</div>
-          </div>
+      {error && (
+        <div style={{
+          backgroundColor: '#fee2e2',
+          color: '#dc2626',
+          padding: '1rem',
+          borderRadius: '8px',
+          marginBottom: '1rem'
+        }}>
+          <p><strong>Error:</strong> {error}</p>
+        </div>
+      )}
 
-          <div className="table-wrap">
-            <table className="users-table">
-              <thead>
-                <tr>
-                  <th>Official</th>
-                  <th>Username</th>
-                  <th>Status</th>
-                  <th>Assigned Requests</th>
-                </tr>
-              </thead>
-              <tbody>
-                {officials.map((o) => {
-                  const b = badgeFor(o.status);
-                  return (
-                    <tr key={o.id}>
-                      <td className="td-user"><User size={18} className="td-avatar" /> <div>
-                        <div className="u-name">{o.name}</div>
-                      </div></td>
-                      <td>@{o.username}</td>
-                      <td><span className={b.className}>{b.icon}<span className="badge-label">{o.status}</span></span></td>
-                      <td>{o.assigned}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '2rem' }}>
+          <p>Loading user data...</p>
+        </div>
+      ) : (
+        <div className="users-grid">
+          <section className="users-card">
+            <div className="card-header">
+              <div className="card-header-left"><Users size={20} /> <span>Barangay Officials</span></div>
+              <div className="card-header-right muted">{officials.length} officials</div>
+            </div>
 
-        <section className="users-card">
-          <div className="card-header">
-            <div className="card-header-left"><Users size={20} /> <span>Registered Residents</span></div>
-            <div className="card-header-right muted">{residents.length} residents</div>
-          </div>
-
-          <div className="table-wrap">
-            <table className="users-table">
-              <thead>
-                <tr>
-                  <th>Household ID</th>
-                  <th>Full Name</th>
-                  <th>Username</th>
-                  <th>Address</th>
-                  <th>Registered</th>
-                  <th>Total Requests</th>
-                </tr>
-              </thead>
-              <tbody>
-                {residents.map((r) => (
-                  <tr key={r.id}>
-                    <td className="mono">{r.household}</td>
-                    <td>{r.name}</td>
-                    <td>@{r.username}</td>
-                    <td>{r.address}</td>
-                    <td className="muted">{r.registered}</td>
-                    <td>{r.total}</td>
+            <div className="table-wrap">
+              <table className="users-table">
+                <thead>
+                  <tr>
+                    <th>Official</th>
+                    <th>Role</th>
+                    <th>Email</th>
+                    <th>Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
+                </thead>
+                <tbody>
+                  {officials.length > 0 ? (
+                    officials.map((o) => {
+                      const b = badgeFor(o.status);
+                      return (
+                        <tr key={o.id}>
+                          <td className="td-user"><User size={18} className="td-avatar" /> <div>
+                            <div className="u-name">{o.name}</div>
+                          </div></td>
+                          <td>{o.role}</td>
+                          <td>{o.email}</td>
+                          <td><span className={b.className}>{b.icon}<span className="badge-label">{o.status}</span></span></td>
+                        </tr>
+                      )
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan="4" style={{ textAlign: 'center', color: '#9ca3af' }}>No officials found</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="users-card">
+            <div className="card-header">
+              <div className="card-header-left"><Users size={20} /> <span>Registered Residents</span></div>
+              <div className="card-header-right muted">{residents.length} residents</div>
+            </div>
+
+            <div className="table-wrap">
+              <table className="users-table">
+                <thead>
+                  <tr>
+                    <th>Full Name</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Address</th>
+                    <th>Registered</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {residents.length > 0 ? (
+                    residents.map((r) => (
+                      <tr key={r.id}>
+                        <td>{r.name}</td>
+                        <td>@{r.username}</td>
+                        <td>{r.email}</td>
+                        <td>{r.address}</td>
+                        <td className="muted">{r.registered}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="5" style={{ textAlign: 'center', color: '#9ca3af' }}>No residents found</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

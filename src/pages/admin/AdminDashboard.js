@@ -1,6 +1,9 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Clock, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import '../../styles/BarangayAdmin.css';
+import { getRequests } from '../../supabse_db/request/request';
+import { getAnnouncements } from '../../supabse_db/announcement/announcement';
+import { getAllOfficials, getAllResidents } from '../../supabse_db/superadmin/superadmin';
 
 // Simple inline BarChart using SVG so we don't add dependencies
 function BarChart({ data = [], labels = [] }) {
@@ -105,7 +108,20 @@ function DonutChart({ segments = [], labels = ['Pending','In Progress','Complete
   )
 }
 
-function DashboardView() {
+function DashboardView({ requests = [], announcements = [] }) {
+  // Calculate status counts from requests
+  const pendingCount = requests.filter(r => r.status === 'Pending').length;
+  const inProgressCount = requests.filter(r => r.status === 'In Progress').length;
+  const completedCount = requests.filter(r => r.status === 'Completed').length;
+  const rejectedCount = requests.filter(r => r.status === 'Rejected').length;
+  const totalRequests = requests.length;
+
+  console.log('DashboardView: Requests array:', requests);
+  console.log('DashboardView: Status counts:', { pendingCount, inProgressCount, completedCount, rejectedCount, totalRequests });
+
+  // Get recent 2 requests for live feed
+  const recentRequests = requests.slice(0, 2);
+
   return (
     <div className="admin-page">
       <section className="analytics">
@@ -117,8 +133,8 @@ function DashboardView() {
           <div className="large-card">
             <div className="large-card-left">
               <div className="large-card-title">Total Requests</div>
-              <div className="large-card-number">2</div>
-              <div className="large-card-sub">Active residents</div>
+              <div className="large-card-number">{totalRequests}</div>
+              <div className="large-card-sub">Active service requests</div>
             </div>
             <div className="large-card-icon">
               <div className="icon-pill">📄</div>
@@ -128,7 +144,7 @@ function DashboardView() {
           <div className="large-card">
             <div className="large-card-left">
               <div className="large-card-title">Public Announcements</div>
-              <div className="large-card-number">2</div>
+              <div className="large-card-number">{announcements.length}</div>
               <div className="large-card-sub">Community updates</div>
             </div>
             <div className="large-card-icon">
@@ -141,22 +157,22 @@ function DashboardView() {
           <div className="stat-box yellow">
             <span className="stat-icon"><Clock size={18} /></span>
             <div className="stat-label">Pending</div>
-            <div className="stat-num">0</div>
+            <div className="stat-num">{pendingCount}</div>
           </div>
           <div className="stat-box blue">
             <span className="stat-icon"><AlertCircle size={18} /></span>
             <div className="stat-label">Progress</div>
-            <div className="stat-num">1</div>
+            <div className="stat-num">{inProgressCount}</div>
           </div>
           <div className="stat-box green">
             <span className="stat-icon"><CheckCircle size={18} /></span>
             <div className="stat-label">Done</div>
-            <div className="stat-num">1</div>
+            <div className="stat-num">{completedCount}</div>
           </div>
           <div className="stat-box red">
             <span className="stat-icon"><XCircle size={18} /></span>
             <div className="stat-label">Rejected</div>
-            <div className="stat-num">0</div>
+            <div className="stat-num">{rejectedCount}</div>
           </div>
         </div>
 
@@ -171,7 +187,12 @@ function DashboardView() {
           <div className="chart-card big">
             <div className="chart-header">Service Distribution</div>
             <div className="chart-body donut">
-              <DonutChart segments={[{value:2,color:'#f59e0b'},{value:1,color:'#0ea5e9'},{value:1,color:'#10b981'},{value:0,color:'#ef4444'}]} />
+              <DonutChart segments={[
+                {value:pendingCount,color:'#f59e0b'},
+                {value:inProgressCount,color:'#0ea5e9'},
+                {value:completedCount,color:'#10b981'},
+                {value:rejectedCount,color:'#ef4444'}
+              ]} />
             </div>
             <div className="status-legend">
               <div className="legend-item"><span className="legend-color" style={{background:'#f59e0b'}}></span><span className="legend-label">Pending</span></div>
@@ -185,23 +206,25 @@ function DashboardView() {
         <div className="live-feed">
           <div className="live-header">Live Request Feed <span className="badge">REAL-TIME</span></div>
           <div className="feed-list">
-            <div className="feed-item">
-              <div className="feed-icon">📄</div>
-              <div className="feed-body">
-                <div className="feed-title">Certificate of Indigency Request</div>
-                <div className="feed-sub muted">Certificate of Indigency • 2/6/2026</div>
+            {recentRequests.length > 0 ? (
+              recentRequests.map((req) => (
+                <div className="feed-item" key={req.id}>
+                  <div className="feed-icon">📄</div>
+                  <div className="feed-body">
+                    <div className="feed-title">{req.subject || 'Request'}</div>
+                    <div className="feed-sub muted">{req.certificate_type || 'Service Request'} • {new Date(req.created_at).toLocaleDateString()}</div>
+                  </div>
+                  <div className={`feed-status ${req.status?.toLowerCase().replace(' ', '-')}`}>{req.status || 'Pending'}</div>
+                </div>
+              ))
+            ) : (
+              <div className="feed-item">
+                <div className="feed-body">
+                  <div className="feed-title">No requests yet</div>
+                  <div className="feed-sub muted">Requests will appear here</div>
+                </div>
               </div>
-              <div className="feed-status in-progress">IN PROGRESS</div>
-            </div>
-
-            <div className="feed-item">
-              <div className="feed-icon">📄</div>
-              <div className="feed-body">
-                <div className="feed-title">Barangay Clearance Request</div>
-                <div className="feed-sub muted">Barangay Clearance • 2/3/2026</div>
-              </div>
-              <div className="feed-status completed">COMPLETED</div>
-            </div>
+            )}
           </div>
         </div>
       </section>
@@ -209,12 +232,7 @@ function DashboardView() {
   );
 }
 
-function AnnouncementsView() {
-  const items = [
-    { id: 1, title: "Community Clean-Up Drive", date: "2/7/2026" },
-    { id: 2, title: "Garbage Collection Schedule Change", date: "2/6/2026" },
-  ];
-
+function AnnouncementsView({ announcements = [] }) {
   return (
     <div className="admin-page">
       <div className="page-actions">
@@ -223,32 +241,33 @@ function AnnouncementsView() {
       </div>
 
       <div className="list">
-        {items.map((it) => (
-          <div className="list-item" key={it.id}>
-            <div className="list-item-left">
-              <img src="https://via.placeholder.com/160x100" alt="ann" />
+        {announcements.length > 0 ? (
+          announcements.map((it) => (
+            <div className="list-item" key={it.id}>
+              <div className="list-item-left">
+                <img src="https://via.placeholder.com/160x100" alt="ann" />
+              </div>
+              <div className="list-item-body">
+                <h4>{it.title}</h4>
+                <p className="muted">Posted on {new Date(it.created_at).toLocaleDateString()}</p>
+              </div>
+              <div className="list-item-actions">
+                <button className="btn">Edit</button>
+                <button className="btn danger">Delete</button>
+              </div>
             </div>
-            <div className="list-item-body">
-              <h4>{it.title}</h4>
-              <p className="muted">Posted on {it.date}</p>
-            </div>
-            <div className="list-item-actions">
-              <button className="btn">Edit</button>
-              <button className="btn danger">Delete</button>
-            </div>
+          ))
+        ) : (
+          <div style={{ padding: '2rem', textAlign: 'center', color: '#999' }}>
+            <p>No announcements yet</p>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
 }
 
-function RequestsView() {
-  const rows = [
-    { id: 1, name: "Juan Dela Cruz", type: "Certificate", status: "IN_PROGRESS", date: "2/6/2026" },
-    { id: 2, name: "Maria Santos", type: "Clearance", status: "COMPLETED", date: "2/3/2026" },
-  ];
-
+function RequestsView({ requests = [] }) {
   return (
     <div className="admin-page">
       <h3>System-wide Requests</h3>
@@ -261,29 +280,44 @@ function RequestsView() {
           <div>Date</div>
           <div>Action</div>
         </div>
-        {rows.map((r) => (
-          <div className="table-row" key={r.id}>
-            <div>#{r.id}</div>
-            <div>{r.name}</div>
-            <div>{r.type}</div>
-            <div><span className={`status ${r.status.toLowerCase()}`}>{r.status}</span></div>
-            <div>{r.date}</div>
-            <div>
-              <button className="btn">View</button>
-              <button className="btn">Approve</button>
+        {requests.length > 0 ? (
+          requests.map((r) => (
+            <div className="table-row" key={r.id}>
+              <div>#{r.id}</div>
+              <div>{r.requester_name || 'Unknown'}</div>
+              <div>{r.certificate_type || 'Service Request'}</div>
+              <div><span className={`status ${r.status?.toLowerCase().replace(' ', '_')}`}>{r.status || 'Pending'}</span></div>
+              <div>{new Date(r.created_at).toLocaleDateString()}</div>
+              <div>
+                <button className="btn">View</button>
+                <button className="btn">Approve</button>
+              </div>
             </div>
+          ))
+        ) : (
+          <div style={{ padding: '2rem', textAlign: 'center', color: '#999' }}>
+            <p>No requests yet</p>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
 }
 
-function UsersView() {
-  const users = [
-    { id: 1, name: "Maria Santos", role: "Official", status: "Available" },
-    { id: 2, name: "Pedro Gonzales", role: "Official", status: "Busy" },
-    { id: 3, name: "Ana Reyes", role: "Resident", status: "Available" },
+function UsersView({ officials = [], residents = [] }) {
+  const allUsers = [
+    ...officials.map(o => ({
+      id: o.id,
+      name: o.full_name || `${o.firstname} ${o.lastname}`,
+      role: "Official",
+      status: "Active"
+    })),
+    ...residents.slice(0, 3).map(r => ({
+      id: r.id,
+      name: r.full_name || `${r.firstname} ${r.lastname}`,
+      role: "Resident",
+      status: "Active"
+    }))
   ];
 
   return (
@@ -296,17 +330,23 @@ function UsersView() {
           <div>Status</div>
           <div>Action</div>
         </div>
-        {users.map((u) => (
-          <div className="table-row" key={u.id}>
-            <div>{u.name}</div>
-            <div>{u.role}</div>
-            <div>{u.status}</div>
-            <div>
-              <button className="btn">Edit</button>
-              <button className="btn danger">Delete</button>
+        {allUsers.length > 0 ? (
+          allUsers.map((u) => (
+            <div className="table-row" key={u.id}>
+              <div>{u.name}</div>
+              <div>{u.role}</div>
+              <div>{u.status}</div>
+              <div>
+                <button className="btn">Edit</button>
+                <button className="btn danger">Delete</button>
+              </div>
             </div>
+          ))
+        ) : (
+          <div style={{ padding: '2rem', textAlign: 'center', color: '#999' }}>
+            <p>No users found</p>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
@@ -314,12 +354,93 @@ function UsersView() {
 
 export default function AdminDashboard() {
   const [active, setActive] = useState("Dashboard");
+  const [requests, setRequests] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
+  const [officials, setOfficials] = useState([]);
+  const [residents, setResidents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Sample data for demonstration
+  const SAMPLE_REQUESTS = [
+    { id: 1, subject: 'Certificate of Indigency Request', certificate_type: 'Indigency Certificate', status: 'In Progress', requester_name: 'Maria Santos', created_at: '2026-02-10T10:30:00', description: 'Poverty certification' },
+    { id: 2, subject: 'Barangay Clearance Application', certificate_type: 'Barangay Clearance', status: 'Completed', requester_name: 'Juan Dela Cruz', created_at: '2026-02-15T14:20:00', description: 'Employment requirement' },
+    { id: 3, subject: 'Business Permit Application', certificate_type: 'Business Permit', status: 'Pending', requester_name: 'Ana Garcia', created_at: '2026-02-18T09:15:00', description: 'Small business registration' },
+    { id: 4, subject: 'Complaint: Illegal Dumping', certificate_type: 'Complaint', status: 'In Progress', requester_name: 'Pedro Montoya', created_at: '2026-02-12T16:45:00', description: 'Environmental concern' },
+    { id: 5, subject: 'Street Repair Request', certificate_type: 'Infrastructure', status: 'Rejected', requester_name: 'Rosa Magsaysay', created_at: '2026-02-08T11:00:00', description: 'Road maintenance' },
+  ];
+
+  const SAMPLE_ANNOUNCEMENTS = [
+    { id: 1, title: 'Community Clean-Up Drive', content: 'Join us for a community clean-up event', created_at: '2026-02-15', priority: 'high' },
+    { id: 2, title: 'Garbage Collection Schedule Change', content: 'New schedule announced', created_at: '2026-02-14', priority: 'medium' },
+  ];
+
+  // Fetch all data on component mount
+  useEffect(() => {
+    const fetchAllData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Fetch requests
+        const requestsResult = await getRequests();
+        console.log('Dashboard: Requests result:', requestsResult);
+        if (requestsResult.success && Array.isArray(requestsResult.data)) {
+          console.log('Dashboard: Requests data:', requestsResult.data);
+          console.log('Dashboard: Request count:', requestsResult.data.length);
+          if (requestsResult.data.length > 0) {
+            console.log('Dashboard: First request sample:', requestsResult.data[0]);
+            console.log('Dashboard: Status values in data:', requestsResult.data.map(r => r.status));
+            setRequests(requestsResult.data);
+          } else {
+            console.log('Dashboard: No requests in database, using sample data');
+            setRequests(SAMPLE_REQUESTS);
+          }
+        } else {
+          setRequests(SAMPLE_REQUESTS);
+        }
+
+        // Fetch announcements
+        const announcementsResult = await getAnnouncements();
+        console.log('Dashboard: Announcements result:', announcementsResult);
+        if (announcementsResult.success && Array.isArray(announcementsResult.data)) {
+          if (announcementsResult.data.length > 0) {
+            setAnnouncements(announcementsResult.data);
+          } else {
+            setAnnouncements(SAMPLE_ANNOUNCEMENTS);
+          }
+        } else {
+          setAnnouncements(SAMPLE_ANNOUNCEMENTS);
+        }
+
+        // Fetch officials
+        const officialsResult = await getAllOfficials();
+        if (officialsResult.success && Array.isArray(officialsResult.data)) {
+          setOfficials(officialsResult.data);
+        }
+
+        // Fetch residents
+        const residentResult = await getAllResidents();
+        if (residentResult.success && Array.isArray(residentResult.data)) {
+          setResidents(residentResult.data);
+        }
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setError('Error loading dashboard data');
+        setRequests(SAMPLE_REQUESTS);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAllData();
+  }, []);
 
   let Content = null;
-  if (active === "Dashboard") Content = <DashboardView />;
-  if (active === "Announcements") Content = <AnnouncementsView />;
-  if (active === "Requests") Content = <RequestsView />;
-  if (active === "Users") Content = <UsersView />;
+  if (active === "Dashboard") Content = <DashboardView requests={requests} announcements={announcements} />;
+  if (active === "Announcements") Content = <AnnouncementsView announcements={announcements} />;
+  if (active === "Requests") Content = <RequestsView requests={requests} />;
+  if (active === "Users") Content = <UsersView officials={officials} residents={residents} />;
 
   return (
     <div className="admin-root">

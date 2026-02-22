@@ -15,7 +15,7 @@ import '../styles/Header.css';
  * @param {string} userName - Name/email of the currently logged-in user
  * @param {function} onLogout - Callback function to execute when user clicks logout
  */
-const Header = ({ menuItems = [], userName = 'Barangay Official', onLogout, userLoading = false }) => {
+const Header = ({ menuItems = [], userName = 'Barangay Official', userRole = null, onLogout, userLoading = false }) => {
   /**
    * Handle logout button click
    * 
@@ -26,6 +26,16 @@ const Header = ({ menuItems = [], userName = 'Barangay Official', onLogout, user
     if (onLogout) {
       onLogout();
     }
+  };
+
+  // Determine the role label to display
+  const getRoleLabel = () => {
+    if (userRole === 'superadmin') {
+      return 'SUPER ADMINISTRATOR';
+    } else if (userRole === 'official') {
+      return 'BARANGAY OFFICIAL';
+    }
+    return 'BARANGAY OFFICIAL'; // default fallback
   };
 
   const location = useLocation();
@@ -53,7 +63,7 @@ const Header = ({ menuItems = [], userName = 'Barangay Official', onLogout, user
       <div className="header-right">
         {/* Account display */}
         <div className="account-info">
-          <span className="account-label">BARANGAY OFFICIAL</span>
+          <span className="account-label">{getRoleLabel()}</span>
           {userLoading ? (
             <span className="account-loading">Loading...</span>
           ) : (

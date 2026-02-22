@@ -19,9 +19,18 @@ export default function OfficialRequests() {
 
   const fetchAssignedRequests = async () => {
     try {
-      const data = await getAssignedRequests();
-      console.log('Raw data from getAssignedRequests:', data);
+      const result = await getAssignedRequests();
+      console.log('Raw result from getAssignedRequests:', result);
       
+      // Handle error responses from database function
+      if (!result.success) {
+        console.error('Failed to fetch assigned requests:', result.message);
+        setLoading(false);
+        return;
+      }
+
+      // Unwrap data from successful response
+      const data = result.data || [];
       if (data && Array.isArray(data)) {
         // Format data to match component requirements
         const formattedRequests = data.map(req => {
@@ -128,10 +137,21 @@ export default function OfficialRequests() {
     try {
       console.log('Saving request with data:', updatedData);
       
+      // Map frontend status (uppercase) to database status (lowercase)
+      const statusMap = {
+        'PENDING': 'pending',
+        'IN_PROGRESS': 'in_progress',
+        'COMPLETED': 'completed',
+        'REJECTED': 'rejected',
+      };
+      
+      const dbStatus = statusMap[updatedData.status] || updatedData.status.toLowerCase();
+      console.log('Converting status:', updatedData.status, '-> DB status:', dbStatus);
+      
       // Save to database
       const result = await updateRequestStatus(
         updatedData.requestId,
-        updatedData.status,
+        dbStatus,
         updatedData.internalNotes
       );
 

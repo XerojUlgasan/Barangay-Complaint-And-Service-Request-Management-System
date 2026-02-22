@@ -1,10 +1,50 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Trash2, Calendar, Info, X } from 'lucide-react';
 import '../../styles/BarangayAdmin.css';
+import { getAnnouncements, postAnnouncement, deleteAnnouncement } from '../../supabse_db/announcement/announcement';
 
 export default function AdminAnnouncements() {
   const [showModal, setShowModal] = useState(false);
+  const [announcements, setAnnouncements] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [posting, setPosting] = useState(false);
+  const [formData, setFormData] = useState({
+    category: 'general',
+    priority: 'normal',
+    title: '',
+    content: '',
+    imageFile: null
+  });
   const modalRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  console.log('AdminAnnouncements render, showModal=', showModal);
+
+  // Fetch announcements on mount
+  useEffect(() => {
+    const fetchAnnouncements = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const result = await getAnnouncements();
+        console.log('Announcements fetched:', result);
+        if (result.success && Array.isArray(result.data)) {
+          setAnnouncements(result.data);
+        } else {
+          console.error('Failed to fetch announcements:', result.message);
+          setError(result.message);
+        }
+      } catch (err) {
+        console.error('Error fetching announcements:', err);
+        setError('Error fetching announcements');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAnnouncements();
+  }, []);
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') setShowModal(false); };
@@ -20,33 +60,75 @@ export default function AdminAnnouncements() {
     };
   }, [showModal]);
 
-  const openModal = () => setShowModal(true);
-  const closeModal = () => setShowModal(false);
+  const openModal = () => {
+    console.log('Opening modal...');
+    setShowModal(true);
+  };
 
-  const items = [
-    {
-      id: 1,
-      title: 'Community Clean-Up Drive',
-      date: '2/7/2026',
-      tag: 'EVENT',
-      priority: 'Normal',
-      desc:
-        'Join us this Saturday for our monthly community clean-up drive. Meeting point is at the Barangay Hall at 6:00 AM. Please bring your own cleaning materials.',
-      img: 'https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&w=800&q=60',
-      border: 'success'
-    },
-    {
-      id: 2,
-      title: 'Important: Garbage Collection Schedule Change',
-      date: '2/6/2026',
-      tag: 'GENERAL',
-      priority: 'High',
-      desc:
-        'Due to the upcoming holiday, garbage collection will be moved from Monday to Tuesday next week. Please adjust your disposal schedules accordingly.',
-      img: 'https://images.unsplash.com/photo-1558981403-c5f989e22f38?auto=format&fit=crop&w=800&q=60',
-      border: 'default'
+  const closeModal = () => {
+    console.log('Closing modal...');
+    setShowModal(false);
+  };
+
+  const handleDeleteAnnouncement = async (id) => {
+    if (window.confirm('Are you sure you want to delete this announcement?')) {
+      try {
+        const result = await deleteAnnouncement(id);
+        if (result.success) {
+          console.log('Announcement deleted successfully');
+          setAnnouncements(announcements.filter(ann => ann.id !== id));
+        } else {
+          alert('Error deleting announcement: ' + result.message);
+        }
+      } catch (err) {
+        console.error('Error deleting announcement:', err);
+        alert('Error deleting announcement');
+      }
     }
-  ];
+  };
+
+  const handlePostAnnouncement = async () => {
+    if (!formData.title.trim()) {
+      alert('Please enter a title');
+      return;
+    }
+    if (!formData.content.trim()) {
+      alert('Please enter content');
+      return;
+    }
+
+    try {
+      setPosting(true);
+      console.log('Posting announcement:', formData);
+      console.log('Category value being sent:', formData.category, 'Type:', typeof formData.category);
+      console.log('Priority value being sent:', formData.priority, 'Type:', typeof formData.priority);
+      const result = await postAnnouncement(
+        formData.category,
+        formData.priority,
+        formData.title,
+        formData.content
+      );
+
+      if (result.success) {
+        console.log('Announcement posted successfully:', result.data);
+        // Reset form
+        setFormData({ category: 'general', priority: 'normal', title: '', content: '', imageFile: null });
+        closeModal();
+        // Refresh announcements list
+        const refreshResult = await getAnnouncements();
+        if (refreshResult.success && Array.isArray(refreshResult.data)) {
+          setAnnouncements(refreshResult.data);
+        }
+      } else {
+        alert('Error posting announcement: ' + result.message);
+      }
+    } catch (err) {
+      console.error('Error posting announcement:', err);
+      alert('Error posting announcement');
+    } finally {
+      setPosting(false);
+    }
+  };
 
   return (
     <div className="admin-page announcements-wrap">
@@ -58,86 +140,236 @@ export default function AdminAnnouncements() {
         <button className="btn-new-ann" onClick={openModal}>+ New Announcement</button>
       </div>
 
+      {loading && (
+        <div style={{ padding: '2rem', textAlign: 'center', color: '#999' }}>
+          <p>Loading announcements...</p>
+        </div>
+      )}
+
+      {error && (
+        <div style={{ padding: '1rem', marginBottom: '1.5rem', backgroundColor: '#fee2e2', borderRadius: '0.5rem', color: '#991b1b' }}>
+          Error: {error}
+        </div>
+      )}
+
       <div className="announcements-list">
-        {items.map((it) => (
-          <div key={it.id} className={`announcement-card ${it.border === 'success' ? 'announcement-success' : ''}`}>
-            <div className="announcement-left">
-              <img src={it.img} alt={it.title} />
-            </div>
+        {announcements && announcements.length > 0 ? (
+          announcements.map((it) => (
+            <div key={it.id} className={`announcement-card`}>
+              <div className="announcement-left">
+                <img 
+                  src={'https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&w=800&q=60'} 
+                  alt={it.title}
+                  onError={(e) => {
+                    e.target.src = 'https://via.placeholder.com/160x100?text=Announcement';
+                  }}
+                />
+              </div>
 
-            <div className="announcement-right">
-              <div className="announcement-right-top">
-                <div className="ann-icon"><Calendar size={18} /></div>
-                <div style={{display:'flex',alignItems:'center',gap:10,flex:1}}>
-                  <div className="ann-title">{it.title}</div>
-                  {it.priority && (
-                    <div className={`priority-pill priority-${it.priority.toLowerCase()}`}>{it.priority.toUpperCase()}</div>
-                  )}
+              <div className="announcement-right">
+                <div className="announcement-right-top">
+                  <div className="ann-icon"><Calendar size={18} /></div>
+                  <div style={{display:'flex',alignItems:'center',gap:10,flex:1}}>
+                    <div className="ann-title">{it.title}</div>
+                    {it.priority && (
+                      <div className={`priority-pill priority-${it.priority.toLowerCase()}`}>{it.priority.toUpperCase()}</div>
+                    )}
+                  </div>
+                  <div className="ann-actions">
+                    <button 
+                      className="ann-trash" 
+                      title="Delete"
+                      onClick={() => handleDeleteAnnouncement(it.id)}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
-                <div className="ann-actions"><button className="ann-trash" title="Delete"><Trash2 size={16} /></button></div>
-              </div>
 
-              <div className="ann-meta">Posted by Barangay Captain • {it.date}</div>
-              <div className="ann-desc">{it.desc}</div>
-              <div className="ann-foot">
-                <div className="ann-tag">{it.tag}</div>
+                <div className="ann-meta">Posted by Barangay • {new Date(it.created_at).toLocaleDateString()}</div>
+                <div className="ann-desc">{it.content}</div>
+                <div className="ann-foot">
+                  <div className="ann-tag">{it.category?.toUpperCase() || 'ANNOUNCEMENT'}</div>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))
+        ) : (
+          !loading && (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#999' }}>
+              <p>No announcements yet. Create one to get started!</p>
+            </div>
+          )
+        )}
       </div>
 
-      {/* Modal - only render when showModal is true */}
+      {/* Modal - TEST VERSION */}
       {showModal && (
-        <div className={`modal-overlay show`} onMouseDown={(e)=>{ if(e.target.classList.contains('modal-overlay')) closeModal(); }}>
-          <div className="modal" role="dialog" aria-modal="true" ref={modalRef} onMouseDown={(e)=>e.stopPropagation()}>
-            <div className="modal-header">
-              <h4>Create Announcement</h4>
-              <button className="modal-close" onClick={closeModal} aria-label="Close"><X size={16} /></button>
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999
+        }} onClick={(e) => {
+          if(e.target === e.currentTarget) closeModal();
+        }}>
+          <div style={{
+            backgroundColor: '#fff',
+            borderRadius: '12px',
+            padding: '24px',
+            maxWidth: '600px',
+            width: '90%',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            zIndex: 10000
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h4 style={{ margin: 0, fontSize: '20px', color: '#065f46' }}>Create Announcement</h4>
+              <button 
+                onClick={closeModal}
+                style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#999' }}
+              >×</button>
             </div>
 
-            <div className="modal-body">
-              <div className="two-col">
-                <div className="form-row">
-                  <label>Category</label>
-                  <select>
-                    <option>General</option>
-                    <option>Event</option>
-                    <option>Alert</option>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Category and Priority */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontSize: '14px' }}>Category</label>
+                  <select 
+                    value={formData.category}
+                    onChange={(e) => setFormData({...formData, category: e.target.value})}
+                    style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '6px', fontFamily: 'inherit' }}
+                  >
+                    <option value="general">General</option>
+                    <option value="event">Event</option>
+                    <option value="alert">Alert</option>
                   </select>
                 </div>
-
-                <div className="form-row">
-                  <label>Priority Level</label>
-                  <select>
-                    <option>Normal</option>
-                    <option>High</option>
-                    <option>Urgent</option>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontSize: '14px' }}>Priority Level</label>
+                  <select 
+                    value={formData.priority}
+                    onChange={(e) => setFormData({...formData, priority: e.target.value})}
+                    style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '6px', fontFamily: 'inherit' }}
+                  >
+                    <option value="normal">Normal</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
                   </select>
                 </div>
               </div>
 
-              <div className="form-row">
-                <label>Title</label>
-                <input type="text" placeholder="E.g., Monthly Clean-up Drive" />
+              {/* Title */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontSize: '14px' }}>Title</label>
+                <input 
+                  type="text" 
+                  placeholder="E.g., Monthly Clean-up Drive"
+                  value={formData.title}
+                  onChange={(e) => setFormData({...formData, title: e.target.value})}
+                  style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '6px', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                />
               </div>
 
-              <div className="form-row">
-                <label>Content</label>
-                <textarea rows={5} placeholder="Details about the announcement..." />
+              {/* Content */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontSize: '14px' }}>Content</label>
+                <textarea 
+                  rows={4} 
+                  placeholder="Details about the announcement..."
+                  value={formData.content}
+                  onChange={(e) => setFormData({...formData, content: e.target.value})}
+                  style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '6px', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }}
+                />
               </div>
 
-              <div className="form-row">
-                <label>Picture Attachment (URL)</label>
-                <div className="input-with-icon">
-                  <input type="text" placeholder="https://images.unsplash.com/..." />
+              {/* Image Upload */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontSize: '14px' }}>Picture (Optional)</label>
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    border: '2px dashed #ddd',
+                    borderRadius: '6px',
+                    padding: '24px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    backgroundColor: '#f9fafb',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <div style={{ fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>Click to upload image</div>
+                  <div style={{ fontSize: '12px', color: '#999' }}>PNG, JPG up to 10MB</div>
+                  {formData.imageFile && (
+                    <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#16a34a', fontSize: '13px' }}>
+                      <span>✓ {formData.imageFile.name}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFormData({...formData, imageFile: null});
+                        }}
+                        style={{
+                          background: '#fee2e2',
+                          color: '#991b1b',
+                          border: 'none',
+                          borderRadius: '4px',
+                          padding: '4px 8px',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          fontWeight: '500'
+                        }}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  )}
                 </div>
+                <input 
+                  ref={fileInputRef}
+                  type="file" 
+                  accept="image/*"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      setFormData({...formData, imageFile: e.target.files[0]});
+                    }
+                  }}
+                  style={{ display: 'none' }}
+                />
               </div>
             </div>
 
-            <div className="modal-footer">
-              <button className="btn" onClick={closeModal}>Cancel</button>
-              <button className="btn-primary" onClick={closeModal} style={{background:'#16a34a',color:'#fff'}}>Post Announcement</button>
+            {/* Footer */}
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #eee' }}>
+              <button 
+                onClick={closeModal}
+                style={{ padding: '10px 20px', backgroundColor: '#fff', color: '#333', border: '1px solid #ddd', borderRadius: '6px', cursor: 'pointer', fontWeight: '500' }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handlePostAnnouncement}
+                disabled={posting}
+                style={{ 
+                  padding: '10px 20px', 
+                  backgroundColor: posting ? '#ccc' : '#16a34a', 
+                  color: '#fff', 
+                  border: 'none', 
+                  borderRadius: '6px', 
+                  cursor: posting ? 'not-allowed' : 'pointer', 
+                  fontWeight: '500' 
+                }}
+              >
+                {posting ? 'Posting...' : 'Post Announcement'}
+              </button>
             </div>
           </div>
         </div>
