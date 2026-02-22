@@ -88,6 +88,7 @@ export default function OfficialRequests() {
       in_progress: "#0EA5E9", // Sky Blue
       completed: "#10B981", // Emerald Green
       rejected: "#EF4444", // Bright Red
+      resident_complied: "#14B8A6", // Teal
       for_compliance: "#8B5CF6", // Vibrant Purple
       non_compliant: "#EC4899", // Hot Pink
       for_validation: "#06B6D4", // Cyan
@@ -101,6 +102,7 @@ export default function OfficialRequests() {
       in_progress: "#0EA5E9", // Sky Blue
       completed: "#10B981", // Emerald Green
       rejected: "#DC2626", // Deep Red
+      resident_complied: "#0D9488", // Deep Teal
       for_compliance: "#7C3AED", // Deep Purple
       non_compliant: "#DB2777", // Deep Pink
       for_validation: "#0891B2", // Deep Cyan
@@ -114,6 +116,7 @@ export default function OfficialRequests() {
     "In Progress",
     "Completed",
     "Rejected",
+    "Resident Complied",
     "For Compliance",
     "Non Compliant",
     "For Validation",
@@ -135,6 +138,7 @@ export default function OfficialRequests() {
       Completed: "completed",
       Pending: "pending",
       Rejected: "rejected",
+      "Resident Complied": "resident_complied",
       "For Compliance": "for_compliance",
       "Non Compliant": "non_compliant",
       "For Validation": "for_validation",
@@ -233,6 +237,7 @@ export default function OfficialRequests() {
       in_progress: { label: "IN PROGRESS", color: "#0EA5E9" },
       completed: { label: "COMPLETED", color: "#10B981" },
       rejected: { label: "REJECTED", color: "#EF4444" },
+      resident_complied: { label: "RESIDENT COMPLIED", color: "#14B8A6" },
       for_compliance: { label: "FOR COMPLIANCE", color: "#8B5CF6" },
       non_compliant: { label: "NON COMPLIANT", color: "#EC4899" },
       for_validation: { label: "FOR VALIDATION", color: "#06B6D4" },
