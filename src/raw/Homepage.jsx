@@ -1,12 +1,30 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
 import './homepage.css';
 import { Link } from 'react-router-dom';
+import { getAnnouncements } from '../supabse_db/announcement/announcement';
 
 function Homepage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [announcements, setAnnouncements] = useState([]);
+  const [annLoading, setAnnLoading] = useState(true);
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  };
+
+  useEffect(() => {
+    const fetchAnnouncements = async () => {
+      const result = await getAnnouncements();
+      if (result.success) setAnnouncements(result.data);
+      setAnnLoading(false);
+    };
+    fetchAnnouncements();
+  }, []);
 
   return (
     <>
@@ -25,14 +43,10 @@ function Homepage() {
           </svg>
         </button>
 
-        <div className="hp-mobile-sidebar-brand">
-          <div className="hp-mobile-shield">
-            <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" width="18" height="18">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-          </div>
-          <span>BarangayPortal</span>
-        </div>
+        <a className="hp-mobile-sidebar-brand" onClick={() => { closeMobileMenu(); scrollToTop(); }} style={{ cursor: 'pointer' }}>
+          <img src="/brgyease.png" alt="BarangayEase Logo" className="hp-mobile-logo-img" />
+          <span>BarangayEase</span>
+        </a>
 
         <nav className="hp-mobile-nav">
           <a href="#services" onClick={closeMobileMenu}>Features</a>
@@ -44,14 +58,10 @@ function Homepage() {
       {/* NAVBAR */}
       <nav className="hp-navbar">
         <div className="hp-navbar-inner">
-          <div className="hp-navbar-brand">
-            <button className="hp-shield-button">
-              <svg className="hp-shield-icon" viewBox="0 0 24 24">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-            </button>
-            <span>BarangayPortal</span>
-          </div>
+          <a className="hp-navbar-brand" onClick={scrollToTop} style={{ cursor: 'pointer' }}>
+            <img src="/brgyease.png" alt="BarangayEase Logo" className="hp-navbar-logo-img" />
+            <span>BarangayEase</span>
+          </a>
 
           {/* Desktop nav links */}
           <ul className="hp-nav-links">
@@ -123,51 +133,76 @@ function Homepage() {
           <p>Stay informed about community activities and updates</p>
         </div>
 
-        <div
-          id="carouselExampleIndicators"
-          className="hp-carousel carousel slide carousel-fade"
-          data-bs-ride="carousel"
-        >
-          <div className="carousel-indicators">
-            <button
-              type="button"
-              data-bs-target="#carouselExampleIndicators"
-              data-bs-slide-to="0"
-              className="active"
-            ></button>
-            <button
-              type="button"
-              data-bs-target="#carouselExampleIndicators"
-              data-bs-slide-to="1"
-            ></button>
-          </div>
-
-          <div className="carousel-inner">
-            <div className="carousel-item active">
-              <img src="/1.gif" className="d-block w-100" alt="slide1" />
-            </div>
-            <div className="carousel-item">
-              <img src="/4.gif" className="d-block w-100" alt="slide2" />
-            </div>
-          </div>
-
-          <button
-            className="carousel-control-prev"
-            type="button"
-            data-bs-target="#carouselExampleIndicators"
-            data-bs-slide="prev"
+        {annLoading ? (
+          <div className="hp-ann-loading">Loading announcements...</div>
+        ) : announcements.length === 0 ? (
+          <div className="hp-ann-empty">No announcements yet.</div>
+        ) : (
+          <div
+            id="carouselExampleIndicators"
+            className="hp-carousel carousel slide carousel-fade"
+            data-bs-ride="carousel"
           >
-            <span className="carousel-control-prev-icon"></span>
-          </button>
-          <button
-            className="carousel-control-next"
-            type="button"
-            data-bs-target="#carouselExampleIndicators"
-            data-bs-slide="next"
-          >
-            <span className="carousel-control-next-icon"></span>
-          </button>
-        </div>
+            <div className="carousel-indicators">
+              {announcements.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  data-bs-target="#carouselExampleIndicators"
+                  data-bs-slide-to={i}
+                  className={i === 0 ? 'active' : ''}
+                />
+              ))}
+            </div>
+
+            <div className="carousel-inner">
+              {announcements.map((ann, i) => (
+                <div className={`carousel-item${i === 0 ? ' active' : ''}`} key={ann.id}>
+                  <div className="hp-ann-card">
+                    <div className="hp-ann-card-meta">
+                      {ann.category && (
+                        <span className="hp-ann-category">{ann.category}</span>
+                      )}
+                      {ann.priority && (
+                        <span className={`hp-ann-priority ${ann.priority.toLowerCase()}`}>
+                          {ann.priority}
+                        </span>
+                      )}
+                      <span className="hp-ann-date">
+                        {new Date(ann.created_at).toLocaleDateString('en-US', {
+                          month: 'long', day: 'numeric', year: 'numeric'
+                        })}
+                      </span>
+                    </div>
+                    <h3 className="hp-ann-card-title">{ann.title}</h3>
+                    <p className="hp-ann-card-content">{ann.content}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {announcements.length > 1 && (
+              <>
+                <button
+                  className="carousel-control-prev"
+                  type="button"
+                  data-bs-target="#carouselExampleIndicators"
+                  data-bs-slide="prev"
+                >
+                  <span className="carousel-control-prev-icon"></span>
+                </button>
+                <button
+                  className="carousel-control-next"
+                  type="button"
+                  data-bs-target="#carouselExampleIndicators"
+                  data-bs-slide="next"
+                >
+                  <span className="carousel-control-next-icon"></span>
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* SERVICES */}
@@ -238,11 +273,8 @@ function Homepage() {
       <div className="hp-footer">
         <div className="hp-footer-content">
           <div className="hp-footer-logo">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            </svg>
-            <h2>BarangayPortal</h2>
+            <img src="/brgyease.png" alt="BarangayEase Logo" className="hp-footer-logo-img" />
+            <h2>BarangayEase</h2>
           </div>
 
           <p className="hp-footer-desc">
