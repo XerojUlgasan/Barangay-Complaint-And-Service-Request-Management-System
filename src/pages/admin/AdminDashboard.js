@@ -25,6 +25,7 @@ import {
   calculateAverageResponseTime,
   calculateAverageResolutionTime,
 } from "../../supabse_db/analytics/analytics";
+import { getAnnouncements } from "../../supabse_db/announcement/announcement";
 
 // Simple inline BarChart using SVG so we don't add dependencies
 function BarChart({ data = [], labels = [] }) {
@@ -89,7 +90,7 @@ function BarChart({ data = [], labels = [] }) {
               <text
                 x={x + bw / 2}
                 y={h - 6}
-                fontSize="11"
+                fontSize="9"
                 textAnchor="middle"
                 fill="#4b5563"
               >
@@ -567,16 +568,16 @@ function ComplaintsView({ complaints = [] }) {
       <div className="charts-grid">
         <div className="chart-card big">
           <div className="chart-header">
-            <MapPin size={18} />
-            Complaints by Location (Top 10)
+            <BarChart3 size={18} />
+            Complaints by Type
           </div>
           <div className="chart-body">
-            {locationStats.length > 0 ? (
+            {typeStats.length > 0 ? (
               <BarChart
-                data={locationStats.slice(0, 10).map((l) => l.count)}
-                labels={locationStats
-                  .slice(0, 10)
-                  .map((l) => l.location.substring(0, 15))}
+                data={typeStats.slice(0, 6).map((t) => t.count)}
+                labels={typeStats
+                  .slice(0, 6)
+                  .map((t) => t.type.substring(0, 8))}
               />
             ) : (
               <div
@@ -591,7 +592,7 @@ function ComplaintsView({ complaints = [] }) {
         <div className="chart-card big">
           <div className="chart-header">
             <BarChart3 size={18} />
-            Complaints by Type
+            Complaints by Type Distribution
           </div>
           <div className="chart-body donut">
             {typeStats.length > 0 ? (
@@ -635,8 +636,11 @@ function ComplaintsView({ complaints = [] }) {
       {/* Complaints Table */}
       <div style={{ marginTop: "2rem" }}>
         <h4>All Complaints</h4>
-        <div className="table">
-          <div className="table-row table-head">
+        <div className="table" style={{ overflowX: "auto" }}>
+          <div
+            className="table-row table-head"
+            style={{ gridTemplateColumns: "repeat(7, 1fr)" }}
+          >
             <div>ID</div>
             <div>Complainant</div>
             <div>Type</div>
@@ -644,15 +648,42 @@ function ComplaintsView({ complaints = [] }) {
             <div>Status</div>
             <div>Priority</div>
             <div>Date</div>
-            <div>Action</div>
           </div>
           {complaints.length > 0 ? (
             complaints.map((c) => (
-              <div className="table-row" key={c.id}>
+              <div
+                className="table-row"
+                key={c.id}
+                style={{ gridTemplateColumns: "repeat(7, 1fr)" }}
+              >
                 <div>#{c.id}</div>
-                <div>{c.complainant_name || "Unknown"}</div>
-                <div>{c.complaint_type || "General"}</div>
-                <div>{(c.incident_location || "Unknown").substring(0, 30)}</div>
+                <div
+                  style={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {c.complainant_name || "Unknown"}
+                </div>
+                <div
+                  style={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {c.complaint_type || "General"}
+                </div>
+                <div
+                  style={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {(c.incident_location || "Unknown").substring(0, 20)}
+                </div>
                 <div>
                   <span
                     className={`status ${(c.status || "pending").toLowerCase().replace(" ", "_")}`}
@@ -660,10 +691,11 @@ function ComplaintsView({ complaints = [] }) {
                     {c.status || "Pending"}
                   </span>
                 </div>
-                <div>{c.priority_level || "Normal"}</div>
-                <div>{new Date(c.created_at).toLocaleDateString()}</div>
-                <div>
-                  <button className="btn">View</button>
+                <div style={{ textAlign: "center" }}>
+                  {c.priority_level || "Normal"}
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  {new Date(c.created_at).toLocaleDateString()}
                 </div>
               </div>
             ))
@@ -817,8 +849,11 @@ function OfficialsView({ officials = [] }) {
       {/* Performance Table */}
       <div style={{ marginTop: "2rem" }}>
         <h4>Performance Summary Table</h4>
-        <div className="table">
-          <div className="table-row table-head">
+        <div className="table" style={{ overflowX: "auto" }}>
+          <div
+            className="table-row table-head"
+            style={{ gridTemplateColumns: "repeat(8, 1fr)" }}
+          >
             <div>Name</div>
             <div>Role</div>
             <div>Requests</div>
@@ -829,15 +864,37 @@ function OfficialsView({ officials = [] }) {
             <div>Completion Rate</div>
           </div>
           {officials.map((o) => (
-            <div className="table-row" key={o.id}>
-              <div>{o.full_name || `${o.firstname} ${o.lastname}`}</div>
-              <div>{o.role || "Official"}</div>
-              <div>{o.stats?.totalRequests || 0}</div>
-              <div>{o.stats?.totalComplaints || 0}</div>
-              <div>{o.stats?.totalCases || 0}</div>
-              <div>{o.stats?.completedCases || 0}</div>
-              <div>{o.stats?.pendingCases || 0}</div>
-              <div>
+            <div
+              className="table-row"
+              key={o.id}
+              style={{ gridTemplateColumns: "repeat(8, 1fr)" }}
+            >
+              <div
+                style={{
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {o.full_name || `${o.firstname} ${o.lastname}`}
+              </div>
+              <div style={{ textAlign: "center" }}>{o.role || "Official"}</div>
+              <div style={{ textAlign: "center" }}>
+                {o.stats?.totalRequests || 0}
+              </div>
+              <div style={{ textAlign: "center" }}>
+                {o.stats?.totalComplaints || 0}
+              </div>
+              <div style={{ textAlign: "center" }}>
+                {o.stats?.totalCases || 0}
+              </div>
+              <div style={{ textAlign: "center" }}>
+                {o.stats?.completedCases || 0}
+              </div>
+              <div style={{ textAlign: "center" }}>
+                {o.stats?.pendingCases || 0}
+              </div>
+              <div style={{ textAlign: "center" }}>
                 <span
                   className={`status ${parseFloat(o.stats?.completionRate || 0) > 70 ? "completed" : "pending"}`}
                 >
@@ -857,6 +914,7 @@ export default function AdminDashboard() {
   const [requests, setRequests] = useState([]);
   const [complaints, setComplaints] = useState([]);
   const [officials, setOfficials] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
   const [residentStats, setResidentStats] = useState({});
   const [requestTrends, setRequestTrends] = useState([]);
   const [complaintTrends, setComplaintTrends] = useState([]);
@@ -1004,6 +1062,17 @@ export default function AdminDashboard() {
         if (compTrendsResult.success) {
           setComplaintTrends(compTrendsResult.data);
         }
+
+        // Fetch announcements
+        const announcementsResult = await getAnnouncements();
+        if (
+          announcementsResult.success &&
+          Array.isArray(announcementsResult.data)
+        ) {
+          setAnnouncements(announcementsResult.data);
+        } else {
+          setAnnouncements([]);
+        }
       } catch (err) {
         console.error("Error fetching dashboard data:", err);
         setError("Error loading dashboard data");
@@ -1024,7 +1093,7 @@ export default function AdminDashboard() {
       <DashboardView
         requests={requests}
         complaints={complaints}
-        announcements={[]}
+        announcements={announcements}
         residentStats={residentStats}
         requestTrends={requestTrends}
         complaintTrends={complaintTrends}

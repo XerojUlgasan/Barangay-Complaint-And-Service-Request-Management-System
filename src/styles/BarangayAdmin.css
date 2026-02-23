@@ -1185,6 +1185,12 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
+.requests-table thead th:nth-child(3) {
+  text-align: center;
+}
+.requests-table thead th:nth-child(5) {
+  text-align: right;
+}
 .requests-table tbody td {
   padding: 16px 14px;
   border-bottom: 1px solid #f3f4f6;

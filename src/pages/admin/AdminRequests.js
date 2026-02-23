@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { ChevronDown, X } from "lucide-react";
 import "../../styles/BarangayAdmin.css";
 import { getRequests } from "../../supabse_db/request/request";
-import { getComplaints } from "../../supabse_db/complaint/complaint";
 
 const SAMPLE_REQUESTS = [
   {
@@ -76,35 +75,6 @@ const SAMPLE_REQUESTS = [
   },
 ];
 
-const SAMPLE_COMPLAINTS = [
-  {
-    id: "COMP-001",
-    title: "Noise Disturbance",
-    subtitle: "Community complaint",
-    status: "Pending",
-    submittedBy: "Elena Cruz",
-    date: "2025-12-11",
-    lastUpdate: "2025-12-11",
-    assignedOfficial: "Unassigned",
-    description:
-      "Loud music reported late at night in Zone 3. Multiple residents affected.",
-    response: "No response yet",
-  },
-  {
-    id: "COMP-002",
-    title: "Illegal Parking",
-    subtitle: "Public safety concern",
-    status: "In Progress",
-    submittedBy: "Marco Reyes",
-    date: "2025-12-09",
-    lastUpdate: "2025-12-14",
-    assignedOfficial: "Andrea Flores",
-    description:
-      "Vehicles blocking the main road during peak hours. Photos provided.",
-    response: "Barangay patrol assigned. Warning notices issued.",
-  },
-];
-
 const STATUS_COLORS = {
   Pending: "#fbbf24",
   "In Progress": "#3b82f6",
@@ -136,20 +106,12 @@ const getStatusColor = (statusLabel) => STATUS_COLORS[statusLabel] || "#9ca3af";
 export default function AdminRequests() {
   const [selectedRequestStatus, setSelectedRequestStatus] =
     useState("All Status");
-  const [selectedComplaintStatus, setSelectedComplaintStatus] =
-    useState("All Status");
   const [selectedRequest, setSelectedRequest] = useState(null);
-  const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isComplaintModalOpen, setIsComplaintModalOpen] = useState(false);
   const [requestDropdownOpen, setRequestDropdownOpen] = useState(false);
-  const [complaintDropdownOpen, setComplaintDropdownOpen] = useState(false);
   const [requests, setRequests] = useState(SAMPLE_REQUESTS);
-  const [complaints, setComplaints] = useState(SAMPLE_COMPLAINTS);
   const [loadingRequests, setLoadingRequests] = useState(true);
-  const [loadingComplaints, setLoadingComplaints] = useState(true);
   const [errorRequests, setErrorRequests] = useState(null);
-  const [errorComplaints, setErrorComplaints] = useState(null);
 
   // Transform database request data to match UI format
   const transformRequestData = (dbRequest) => {
@@ -170,27 +132,6 @@ export default function AdminRequests() {
       assignedOfficial: dbRequest.assigned_official_name || "Unassigned",
       description: dbRequest.description || "No description provided",
       response: dbRequest.remarks || "No response yet",
-    };
-  };
-
-  const transformComplaintData = (dbComplaint) => {
-    return {
-      id: dbComplaint.id,
-      title: dbComplaint.complaint_type || "Complaint",
-      subtitle: dbComplaint.incident_location || "Community concern",
-      status: normalizeStatus(dbComplaint.status),
-      submittedBy: dbComplaint.complainant_name || "Unknown",
-      date: dbComplaint.created_at
-        ? new Date(dbComplaint.created_at).toISOString().split("T")[0]
-        : "N/A",
-      lastUpdate: dbComplaint.updated_at
-        ? new Date(dbComplaint.updated_at).toISOString().split("T")[0]
-        : dbComplaint.created_at
-          ? new Date(dbComplaint.created_at).toISOString().split("T")[0]
-          : "N/A",
-      assignedOfficial: dbComplaint.assigned_official_name || "Unassigned",
-      description: dbComplaint.description || "No description provided",
-      response: dbComplaint.remarks || "No response yet",
     };
   };
 
@@ -238,45 +179,7 @@ export default function AdminRequests() {
       }
     };
 
-    const fetchComplaints = async () => {
-      try {
-        setLoadingComplaints(true);
-        setErrorComplaints(null);
-        console.log("AdminRequests: Starting complaints fetch...");
-        const result = await getComplaints();
-        console.log("AdminRequests: getComplaints result:", result);
-
-        if (result.success && Array.isArray(result.data)) {
-          const transformedComplaints = result.data.map((item) =>
-            transformComplaintData(item),
-          );
-          if (transformedComplaints.length > 0) {
-            setComplaints(transformedComplaints);
-          } else {
-            console.log(
-              "AdminRequests: No complaint data in database, using sample data",
-            );
-            setComplaints(SAMPLE_COMPLAINTS);
-          }
-        } else {
-          console.error(
-            "AdminRequests: Failed to fetch complaints:",
-            result.message,
-          );
-          setErrorComplaints(result.message || "Failed to fetch complaints");
-          setComplaints(SAMPLE_COMPLAINTS);
-        }
-      } catch (err) {
-        console.error("AdminRequests: Complaints catch error:", err);
-        setErrorComplaints("Error fetching complaints: " + err.message);
-        setComplaints(SAMPLE_COMPLAINTS);
-      } finally {
-        setLoadingComplaints(false);
-      }
-    };
-
     fetchRequests();
-    fetchComplaints();
   }, []);
 
   // Filter requests based on status
@@ -285,21 +188,14 @@ export default function AdminRequests() {
       ? requests
       : requests.filter((req) => req.status === selectedRequestStatus);
 
-  // Filter complaints based on status
-  const filteredComplaints =
-    selectedComplaintStatus === "All Status"
-      ? complaints
-      : complaints.filter((item) => item.status === selectedComplaintStatus);
-
   // Close modal on escape key
   useEffect(() => {
     const handleEscape = (e) => {
       if (e.key === "Escape") {
         closeModal();
-        closeComplaintModal();
       }
     };
-    if (isModalOpen || isComplaintModalOpen) {
+    if (isModalOpen) {
       document.addEventListener("keydown", handleEscape);
       document.body.style.overflow = "hidden";
     }
@@ -307,7 +203,7 @@ export default function AdminRequests() {
       document.removeEventListener("keydown", handleEscape);
       document.body.style.overflow = "unset";
     };
-  }, [isModalOpen, isComplaintModalOpen]);
+  }, [isModalOpen]);
 
   const openModal = (request) => {
     setSelectedRequest(request);
@@ -317,16 +213,6 @@ export default function AdminRequests() {
   const closeModal = () => {
     setIsModalOpen(false);
     setTimeout(() => setSelectedRequest(null), 300);
-  };
-
-  const openComplaintModal = (complaint) => {
-    setSelectedComplaint(complaint);
-    setIsComplaintModalOpen(true);
-  };
-
-  const closeComplaintModal = () => {
-    setIsComplaintModalOpen(false);
-    setTimeout(() => setSelectedComplaint(null), 300);
   };
 
   const statusOptions = [
@@ -344,9 +230,9 @@ export default function AdminRequests() {
     <div className="admin-page">
       {/* Page Header */}
       <div style={{ marginBottom: "2rem" }}>
-        <h2 className="page-title">System-wide Requests and Complaints</h2>
+        <h2 className="page-title">System-wide Requests</h2>
         <p className="page-subtitle">
-          Monitor all requests and complaints across the barangay.
+          Monitor all service requests across the barangay.
         </p>
       </div>
 
@@ -469,131 +355,8 @@ export default function AdminRequests() {
         </div>
       </div>
 
-      {/* COMPLAINTS SECTION */}
-      <div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "1rem",
-          }}
-        >
-          <div>
-            <h3 className="page-title" style={{ fontSize: "1.25rem" }}>
-              Complaints
-            </h3>
-            <p className="page-subtitle" style={{ marginTop: "0.25rem" }}>
-              All complaints filed by residents.
-            </p>
-          </div>
-          <div className="status-filter-wrapper">
-            <button
-              className="status-filter-btn"
-              onClick={() => setComplaintDropdownOpen(!complaintDropdownOpen)}
-            >
-              {selectedComplaintStatus}
-              <ChevronDown size={18} style={{ marginLeft: "0.5rem" }} />
-            </button>
-            {complaintDropdownOpen && (
-              <div className="status-filter-dropdown">
-                {statusOptions.map((option) => (
-                  <div
-                    key={option}
-                    className="status-filter-item"
-                    onClick={() => {
-                      setSelectedComplaintStatus(option);
-                      setComplaintDropdownOpen(false);
-                    }}
-                  >
-                    {option}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {errorComplaints && (
-          <div
-            style={{
-              padding: "1rem",
-              marginBottom: "1rem",
-              backgroundColor: "#fee2e2",
-              borderRadius: "0.5rem",
-              color: "#991b1b",
-            }}
-          >
-            Error: {errorComplaints}
-          </div>
-        )}
-
-        {loadingComplaints && (
-          <div
-            style={{
-              padding: "1rem",
-              marginBottom: "1rem",
-              backgroundColor: "#dbeafe",
-              borderRadius: "0.5rem",
-              color: "#1e40af",
-            }}
-          >
-            Loading complaints...
-          </div>
-        )}
-
-        <div className="requests-table-card">
-          <table className="requests-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Complaint Details</th>
-                <th>Status</th>
-                <th>Submitted By</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredComplaints.map((complaint) => (
-                <tr key={complaint.id}>
-                  <td className="req-id">{complaint.id}</td>
-                  <td className="req-details">
-                    <div className="req-title">{complaint.title}</div>
-                    <div className="req-subtitle">{complaint.subtitle}</div>
-                  </td>
-                  <td className="req-status">
-                    <span
-                      className="status-badge"
-                      style={{
-                        backgroundColor: getStatusColor(complaint.status),
-                        color: "#fff",
-                      }}
-                    >
-                      {complaint.status}
-                    </span>
-                  </td>
-                  <td className="req-submitted">{complaint.submittedBy}</td>
-                  <td className="req-action">
-                    <button
-                      className="view-details-btn"
-                      onClick={() => openComplaintModal(complaint)}
-                    >
-                      View Details
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
       {/* Modal Overlay */}
       {isModalOpen && <div className="modal-overlay" onClick={closeModal} />}
-
-      {isComplaintModalOpen && (
-        <div className="modal-overlay" onClick={closeComplaintModal} />
-      )}
 
       {/* Modal */}
       {isModalOpen && selectedRequest && (
@@ -662,74 +425,6 @@ export default function AdminRequests() {
           {/* Modal Footer */}
           <div className="modal-footer-request">
             <button className="close-button" onClick={closeModal}>
-              Close Monitor
-            </button>
-          </div>
-        </div>
-      )}
-
-      {isComplaintModalOpen && selectedComplaint && (
-        <div className="request-modal">
-          <div className="request-modal-header">
-            <div className="modal-header-top">
-              <h3 className="modal-request-title">{selectedComplaint.title}</h3>
-              <button className="modal-close-x" onClick={closeComplaintModal}>
-                <X size={24} />
-              </button>
-            </div>
-            <div className="modal-header-badges">
-              <span
-                className="status-badge-modal"
-                style={{
-                  backgroundColor: getStatusColor(selectedComplaint.status),
-                  color: "#fff",
-                }}
-              >
-                {selectedComplaint.status.toUpperCase()}
-              </span>
-              <span className="admin-tag-modal">System Admin View</span>
-            </div>
-          </div>
-
-          <div className="modal-body">
-            <div className="request-metadata-grid">
-              <div className="metadata-item">
-                <label className="metadata-label">Citizen</label>
-                <p className="metadata-value">
-                  {selectedComplaint.submittedBy}
-                </p>
-              </div>
-              <div className="metadata-item">
-                <label className="metadata-label">Submitted</label>
-                <p className="metadata-value">{selectedComplaint.date}</p>
-              </div>
-              <div className="metadata-item">
-                <label className="metadata-label">Last Update</label>
-                <p className="metadata-value">{selectedComplaint.lastUpdate}</p>
-              </div>
-              <div className="metadata-item">
-                <label className="metadata-label">Assigned Official</label>
-                <p className="metadata-value">
-                  {selectedComplaint.assignedOfficial}
-                </p>
-              </div>
-            </div>
-
-            <div className="request-section">
-              <h4 className="section-title">Complaint Description</h4>
-              <div className="description-box">
-                {selectedComplaint.description}
-              </div>
-            </div>
-
-            <div className="request-section">
-              <h4 className="section-title">Official Response / Notes</h4>
-              <div className="response-box">{selectedComplaint.response}</div>
-            </div>
-          </div>
-
-          <div className="modal-footer-request">
-            <button className="close-button" onClick={closeComplaintModal}>
               Close Monitor
             </button>
           </div>
