@@ -84,14 +84,14 @@ body {
     margin: 0;
     margin-left: auto;
     padding: 0;
-    
 }
 
 #announce-link {
     margin-left: 30px;
 }
+
 .hp-nav-links li {
-    color: (0, 0, 0, 0.616);
+    color: rgba(0, 0, 0, 0.616);
     font-weight: 500;
     font-size: 16px;
     margin-top: 4px;
@@ -134,6 +134,150 @@ body {
 .hp-signin-btn:hover {
     background-color: #047857;
     color: white;
+}
+
+/* ── HAMBURGER BUTTON (mobile only) ── */
+.hp-hamburger-btn {
+    display: none;
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    width: 42px;
+    height: 42px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #374151;
+    transition: background 0.15s ease;
+    flex-shrink: 0;
+}
+
+.hp-hamburger-btn:hover {
+    background: #f3f4f6;
+}
+
+/* ── MOBILE OVERLAY ── */
+.hp-mobile-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 1098;
+    backdrop-filter: blur(2px);
+}
+
+.hp-mobile-overlay.visible {
+    display: block;
+}
+
+/* ── MOBILE SIDEBAR ── */
+.hp-mobile-sidebar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 100vh;
+    width: 280px;
+    background: #ffffff;
+    z-index: 1099;
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+    box-shadow: none;
+}
+
+.hp-mobile-sidebar.open {
+    transform: translateX(0);
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+}
+
+.hp-mobile-sidebar-close {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    background: #f3f4f6;
+    border: none;
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #374151;
+    transition: background 0.15s ease;
+}
+
+.hp-mobile-sidebar-close:hover {
+    background: #e5e7eb;
+}
+
+.hp-mobile-sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 60px;
+    margin-bottom: 32px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.hp-mobile-shield {
+    width: 36px;
+    height: 36px;
+    background-color: #059669;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.hp-mobile-sidebar-brand span {
+    font-size: 17px;
+    font-weight: 700;
+    color: rgb(2, 73, 2);
+}
+
+.hp-mobile-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.hp-mobile-nav a {
+    display: flex;
+    align-items: center;
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 500;
+    color: #374151;
+    text-decoration: none;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.hp-mobile-nav a:hover {
+    background: #f3f4f6;
+    color: #059669;
+}
+
+.hp-mobile-signin-btn {
+    margin-top: 12px !important;
+    background: #059669 !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    border-radius: 10px !important;
+    justify-content: center;
+    transition: background 0.15s ease !important;
+}
+
+.hp-mobile-signin-btn:hover {
+    background: #047857 !important;
+    color: #ffffff !important;
 }
 
 /* ── HERO SECTION ── */
@@ -406,11 +550,10 @@ body {
     border-radius: 10px;
     width: 400px;
     min-height: 300px;
-    padding: 24px;
+    padding: 50px;
     transition: border 0.2s ease, box-shadow 0.2s ease;
     background: white;
     text-align: left;
-    padding: 50px;
 }
 
 .hp-service-card:hover {
@@ -428,7 +571,6 @@ body {
 
 .hp-service-card h5 {
     font-weight: 700;
-    font-size: 16px;
     color: #0f172a;
     margin: 0;
     font-size: 20px;
@@ -534,7 +676,7 @@ body {
     margin-bottom: 0;
 }
 
-/* ── RESPONSIVE ── */
+/* ── RESPONSIVE: 1100px ── */
 @media (max-width: 1100px) {
     .hp-hero-section {
         padding: 0 40px;
@@ -549,6 +691,7 @@ body {
     }
 }
 
+/* ── RESPONSIVE: 900px ── */
 @media (max-width: 900px) {
     .hp-hero-section {
         flex-direction: column;
@@ -581,15 +724,101 @@ body {
     }
 }
 
+/* ── RESPONSIVE: 768px — show hamburger, hide desktop nav ── */
+@media (max-width: 768px) {
+    /* Hide desktop nav links */
+    .hp-nav-links {
+        display: none;
+    }
+
+    /* Show hamburger */
+    .hp-hamburger-btn {
+        display: flex;
+    }
+
+    /* Tighten navbar inner padding */
+    .hp-navbar-inner {
+        padding: 0 16px;
+    }
+
+    /* Move shield button margin */
+    .hp-shield-button {
+        margin-left: 0;
+    }
+
+    /* Hero */
+    .hp-hero-section {
+        flex-direction: column;
+        padding: 32px 20px;
+        min-height: auto;
+        gap: 28px;
+    }
+
+    .hp-hero-title {
+        font-size: 38px;
+        letter-spacing: -1px;
+    }
+
+    .hp-hero-desc {
+        font-size: 15px;
+    }
+
+    .hp-hero-right img {
+        height: 220px;
+        border-radius: 14px;
+    }
+
+    .hp-button-group {
+        flex-direction: column;
+        gap: 12px;
+        width: 100%;
+    }
+
+    .hp-btn-primary,
+    .hp-btn-outline {
+        width: 100%;
+        min-width: unset;
+        height: 50px;
+        font-size: 15px;
+    }
+
+    /* Announcements */
+    .hp-announcements {
+        padding: 40px 20px;
+        gap: 24px;
+        min-height: auto;
+    }
+
+    .hp-section-header h2 {
+        font-size: 24px;
+    }
+
+    .hp-section-header p {
+        font-size: 14px;
+    }
+
+    /* Services */
+    .hp-services {
+        padding: 40px 20px;
+        gap: 32px;
+        min-height: auto;
+    }
+
+    .hp-service-card {
+        width: 100%;
+        min-height: auto;
+        padding: 28px 24px;
+    }
+}
+
+/* ── RESPONSIVE: 640px ── */
 @media (max-width: 640px) {
     .hp-footer-nav {
         flex-direction: column;
         gap: 1rem;
     }
-    .hp-button-group {
-        flex-direction: column;
-    }
+
     .hp-hero-title {
-        font-size: 36px;
+        font-size: 32px;
     }
 }
