@@ -1,30 +1,81 @@
-import React from "react";
+import React, { useState } from "react";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
 import './homepage.css';
 import { Link } from 'react-router-dom';
 
 function Homepage() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const closeMobileMenu = () => setMobileMenuOpen(false);
+
   return (
     <>
+      {/* MOBILE NAV OVERLAY */}
+      <div
+        className={`hp-mobile-overlay${mobileMenuOpen ? ' visible' : ''}`}
+        onClick={closeMobileMenu}
+      />
+
+      {/* MOBILE SIDEBAR */}
+      <div className={`hp-mobile-sidebar${mobileMenuOpen ? ' open' : ''}`}>
+        <button className="hp-mobile-sidebar-close" onClick={closeMobileMenu} aria-label="Close menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+
+        <div className="hp-mobile-sidebar-brand">
+          <div className="hp-mobile-shield">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" width="18" height="18">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+          </div>
+          <span>BarangayPortal</span>
+        </div>
+
+        <nav className="hp-mobile-nav">
+          <a href="#services" onClick={closeMobileMenu}>Features</a>
+          <a href="#announcements" onClick={closeMobileMenu}>Announcements</a>
+          <Link to="/login" className="hp-mobile-signin-btn" onClick={closeMobileMenu}>Sign In</Link>
+        </nav>
+      </div>
+
+      {/* NAVBAR */}
       <nav className="hp-navbar">
-  <div className="hp-navbar-inner">
-    <div className="hp-navbar-brand">
-      <button className="hp-shield-button">
-        <svg className="hp-shield-icon" viewBox="0 0 24 24">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        </svg>
-      </button>
-      <span>BarangayPortal</span>
-    </div>
-    <ul className="hp-nav-links">
-      <li><a href="#services">Features</a></li>
-      <li><a id="announce-link" href="#announcements">Announcements</a></li>
-      <li>
-        <Link to="/login" className="hp-signin-btn">Sign In</Link>
-      </li>
-    </ul>
-  </div>
-</nav>
+        <div className="hp-navbar-inner">
+          <div className="hp-navbar-brand">
+            <button className="hp-shield-button">
+              <svg className="hp-shield-icon" viewBox="0 0 24 24">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+            </button>
+            <span>BarangayPortal</span>
+          </div>
+
+          {/* Desktop nav links */}
+          <ul className="hp-nav-links">
+            <li><a href="#services">Features</a></li>
+            <li><a id="announce-link" href="#announcements">Announcements</a></li>
+            <li>
+              <Link to="/login" className="hp-signin-btn">Sign In</Link>
+            </li>
+          </ul>
+
+          {/* Hamburger button — mobile only */}
+          <button
+            className="hp-hamburger-btn"
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Open menu"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="22" height="22">
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+        </div>
+      </nav>
 
       {/* HERO */}
       <div className="hp-hero-section">
