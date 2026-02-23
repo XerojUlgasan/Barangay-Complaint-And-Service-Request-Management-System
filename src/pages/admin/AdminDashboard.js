@@ -110,6 +110,101 @@ function BarChart({ data = [], labels = [] }) {
   );
 }
 
+// LineChart Component
+function LineChart({ data = [], labels = [] }) {
+  const max = Math.max(...data, 1);
+  const min = Math.min(...data, 0);
+  const w = 360;
+  const h = 160;
+  const padding = 20;
+  const pointSpacing = (w - padding * 2) / (data.length - 1 || 1);
+  const ref = useRef();
+  const [tip, setTip] = useState({
+    visible: false,
+    x: 0,
+    y: 0,
+    label: "",
+    value: 0,
+  });
+
+  const range = max - min || 1;
+
+  const points = data.map((v, i) => ({
+    x: padding + i * pointSpacing,
+    y: h - padding - ((v - min) / range) * (h - padding * 2),
+    value: v,
+    label: labels[i] || "",
+  }));
+
+  const pathD = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+
+  const onPointEnter = (e, point) => {
+    const box = ref.current.getBoundingClientRect();
+    const x = e.clientX - box.left;
+    const y = e.clientY - box.top - 10;
+    setTip({ visible: true, x, y, label: point.label, value: point.value });
+  };
+
+  const onPointLeave = () =>
+    setTip({ visible: false, x: 0, y: 0, label: "", value: 0 });
+
+  return (
+    <div className="chart-wrapper" ref={ref}>
+      <svg viewBox={`0 0 ${w} ${h}`} width="100%" height="100%">
+        {/* grid lines */}
+        {[0, 1, 2, 3, 4].map((i) => {
+          const y = padding + (h - padding * 2) * (i / 4);
+          return (
+            <line
+              key={i}
+              x1={padding}
+              x2={w - padding}
+              y1={y}
+              y2={y}
+              stroke="#eef2f7"
+            />
+          );
+        })}
+        {/* Line */}
+        <path d={pathD} stroke="#3b82f6" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        {/* Points */}
+        {points.map((p, i) => (
+          <circle
+            key={i}
+            cx={p.x}
+            cy={p.y}
+            r="4"
+            fill="#3b82f6"
+            onMouseEnter={(e) => onPointEnter(e, p)}
+            onMouseMove={(e) => onPointEnter(e, p)}
+            onMouseLeave={onPointLeave}
+            style={{ cursor: "pointer" }}
+          />
+        ))}
+        {/* Labels */}
+        {points.map((p, i) => (
+          <text
+            key={`label-${i}`}
+            x={p.x}
+            y={h - 6}
+            fontSize="9"
+            textAnchor="middle"
+            fill="#4b5563"
+          >
+            {p.label}
+          </text>
+        ))}
+      </svg>
+      {tip.visible && (
+        <div className="chart-tooltip" style={{ left: tip.x, top: tip.y }}>
+          <div className="tt-label">{tip.label}</div>
+          <div className="tt-value">complaints: {tip.value}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Minimal DonutChart SVG
 function DonutChart({
   segments = [],
@@ -517,6 +612,29 @@ function ComplaintsView({ complaints = [] }) {
   const locationStats = analyzeComplaintsByLocation(complaints);
   const typeStats = analyzeComplaintsByType(complaints);
 
+  // Aggregate complaints by date for line chart
+  const complaintsByDate = complaints.reduce((acc, complaint) => {
+    const dateStr = new Date(complaint.created_at).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+    const existing = acc.find((item) => item.date === dateStr);
+    if (existing) {
+      existing.count += 1;
+    } else {
+      acc.push({ date: dateStr, count: 1 });
+    }
+    return acc;
+  }, []);
+
+  // Sort by date and get last 12 dates
+  const sortedByDate = complaintsByDate
+    .sort(
+      (a, b) =>
+        new Date(a.date).getTime() - new Date(b.date).getTime()
+    )
+    .slice(-12);
+
   const pendingCount = complaints.filter((c) => c.status === "pending").length;
   const activeCount = complaints.filter(
     (c) => c.status === "in_progress" || c.status === "investigating",
@@ -569,15 +687,13 @@ function ComplaintsView({ complaints = [] }) {
         <div className="chart-card big">
           <div className="chart-header">
             <BarChart3 size={18} />
-            Complaints by Type
+            Complaints Over Time
           </div>
           <div className="chart-body">
-            {typeStats.length > 0 ? (
-              <BarChart
-                data={typeStats.slice(0, 6).map((t) => t.count)}
-                labels={typeStats
-                  .slice(0, 6)
-                  .map((t) => t.type.substring(0, 8))}
+            {sortedByDate.length > 0 ? (
+              <LineChart
+                data={sortedByDate.map((d) => d.count)}
+                labels={sortedByDate.map((d) => d.date)}
               />
             ) : (
               <div
