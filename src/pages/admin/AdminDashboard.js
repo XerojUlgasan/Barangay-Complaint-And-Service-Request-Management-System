@@ -136,7 +136,9 @@ function LineChart({ data = [], labels = [] }) {
     label: labels[i] || "",
   }));
 
-  const pathD = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+  const pathD = points
+    .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
+    .join(" ");
 
   const onPointEnter = (e, point) => {
     const box = ref.current.getBoundingClientRect();
@@ -166,7 +168,14 @@ function LineChart({ data = [], labels = [] }) {
           );
         })}
         {/* Line */}
-        <path d={pathD} stroke="#3b82f6" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path
+          d={pathD}
+          stroke="#3b82f6"
+          strokeWidth="2"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
         {/* Points */}
         {points.map((p, i) => (
           <circle
@@ -629,10 +638,7 @@ function ComplaintsView({ complaints = [] }) {
 
   // Sort by date and get last 12 dates
   const sortedByDate = complaintsByDate
-    .sort(
-      (a, b) =>
-        new Date(a.date).getTime() - new Date(b.date).getTime()
-    )
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(-12);
 
   const pendingCount = complaints.filter((c) => c.status === "pending").length;
