@@ -184,7 +184,7 @@ const Login = () => {
           </svg>
         </a>
 
-        <h5>Barangay Portal</h5>
+        <h5>BarangayEase</h5>
         <p>Welcome Back! Please sign in to continue.</p>
 
         <div className="container">
@@ -288,7 +288,7 @@ const Login = () => {
           </svg>
         </a>
 
-        <h5>Barangay Portal</h5>
+        <h5>BarangayEase</h5>
         <p>Welcome Back! Please sign in to continue.</p>
 
         <div className="container">
