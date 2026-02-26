@@ -86,6 +86,25 @@ const MyRequests = () => {
         const dateB = new Date(b.updated_at || b.created_at);
         return dateB - dateA;
       });
+
+      // Check if there's already a "pending" entry
+      const hasPending = sorted.some(
+        (item) => normalize(item.request_status) === "pending"
+      );
+
+      // If not, inject the initial "Pending" entry using the request's created_at
+      if (!hasPending) {
+        const initialEntry = {
+          id: "initial-pending",
+          request_status: "pending",
+          remarks: null,
+          official_name: null,
+          created_at: req.created_at,
+          updated_at: req.created_at,
+        };
+        sorted.push(initialEntry);
+      }
+
       setHistoryData(sorted);
     }
     setHistoryLoading(false);

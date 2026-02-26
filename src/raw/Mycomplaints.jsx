@@ -71,6 +71,26 @@ const MyComplaints = () => {
         const dateB = new Date(b.updated_at || b.created_at);
         return dateB - dateA;
       });
+
+      // Check if there's already a "pending" entry
+      const hasPending = sorted.some(
+        (item) => normalize(item.status) === 'pending'
+      );
+
+      // If not, inject the initial "Pending" entry using the complaint's created_at
+      if (!hasPending) {
+        const initialEntry = {
+          id: 'initial-pending',
+          status: 'pending',
+          remarks: null,
+          updater_name: null,
+          priority_level: null,
+          created_at: complaint.created_at,
+          updated_at: complaint.created_at,
+        };
+        sorted.push(initialEntry);
+      }
+
       setHistoryData(sorted);
     }
     setHistoryLoading(false);
