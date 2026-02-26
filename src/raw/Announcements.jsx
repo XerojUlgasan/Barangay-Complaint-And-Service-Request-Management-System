@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import supabase from '../supabse_db/supabase_client';
 import { getAnnouncements } from '../supabse_db/announcement/announcement';
 import { logout } from '../supabse_db/auth/auth';
+import { fetchAnnouncementImages } from '../supabse_db/uploadImages';
 import './userlanding.css';
 
 const Announcements = () => {
@@ -10,6 +11,7 @@ const Announcements = () => {
 
   const [userName, setUserName] = useState('');
   const [announcements, setAnnouncements] = useState([]);
+  const [announcementImages, setAnnouncementImages] = useState({});
   const [loading, setLoading] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -34,7 +36,18 @@ const Announcements = () => {
       }
 
       const result = await getAnnouncements();
-      if (result.success) setAnnouncements(result.data);
+      if (result.success) {
+        setAnnouncements(result.data);
+        const imageMap = {};
+        const imagePromises = result.data.map(async (ann) => {
+          const imageResult = await fetchAnnouncementImages(ann.id);
+          if (imageResult.success && imageResult.images.length > 0) {
+            imageMap[ann.id] = imageResult.images[0].url;
+          }
+        });
+        await Promise.all(imagePromises);
+        setAnnouncementImages(imageMap);
+      }
 
       setLoading(false);
     };
@@ -212,8 +225,8 @@ const Announcements = () => {
 
                     {/* IMAGE — full width top, tall */}
                     <div className="ann-image">
-                      {ann.image_url
-                        ? <img src={ann.image_url} alt={ann.title} />
+                      {announcementImages[ann.id]
+                        ? <img src={announcementImages[ann.id]} alt={ann.title} />
                         : <div className="ann-image-placeholder">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="40" height="40">
                               <rect x="3" y="3" width="18" height="18" rx="3"/>

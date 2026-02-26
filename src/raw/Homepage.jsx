@@ -3,10 +3,12 @@ import "bootstrap/dist/js/bootstrap.bundle.min.js";
 import './homepage.css';
 import { Link } from 'react-router-dom';
 import { getAnnouncements } from '../supabse_db/announcement/announcement';
+import { fetchAnnouncementImages } from '../supabse_db/uploadImages';
 
 function Homepage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [announcements, setAnnouncements] = useState([]);
+  const [announcementImages, setAnnouncementImages] = useState({});
   const [annLoading, setAnnLoading] = useState(true);
   const [selectedAnn, setSelectedAnn] = useState(null);
 
@@ -21,7 +23,18 @@ function Homepage() {
   useEffect(() => {
     const fetchAnnouncements = async () => {
       const result = await getAnnouncements();
-      if (result.success) setAnnouncements(result.data);
+      if (result.success) {
+        setAnnouncements(result.data);
+        const imageMap = {};
+        const imagePromises = result.data.map(async (ann) => {
+          const imageResult = await fetchAnnouncementImages(ann.id);
+          if (imageResult.success && imageResult.images.length > 0) {
+            imageMap[ann.id] = imageResult.images[0].url;
+          }
+        });
+        await Promise.all(imagePromises);
+        setAnnouncementImages(imageMap);
+      }
       setAnnLoading(false);
     };
     fetchAnnouncements();
@@ -181,8 +194,8 @@ function Homepage() {
                   <div className="hp-ann-card">
                     {/* LEFT: image panel */}
                     <div className="hp-ann-card-img-panel">
-                      {ann.image_url ? (
-                        <img src={ann.image_url} alt={ann.title} className="hp-ann-card-img" />
+                      {announcementImages[ann.id] ? (
+                        <img src={announcementImages[ann.id]} alt={ann.title} className="hp-ann-card-img" />
                       ) : (
                         <div className="hp-ann-card-img-placeholder">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="48" height="48">
@@ -354,8 +367,8 @@ function Homepage() {
               </svg>
             </button>
 
-            {selectedAnn.image_url ? (
-              <img src={selectedAnn.image_url} alt={selectedAnn.title} className="hp-modal-img" />
+            {announcementImages[selectedAnn.id] ? (
+              <img src={announcementImages[selectedAnn.id]} alt={selectedAnn.title} className="hp-modal-img" />
             ) : (
               <div className="hp-modal-img-placeholder">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="40" height="40">
