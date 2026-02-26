@@ -8,6 +8,7 @@ function Homepage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [announcements, setAnnouncements] = useState([]);
   const [annLoading, setAnnLoading] = useState(true);
+  const [selectedAnn, setSelectedAnn] = useState(null);
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
@@ -25,6 +26,23 @@ function Homepage() {
     };
     fetchAnnouncements();
   }, []);
+
+  useEffect(() => {
+    if (announcements.length <= 1) return;
+
+    const el = document.getElementById('carouselExampleIndicators');
+    if (!el) return;
+
+    const interval = setInterval(() => {
+      const { Carousel } = require('bootstrap');
+      const carousel = Carousel.getOrCreateInstance(el);
+      carousel.next();
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [announcements]);
+
+  const closeModal = () => setSelectedAnn(null);
 
   return (
     <>
@@ -141,7 +159,7 @@ function Homepage() {
           <div
             id="carouselExampleIndicators"
             className="hp-carousel carousel slide carousel-fade"
-            data-bs-ride="carousel"
+            data-bs-ride="false"
           >
             <div className="carousel-indicators">
               {announcements.map((_, i) => (
@@ -155,27 +173,58 @@ function Homepage() {
               ))}
             </div>
 
+            <div className="hp-carousel-track">
             <div className="carousel-inner">
               {announcements.map((ann, i) => (
                 <div className={`carousel-item${i === 0 ? ' active' : ''}`} key={ann.id}>
+                  {/* NEW side-by-side card layout replacing the old hp-ann-card */}
                   <div className="hp-ann-card">
-                    <div className="hp-ann-card-meta">
-                      {ann.category && (
-                        <span className="hp-ann-category">{ann.category}</span>
+                    {/* LEFT: image panel */}
+                    <div className="hp-ann-card-img-panel">
+                      {ann.image_url ? (
+                        <img src={ann.image_url} alt={ann.title} className="hp-ann-card-img" />
+                      ) : (
+                        <div className="hp-ann-card-img-placeholder">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="48" height="48">
+                            <rect x="3" y="3" width="18" height="18" rx="3"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                          </svg>
+                        </div>
                       )}
-                      {ann.priority && (
-                        <span className={`hp-ann-priority ${ann.priority.toLowerCase()}`}>
-                          {ann.priority}
-                        </span>
-                      )}
-                      <span className="hp-ann-date">
-                        {new Date(ann.created_at).toLocaleDateString('en-US', {
-                          month: 'long', day: 'numeric', year: 'numeric'
-                        })}
-                      </span>
                     </div>
-                    <h3 className="hp-ann-card-title">{ann.title}</h3>
-                    <p className="hp-ann-card-content">{ann.content}</p>
+
+                    {/* RIGHT: content */}
+                    <div className="hp-ann-card-body">
+                      <div className="hp-ann-card-meta">
+                        {ann.category && (
+                          <span className="hp-ann-category">{ann.category}</span>
+                        )}
+                        {ann.priority && (
+                          <span className={`hp-ann-priority ${ann.priority.toLowerCase()}`}>
+                            {ann.priority}
+                          </span>
+                        )}
+                        <span className="hp-ann-date">
+                          {new Date(ann.created_at).toLocaleDateString('en-US', {
+                            month: '2-digit', day: '2-digit', year: 'numeric'
+                          })}
+                        </span>
+                      </div>
+
+                      <h3 className="hp-ann-card-title">{ann.title}</h3>
+                      <p className="hp-ann-card-content">{ann.content}</p>
+
+                      <button
+                        className="hp-ann-view-details"
+                        onClick={() => setSelectedAnn(ann)}
+                      >
+                        View Details
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="14" height="14">
+                          <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -201,6 +250,7 @@ function Homepage() {
                 </button>
               </>
             )}
+            </div>{/* end hp-carousel-track */}
           </div>
         )}
       </div>
@@ -292,6 +342,66 @@ function Homepage() {
           </p>
         </div>
       </div>
+
+      {/* ANNOUNCEMENT DETAIL MODAL */}
+      {selectedAnn && (
+        <div className="hp-modal-overlay" onClick={closeModal}>
+          <div className="hp-modal-box" onClick={e => e.stopPropagation()}>
+            <button className="hp-modal-close" onClick={closeModal} aria-label="Close">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+
+            {selectedAnn.image_url ? (
+              <img src={selectedAnn.image_url} alt={selectedAnn.title} className="hp-modal-img" />
+            ) : (
+              <div className="hp-modal-img-placeholder">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="40" height="40">
+                  <rect x="3" y="3" width="18" height="18" rx="3"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+              </div>
+            )}
+
+            <div className="hp-modal-body">
+              <div className="hp-modal-meta">
+                {selectedAnn.category && (
+                  <span className="hp-ann-category">{selectedAnn.category}</span>
+                )}
+                {selectedAnn.priority && (
+                  <span className={`hp-ann-priority ${selectedAnn.priority.toLowerCase()}`}>
+                    {selectedAnn.priority}
+                  </span>
+                )}
+                <span className="hp-modal-date">
+                  Posted on {new Date(selectedAnn.created_at).toLocaleDateString('en-US', {
+                    month: '2-digit', day: '2-digit', year: 'numeric'
+                  })}
+                </span>
+              </div>
+
+              <h3 className="hp-modal-title">{selectedAnn.title}</h3>
+              <p className="hp-modal-content">{selectedAnn.content}</p>
+
+              <div className="hp-modal-author">
+                <div className="hp-modal-author-avatar">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                </div>
+                <div className="hp-modal-author-info">
+                  <span className="hp-modal-author-name">Admin</span>
+                  <span className="hp-modal-author-role">Barangay Official</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

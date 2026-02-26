@@ -68,12 +68,12 @@ const Announcements = () => {
   const getCategoryIcon = (category) => {
     if (!category) return null;
     if (category.toLowerCase() === 'event') return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
         <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
       </svg>
     );
     return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
         <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
       </svg>
     );
@@ -209,30 +209,50 @@ const Announcements = () => {
               <div className="ann-grid">
                 {announcements.map((ann) => (
                   <div className="ann-card" key={ann.id}>
-                    {ann.image_url && (
-                      <div className="ann-image">
-                        <img src={ann.image_url} alt={ann.title} />
-                      </div>
-                    )}
+
+                    {/* IMAGE — full width top, tall */}
+                    <div className="ann-image">
+                      {ann.image_url
+                        ? <img src={ann.image_url} alt={ann.title} />
+                        : <div className="ann-image-placeholder">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="40" height="40">
+                              <rect x="3" y="3" width="18" height="18" rx="3"/>
+                              <circle cx="8.5" cy="8.5" r="1.5"/>
+                              <polyline points="21 15 16 10 5 21"/>
+                            </svg>
+                          </div>
+                      }
+                    </div>
+
+                    {/* BODY */}
                     <div className="ann-body">
+
+                      {/* Meta row: icon + category pill + priority badge */}
                       <div className="ann-meta-top">
-                        <span className="ann-category">
-                          {getCategoryIcon(ann.category)}
-                          {ann.category}
-                        </span>
-                        {ann.priority && ann.priority.toLowerCase() !== 'normal' && (
+                        <div className="ann-meta-left">
+                          <span className="ann-category-icon">
+                            {getCategoryIcon(ann.category)}
+                          </span>
+                          {ann.category && (
+                            <span className="ann-category">{ann.category}</span>
+                          )}
+                        </div>
+                        {ann.priority && ann.priority.toLowerCase() !== 'normal' && ann.priority.toLowerCase() !== 'low' && (
                           <span className={getPriorityClass(ann.priority)}>
                             {ann.priority.toUpperCase()}
                           </span>
                         )}
                       </div>
+
                       <h3 className="ann-title">{ann.title}</h3>
                       <p className="ann-description">{ann.content}</p>
+
                       <div className="ann-footer">
-                        <span className="ann-author">Admin</span>
+                        <span className="ann-author">{ann.author || 'Admin'}</span>
                         <span className="ann-date">{formatDate(ann.created_at)}</span>
                       </div>
                     </div>
+
                   </div>
                 ))}
               </div>
