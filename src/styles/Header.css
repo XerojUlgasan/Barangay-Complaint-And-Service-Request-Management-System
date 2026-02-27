@@ -8,12 +8,10 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem 2rem;
-  z-index: 100;
+  z-index: 500;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  font-family: var(--font-family);
 }
-
-/* Enforce global app font for header */
-.header { font-family: var(--font-family); }
 
 .header-left {
   flex: 1;
@@ -38,6 +36,7 @@
   flex-direction: column;
   align-items: flex-end;
   gap: 0.25rem;
+  white-space: nowrap;
 }
 
 .account-label {
@@ -79,13 +78,39 @@
 
 
 /* Responsive Design */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .header {
-    padding: 1rem;
+    padding: 1rem 1.5rem;
   }
 
   .page-title {
-    font-size: 1.25rem;
+    font-size: 1.375rem;
+  }
+
+  .account-info {
+    gap: 0.125rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 0.875rem 1rem 0.875rem 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 500;
+    justify-content: center;
+    gap: 1rem;
+  }
+
+  .header-left {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+  }
+
+  .page-title {
+    font-size: 1.1rem;
+    margin: 0;
   }
 
   .account-button {
@@ -95,5 +120,58 @@
 
   .account-label {
     display: none;
+  }
+
+  .account-info {
+    gap: 0.2rem;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    order: 2;
+  }
+
+  .account-user {
+    font-size: 0.75rem;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .logout-icon-btn {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .header {
+    padding: 0.75rem 0.75rem;
+    justify-content: space-between;
+  }
+
+  .header-left {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+  }
+
+  .page-title {
+    font-size: 0.95rem;
+    margin: 0;
+  }
+
+  .header-right {
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .account-info {
+    display: none;
+  }
+
+  .logout-icon-btn {
+    width: 32px;
+    height: 32px;
   }
 }

@@ -199,6 +199,66 @@
 }
 
 /* ============================================
+   HISTORY SECTION
+   ============================================
+*/
+.history-section {
+  margin-top: 2rem;
+}
+
+.history-header h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 1rem;
+}
+
+.history-loading, .no-history {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.history-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.history-item {
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0.75rem 0;
+}
+
+.history-row {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.history-date {
+  flex: 1 1 40%;
+}
+
+.history-status {
+  flex: 1 1 30%;
+  font-weight: 600;
+}
+
+.history-user {
+  flex: 1 1 30%;
+  font-style: italic;
+}
+
+.history-remarks {
+  font-size: 0.85rem;
+  color: #4b5563;
+  margin-top: 0.25rem;
+  padding-left: 1rem;
+}
+
+
+/* ============================================
    DESCRIPTION SECTION
    ============================================
 */
@@ -492,12 +552,47 @@
    ============================================
 */
 
+/* Tablet devices */
+@media (max-width: 1024px) {
+  .modal-dialog {
+    width: 92%;
+    max-width: 550px;
+  }
+
+  .modal-body {
+    padding: 1.25rem;
+  }
+
+  .request-title {
+    font-size: 1.375rem;
+  }
+
+  .details-grid {
+    gap: 1.25rem;
+  }
+
+  .update-progress-section {
+    margin-top: 1.5rem;
+  }
+
+  .images-gallery {
+    gap: 0.75rem;
+  }
+}
+
 /* Mobile devices */
 @media (max-width: 768px) {
   /* Modal takes more of screen on mobile */
   .modal-dialog {
-    width: 95%;
-    max-height: 95vh;
+    width: 94%;
+    max-height: 94vh;
+    border-radius: 14px;
+    max-width: 90vw;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  }
+
+  .modal-overlay {
+    background-color: rgba(0, 0, 0, 0.4);
   }
 
   /* Details grid becomes single column on mobile */
@@ -508,27 +603,368 @@
 
   /* Modal body padding reduced */
   .modal-body {
-    padding: 1rem;
+    padding: 1.25rem;
+    box-sizing: border-box;
   }
 
   /* Modal header padding reduced */
   .modal-header {
-    padding: 1rem;
+    padding: 1.25rem;
+    box-sizing: border-box;
+  }
+
+  .status-badge {
+    font-size: 0.65rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+  }
+
+  .request-id {
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  .request-title {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+    font-weight: 700;
+  }
+
+  .detail-label {
+    font-size: 0.75rem;
+    margin-bottom: 0.375rem;
+    font-weight: 600;
+    color: #6b7280;
+  }
+
+  .detail-value {
+    font-size: 0.9rem;
+    gap: 0.375rem;
+    color: #1f2937;
+  }
+
+  .avatar-icon,
+  .date-icon {
+    font-size: 1.1rem;
+    width: 18px;
+    height: 18px;
+  }
+
+  .description-section {
+    margin-bottom: 1.5rem;
+  }
+
+  .description-text {
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+
+  .images-section {
+    margin-bottom: 1.5rem;
+  }
+
+  .images-gallery {
+    gap: 0.625rem;
+  }
+
+  .image-thumbnail-btn {
+    min-height: 120px;
+    border-radius: 8px;
   }
 
   /* Modal footer stacks buttons on mobile */
   .modal-footer {
     flex-direction: column;
     padding: 1rem;
+    gap: 0.75rem;
+    border-top: 1px solid #e5e7eb;
+    box-sizing: border-box;
   }
 
   /* Save button takes full width on mobile */
   .btn-save {
     width: 100%;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
   }
 
   /* Close button gets full width too */
   .btn-close {
     width: 100%;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+  }
+
+  .form-group {
+    margin-bottom: 1rem;
+  }
+
+  .form-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .form-select,
+  .form-textarea {
+    font-size: 0.9rem;
+    padding: 0.65rem 0.875rem;
+    border-radius: 8px;
+  }
+
+  .update-progress-header {
+    gap: 0.625rem;
+    margin-bottom: 1rem;
+  }
+
+  .update-progress-header h3 {
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  /* History section styling */
+  .history-section {
+    margin-top: 1.5rem;
+  }
+
+  .history-header h3 {
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+  }
+
+  .history-row {
+    font-size: 0.8rem;
+    gap: 0.75rem;
+    align-items: flex-start;
+  }
+
+  .history-date {
+    flex: 1 1 45%;
+  }
+
+  .history-status {
+    flex: 1 1 30%;
+  }
+
+  .history-user {
+    flex: 1 1 25%;
+  }
+
+  .history-remarks {
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+    font-style: italic;
+    color: #4b5563;
+  }
+
+  .history-item {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f3f4f6;
+  }
+}
+
+/* Small phones (480px and below) */
+@media (max-width: 480px) {
+  .modal-dialog {
+    width: 96%;
+    max-height: 96vh;
+    border-radius: 12px;
+    max-width: 88vw;
+  }
+
+  .modal-overlay {
+    background-color: rgba(0, 0, 0, 0.35);
+  }
+
+  .modal-header {
+    padding: 1rem;
+    gap: 0.625rem;
+    box-sizing: border-box;
+  }
+
+  .modal-header-content {
+    gap: 0.5rem;
+    flex: 1;
+  }
+
+  .status-badge {
+    font-size: 0.6rem;
+    padding: 0.3rem 0.5rem;
+    border-radius: 4px;
+  }
+
+  .request-id {
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  .modal-close-btn {
+    padding: 0.375rem;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+  }
+
+  .modal-body {
+    padding: 1rem;
+    box-sizing: border-box;
+  }
+
+  .request-title {
+    font-size: 1.05rem;
+    margin-bottom: 0.75rem;
+    font-weight: 700;
+  }
+
+  .details-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .detail-section {
+    padding: 0.75rem;
+  }
+
+  .detail-label {
+    font-size: 0.7rem;
+    margin-bottom: 0.3rem;
+    font-weight: 600;
+  }
+
+  .detail-value {
+    font-size: 0.85rem;
+    gap: 0.25rem;
+  }
+
+  .avatar-icon,
+  .date-icon {
+    font-size: 1rem;
+    width: 16px;
+    height: 16px;
+  }
+
+  .description-section {
+    margin-bottom: 1rem;
+  }
+
+  .description-text {
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+
+  .images-section {
+    margin-bottom: 1rem;
+  }
+
+  .images-header {
+    gap: 0.5rem;
+  }
+
+  .images-gallery {
+    gap: 0.4rem;
+  }
+
+  .image-thumbnail-btn {
+    min-height: 100px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+  }
+
+  .update-progress-header {
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .update-progress-header h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .update-progress-header svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .form-group {
+    margin-bottom: 0.75rem;
+  }
+
+  .form-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .form-select,
+  .form-textarea {
+    font-size: 0.85rem;
+    padding: 0.55rem 0.75rem;
+    border-radius: 6px;
+  }
+
+  .form-textarea {
+    min-height: 80px;
+  }
+
+  .modal-footer {
+    flex-direction: column;
+    padding: 0.875rem;
+    gap: 0.625rem;
+    border-top: 1px solid #e5e7eb;
+    box-sizing: border-box;
+  }
+
+  .btn-close,
+  .btn-save {
+    width: 100%;
+    padding: 0.625rem 1rem;
+    font-size: 0.8rem;
+    border-radius: 6px;
+    font-weight: 600;
+  }
+
+  /* History section styling for small phones */
+  .history-section {
+    margin-top: 1rem;
+  }
+
+  .history-header h3 {
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+  }
+
+  .history-row {
+    flex-direction: column;
+    font-size: 0.7rem;
+    gap: 0.2rem;
+  }
+
+  .history-date,
+  .history-status,
+  .history-user {
+    flex: none;
+  }
+
+  .history-remarks {
+    font-size: 0.7rem;
+    margin-top: 0.25rem;
+    padding-left: 0;
+    font-style: italic;
+    color: #4b5563;
+  }
+
+  .history-item {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  .history-list {
+    margin-top: 0.5rem;
+  }
+
+  .no-history,
+  .history-loading {
+    font-size: 0.75rem;
   }
 }

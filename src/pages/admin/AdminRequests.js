@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { ChevronDown, X } from "lucide-react";
 import "../../styles/BarangayAdmin.css";
-import { getRequests } from "../../supabse_db/request/request";
+import "../../styles/RequestDetail.css"; // reuse modal/history styles from official view
+import { getRequests, getRequestHistory } from "../../supabse_db/request/request";
 
 const SAMPLE_REQUESTS = [
   {
@@ -113,6 +114,10 @@ export default function AdminRequests() {
   const [loadingRequests, setLoadingRequests] = useState(true);
   const [errorRequests, setErrorRequests] = useState(null);
 
+  // history for selected request (shown in modal)
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
   // Transform database request data to match UI format
   const transformRequestData = (dbRequest) => {
     return {
@@ -208,13 +213,33 @@ export default function AdminRequests() {
   const openModal = (request) => {
     setSelectedRequest(request);
     setIsModalOpen(true);
+    // fetch history immediately after opening
+    fetchHistory(request.id);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
+    setHistory([]); // clear previous history
     setTimeout(() => setSelectedRequest(null), 300);
   };
 
+  const fetchHistory = async (requestId) => {
+    if (!requestId) return;
+    setHistoryLoading(true);
+    try {
+      const result = await getRequestHistory(requestId);
+      if (result.success) {
+        setHistory(result.data || []);
+      } else {
+        console.error("AdminRequests: history fetch failed", result.message);
+        setHistory([]);
+      }
+    } catch (err) {
+      console.error("AdminRequests: error fetching history", err);
+      setHistory([]);
+    }
+    setHistoryLoading(false);
+  };
   const statusOptions = [
     "All Status",
     "Pending",
@@ -419,6 +444,47 @@ export default function AdminRequests() {
             <div className="request-section">
               <h4 className="section-title">Official Response / Notes</h4>
               <div className="response-box">{selectedRequest.response}</div>
+            </div>
+
+            {/* History Section (mirrors official view) */}
+            <div className="history-section">
+              <div className="history-header">
+                <h3>History</h3>
+              </div>
+              {historyLoading ? (
+                <p className="history-loading">Loading history...</p>
+              ) : history && history.length > 0 ? (
+                <ul className="history-list">
+                  {history.map((h, idx) => {
+                    const date = new Date(h.updated_at || h.created_at);
+                    const statusLabel = h.request_status
+                      ? h.request_status.replace(/_/g, " ").toUpperCase()
+                      : "";
+                    return (
+                      <li key={idx} className="history-item">
+                        <div className="history-row">
+                          <span className="history-date">
+                            {date.toLocaleString()}
+                          </span>
+                          <span className="history-status">
+                            {statusLabel}
+                          </span>
+                          <span className="history-user">
+                            {h.updater_name || "System"}
+                          </span>
+                        </div>
+                        {h.remarks && (
+                          <div className="history-remarks">
+                            {h.remarks}
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="no-history">No history available.</p>
+              )}
             </div>
           </div>
 

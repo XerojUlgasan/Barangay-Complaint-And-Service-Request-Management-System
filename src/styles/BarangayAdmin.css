@@ -76,6 +76,8 @@
   max-width: 1400px;
   width: 100%;
   margin: 0 auto;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 /* Sidebar */
@@ -349,10 +351,12 @@
 
 .top-cards {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(4, 1fr);
   gap: 18px;
   align-items: start;
   margin-bottom: 6px;
+  width: 100%;
+  box-sizing: border-box;
 }
 .analytics-cards {
   display: grid;
@@ -417,6 +421,8 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
 }
 .stat-box {
   background: #fff;
@@ -479,6 +485,8 @@
   grid-template-columns: 2fr 1fr;
   gap: 18px;
   margin-top: 6px;
+  width: 100%;
+  box-sizing: border-box;
 }
 .chart-card.big {
   background: var(--card);
@@ -1711,18 +1719,74 @@
   .top-cards {
     grid-template-columns: repeat(2, 1fr);
   }
+  .stat-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .users-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {
-  .top-cards {
-    grid-template-columns: 1fr;
+  .admin-content {
+    padding: 16px;
+    overflow-x: hidden;
   }
+
+  .top-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .stat-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .chart-card.big {
+    padding: 14px;
+    min-height: 220px;
+  }
+
+  .large-card {
+    padding: 14px;
+  }
+
+  .large-card-number {
+    font-size: 24px;
+  }
+
+  .stat-box {
+    padding: 16px 16px 16px 70px;
+  }
+
+  .stat-num {
+    font-size: 20px;
+  }
+
+  .analytics-header h3 {
+    font-size: 18px;
+  }
+
   .official-stats {
     grid-template-columns: repeat(2, 1fr);
   }
+
   .officials-grid {
     grid-template-columns: 1fr;
   }
+
   .page-actions {
     flex-direction: column;
     align-items: flex-start;
@@ -1741,7 +1805,139 @@
     font-size: 14px;
     white-space: nowrap;
   }
+}
+
+@media (max-width: 480px) {
   .admin-content {
-    padding: 16px;
+    padding: 12px;
+    overflow-x: hidden;
+  }
+
+  .top-cards {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .stat-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 4px;
+  }
+
+  .chart-card.big {
+    padding: 10px;
+    min-height: 200px;
+  }
+
+  .chart-card.big .chart-body svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .large-card {
+    padding: 12px;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .large-card-number {
+    font-size: 20px;
+    margin-top: 4px;
+  }
+
+  .large-card-title {
+    font-size: 11px;
+  }
+
+  .icon-pill {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+  }
+
+  .stat-box {
+    padding: 12px 12px 12px 56px;
+    gap: 4px;
+  }
+
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+    left: 10px;
+    top: 10px;
+  }
+
+  .stat-label {
+    font-size: 10px;
+  }
+
+  .stat-num {
+    font-size: 18px;
+    margin-top: 6px;
+  }
+
+  .analytics-header h3 {
+    font-size: 16px;
+  }
+
+  .analytics-header .muted {
+    font-size: 12px;
+  }
+
+  .chart-header {
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+
+  .status-legend {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .legend-item {
+    font-size: 12px;
+  }
+
+  .official-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .page-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-actions h3 {
+    font-size: 18px;
+  }
+
+  .tab-item {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  .location-item {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .location-rank {
+    min-width: 32px;
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  .location-name {
+    font-size: 13px;
+  }
+
+  .location-count {
+    padding: 4px 10px;
+    font-size: 12px;
   }
 }

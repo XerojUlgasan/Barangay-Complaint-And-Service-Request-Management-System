@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import { X, FileText, Image as ImageIcon } from "lucide-react";
 import ImageLightbox from "./ImageLightbox";
 import { fetchImagesForItem } from "../supabse_db/uploadImages";
+import { getRequestHistory } from "../supabse_db/request/request";
+import { getComplaintHistory } from "../supabse_db/complaint/complaint";
 import "../styles/RequestDetail.css";
 
 /**
@@ -49,6 +51,10 @@ const RequestDetail = ({
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [imagesLoading, setImagesLoading] = useState(false);
 
+  // State for history
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
   // Update formData when request prop changes
   useEffect(() => {
     if (request) {
@@ -61,6 +67,32 @@ const RequestDetail = ({
       fetchImages();
     }
   }, [request, isOpen, itemType]);
+
+  // fetch history when request changes or modal opens
+  useEffect(() => {
+    if (request && isOpen) {
+      loadHistory();
+    }
+  }, [request, isOpen, itemType]);
+
+  const loadHistory = async () => {
+    if (!request || !request.id) return;
+    setHistoryLoading(true);
+    try {
+      const historyFn = itemType === "complaint" ? getComplaintHistory : getRequestHistory;
+      const result = await historyFn(request.id);
+      if (result.success) {
+        setHistory(result.data || []);
+      } else {
+        console.error("Failed to load history:", result.message);
+        setHistory([]);
+      }
+    } catch (err) {
+      console.error("Error fetching history:", err);
+      setHistory([]);
+    }
+    setHistoryLoading(false);
+  };
 
   // Fetch images from Supabase Storage
   const fetchImages = async () => {
@@ -294,6 +326,47 @@ const RequestDetail = ({
                 rows="5"
               ></textarea>
             </div>
+          </div>
+
+          {/* HISTORY SECTION - displays previous status updates */}
+          <div className="history-section">
+            <div className="history-header">
+              <h3>History</h3>
+            </div>
+            {historyLoading ? (
+              <p className="history-loading">Loading history...</p>
+            ) : history && history.length > 0 ? (
+              <ul className="history-list">
+                {history.map((h, idx) => {
+                  const date = new Date(h.updated_at || h.created_at);
+                  const statusLabel = h.request_status
+                    ? h.request_status.replace(/_/g, " ").toUpperCase()
+                    : "";
+                  return (
+                    <li key={idx} className="history-item">
+                      <div className="history-row">
+                        <span className="history-date">
+                          {date.toLocaleString()}
+                        </span>
+                        <span className="history-status">
+                          {statusLabel}
+                        </span>
+                        <span className="history-user">
+                          {h.updater_name || "System"}
+                        </span>
+                      </div>
+                      {h.remarks && (
+                        <div className="history-remarks">
+                          {h.remarks}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="no-history">No history available.</p>
+            )}
           </div>
         </div>
 

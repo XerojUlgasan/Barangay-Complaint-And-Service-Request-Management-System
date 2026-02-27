@@ -27,8 +27,8 @@ const Sidebar = ({ activeMenu = 'dashboard', menuItems = [] }) => {
   return (
     <>
       {/* Mobile Menu Toggle Button - only visible on small screens */}
-      <button className="mobile-menu-toggle" onClick={() => setIsOpen(!isOpen)}>
-        {isOpen ? <X size={24} /> : <Menu size={24} />}
+      <button className={`mobile-menu-toggle ${isOpen ? 'hidden' : ''}`} onClick={() => setIsOpen(!isOpen)}>
+        {isOpen ? <Menu size={24} /> : <Menu size={24} />}
       </button>
 
       {/* Sidebar Container - main navigation panel */}
@@ -42,6 +42,10 @@ const Sidebar = ({ activeMenu = 'dashboard', menuItems = [] }) => {
             <h2>BARANGAYLINK</h2>
             <p>Resident Services Registry</p>
           </div>
+          {/* Close button for mobile sidebar */}
+          <button className="sidebar-close-btn" onClick={() => setIsOpen(false)}>
+            <X size={24} />
+          </button>
         </div>
 
         {/* Navigation Menu - items injected from `menuItems` prop */}
