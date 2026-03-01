@@ -10,6 +10,7 @@ import {
   FileText,
   MessageSquare,
   BarChart3,
+  Megaphone,
 } from "lucide-react";
 import "../../styles/BarangayAdmin.css";
 import {
@@ -353,58 +354,50 @@ function DashboardView({
           </p>
         </div>
 
-        {/* Top Summary Cards */}
-        <div className="top-cards">
-          <div className="large-card">
-            <div className="large-card-left">
-              <div className="large-card-title">Total Requests</div>
-              <div className="large-card-number">{totalRequests}</div>
-              <div className="large-card-sub">
-                {completedCount} completed • {pendingCount} pending
-              </div>
-            </div>
-            <div className="large-card-icon">
-              <div className="icon-pill">📄</div>
+        {/* Top Summary Cards (stat-box style) */}
+        <div className="stat-row" style={{ marginBottom: '2rem' }}>
+          <div className="stat-box yellow">
+            <span className="stat-icon">
+              <FileText size={18} />
+            </span>
+            <div className="stat-label">Total Requests</div>
+            <div className="stat-num">{totalRequests}</div>
+            <div className="stat-sub">
+              {completedCount} completed • {pendingCount} pending
             </div>
           </div>
 
-          <div className="large-card">
-            <div className="large-card-left">
-              <div className="large-card-title">Complaints</div>
-              <div className="large-card-number">{totalComplaints}</div>
-              <div className="large-card-sub">
-                {resolvedComplaints} resolved • {activeComplaints} active
-              </div>
-            </div>
-            <div className="large-card-icon">
-              <div className="icon-pill red">⚠️</div>
+          <div className="stat-box red">
+            <span className="stat-icon">
+              <AlertCircle size={18} />
+            </span>
+            <div className="stat-label">Complaints</div>
+            <div className="stat-num">{totalComplaints}</div>
+            <div className="stat-sub">
+              {resolvedComplaints} resolved • {activeComplaints} active
             </div>
           </div>
 
-          <div className="large-card">
-            <div className="large-card-left">
-              <div className="large-card-title">Active Residents</div>
-              <div className="large-card-number">
-                {residentStats.activeResidents || 0}
-              </div>
-              <div className="large-card-sub">
-                {residentStats.totalHouseholds || 0} households registered
-              </div>
+          <div className="stat-box blue">
+            <span className="stat-icon">
+              <Users size={18} />
+            </span>
+            <div className="stat-label">Active Residents</div>
+            <div className="stat-num">
+              {residentStats.activeResidents || 0}
             </div>
-            <div className="large-card-icon">
-              <div className="icon-pill blue">👥</div>
+            <div className="stat-sub">
+              {residentStats.totalHouseholds || 0} households registered
             </div>
           </div>
 
-          <div className="large-card">
-            <div className="large-card-left">
-              <div className="large-card-title">Announcements</div>
-              <div className="large-card-number">{announcements.length}</div>
-              <div className="large-card-sub">Community updates</div>
-            </div>
-            <div className="large-card-icon">
-              <div className="icon-pill orange">📣</div>
-            </div>
+          <div className="stat-box orange">
+            <span className="stat-icon">
+              <Megaphone size={18} />
+            </span>
+            <div className="stat-label">Announcements</div>
+            <div className="stat-num">{announcements.length}</div>
+            <div className="stat-sub">Community updates</div>
           </div>
         </div>
 
@@ -1234,7 +1227,10 @@ export default function AdminDashboard() {
         <HorizontalTabs active={active} setActive={setActive} />
         <div className="admin-content">
           <div style={{ padding: "4rem", textAlign: "center" }}>
-            <div className="loading-spinner">Loading...</div>
+            <div className="loading-wrap">
+              <div className="loading-spinner" aria-hidden="true"></div>
+              <div className="loading-text">Loading...</div>
+            </div>
           </div>
         </div>
       </div>
@@ -1252,24 +1248,29 @@ export default function AdminDashboard() {
 // Horizontal Tabs Component
 function HorizontalTabs({ active, setActive }) {
   const tabs = [
-    { name: "Overview", icon: "📊" },
-    { name: "Complaints", icon: "⚠️" },
-    { name: "Officials", icon: "👥" },
+    { name: "Overview", icon: BarChart3 },
+    { name: "Complaints", icon: AlertCircle },
+    { name: "Officials", icon: Users },
   ];
 
   return (
     <div className="horizontal-tabs">
       <div className="tabs-container">
-        {tabs.map((tab) => (
-          <button
-            key={tab.name}
-            className={`tab-item ${active === tab.name ? "active" : ""}`}
-            onClick={() => setActive(tab.name)}
-          >
-            <span className="tab-icon">{tab.icon}</span>
-            <span className="tab-label">{tab.name}</span>
-          </button>
-        ))}
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.name}
+              className={`tab-item ${active === tab.name ? "active" : ""}`}
+              onClick={() => setActive(tab.name)}
+            >
+              <span className="tab-icon">
+                <Icon size={18} />
+              </span>
+              <span className="tab-label">{tab.name}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

@@ -35,12 +35,11 @@ const Sidebar = ({ activeMenu = 'dashboard', menuItems = [] }) => {
       <aside className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
         {/* Logo Section - branding and app name */}
         <div className="sidebar-logo">
-          {/* Circular logo icon with first letter */}
-          <div className="logo-icon">O</div>
+          {/* Logo image */}
+          <img src="/brgyease.png" alt="BarangayEase Logo" className="logo-image" />
           {/* App name and tagline */}
           <div className="logo-text">
-            <h2>BARANGAYLINK</h2>
-            <p>Resident Services Registry</p>
+            <h2>BarangayEase</h2>
           </div>
           {/* Close button for mobile sidebar */}
           <button className="sidebar-close-btn" onClick={() => setIsOpen(false)}>

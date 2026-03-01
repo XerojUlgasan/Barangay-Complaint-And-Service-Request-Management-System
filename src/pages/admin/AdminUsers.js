@@ -93,7 +93,10 @@ export default function AdminUsers() {
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '2rem' }}>
-          <p>Loading user data...</p>
+          <div className="loading-wrap">
+            <div className="loading-spinner" aria-hidden="true"></div>
+            <div className="loading-text">Loading user data...</div>
+          </div>
         </div>
       ) : (
         <div className="users-grid">

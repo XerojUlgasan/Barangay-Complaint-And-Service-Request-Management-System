@@ -221,8 +221,11 @@ export default function AdminAnnouncements() {
       </div>
 
       {loading && (
-        <div style={{ padding: "2rem", textAlign: "center", color: "#999" }}>
-          <p>Loading announcements...</p>
+        <div style={{ padding: "2rem", textAlign: "center" }}>
+          <div className="loading-wrap">
+            <div className="loading-spinner" aria-hidden="true"></div>
+            <div className="loading-text">Loading announcements...</div>
+          </div>
         </div>
       )}
 

@@ -263,7 +263,10 @@ export default function OfficialComplaints() {
       <div className="requests-list">
         {loading ? (
           <div className="empty-state">
-            <p>Loading complaints...</p>
+            <div className="loading-wrap">
+              <div className="loading-spinner" aria-hidden="true"></div>
+              <div className="loading-text">Loading complaints...</div>
+            </div>
           </div>
         ) : getFilteredComplaints().length > 0 ? (
           getFilteredComplaints().map((complaint) => {

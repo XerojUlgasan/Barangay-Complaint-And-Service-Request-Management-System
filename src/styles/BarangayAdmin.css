@@ -170,7 +170,7 @@
 }
 
 .admin-content {
-  padding: 28px;
+  padding: 36px;
 }
 
 /* Cards grid */
@@ -332,6 +332,10 @@
     grid-template-columns: 1fr;
     grid-auto-rows: minmax(40px, auto);
   }
+  /* ensure request table still scrolls horizontally on very small screens */
+  .requests-table-card {
+    overflow-x: auto;
+  }
 }
 
 /* Analytics specific styles (new) */
@@ -385,6 +389,16 @@
 .large-card-left {
   display: flex;
   flex-direction: column;
+}
+
+.large-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.large-card-header svg {
+  flex-shrink: 0;
 }
 .large-card-title {
   font-size: 12px;
@@ -461,6 +475,12 @@
   color: var(--muted);
   text-transform: uppercase;
   margin: 0 0 6px 0;
+}
+
+.stat-sub {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin-top: 4px;
 }
 .stat-num {
   font-size: 24px;
@@ -702,6 +722,13 @@
   justify-content: space-between;
   align-items: center;
   padding: 8px 0 18px;
+}
+
+/* when screen is narrow or sidebar collapses, reset margin */
+@media (max-width: 768px) {
+  .announcements-wrap .page-actions {
+    margin-left: 0;
+  }
 }
 .btn-new-ann {
   background: #16a34a;
@@ -1113,7 +1140,7 @@
 
 /* System-wide Requests Dashboard Styles */
 .page-title {
-  margin: 0;
+  margin-left: 23px;
   font-size: 24px;
   font-weight: 800;
   color: #111827;
@@ -1173,9 +1200,22 @@
   background: var(--card);
   border-radius: 12px;
   border: 1px solid #e6eef0;
-  overflow: hidden;
+  overflow-x: auto; /* allow horizontal scrolling on narrow screens */
+  -webkit-overflow-scrolling: touch;
   box-shadow: 0 8px 24px rgba(12, 16, 24, 0.04);
 }
+
+.requests-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px; /* ensure enough width that columns remain visible */
+}
+
+.requests-table th,
+.requests-table td {
+  white-space: nowrap; /* prevent wrapping so scroll appears */
+}
+
 .requests-table {
   width: 100%;
   border-collapse: collapse;
@@ -1712,6 +1752,19 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Loading wrapper and text (keep text stationary) */
+.loading-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.loading-text {
+  color: #374151;
+  font-weight: 600;
+  font-size: 14px;
 }
 
 /* Responsive adjustments */

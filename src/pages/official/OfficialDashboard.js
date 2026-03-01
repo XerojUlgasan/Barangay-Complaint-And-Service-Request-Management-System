@@ -211,7 +211,10 @@ const OfficialDashboard = () => {
 
       {loading ? (
         <div style={{ textAlign: "center", padding: "2rem" }}>
-          <p>Loading dashboard data...</p>
+          <div className="loading-wrap">
+            <div className="loading-spinner" aria-hidden="true"></div>
+            <div className="loading-text">Loading dashboard data...</div>
+          </div>
         </div>
       ) : (
         <>
@@ -260,74 +263,50 @@ const OfficialDashboard = () => {
           </div>
 
           {/* COMPACT STATS ROW */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-              gap: "1rem",
-              marginBottom: "2rem",
-            }}
-          >
-            <div className="stat-card">
-              <div className="stat-content">
-                <p className="stat-label">Total</p>
-                <h2 className="stat-value">{stats.total}</h2>
-              </div>
-              <div className="stat-icon" style={{ backgroundColor: "#F0F9FF" }}>
-                <TrendingUp size={24} color="#50C878" />
-              </div>
+          <div className="stat-row">
+            <div className="stat-box yellow">
+              <span className="stat-icon">
+                <TrendingUp size={18} />
+              </span>
+              <div className="stat-label">Total</div>
+              <div className="stat-num">{stats.total}</div>
             </div>
 
-            <div className="stat-card">
-              <div className="stat-content">
-                <p className="stat-label">Active</p>
-                <h2 className="stat-value">{stats.active}</h2>
-              </div>
-              <div className="stat-icon" style={{ backgroundColor: "#FEF3C7" }}>
-                <Clock size={24} color="#F59E0B" />
-              </div>
+            <div className="stat-box blue">
+              <span className="stat-icon">
+                <Clock size={18} />
+              </span>
+              <div className="stat-label">Active</div>
+              <div className="stat-num">{stats.active}</div>
             </div>
 
-            <div className="stat-card">
-              <div className="stat-content">
-                <p className="stat-label">Completed</p>
-                <h2 className="stat-value">{stats.completed}</h2>
-              </div>
-              <div className="stat-icon" style={{ backgroundColor: "#F0FDF4" }}>
-                <CheckCircle2 size={24} color="#10B981" />
-              </div>
+            <div className="stat-box green">
+              <span className="stat-icon">
+                <CheckCircle2 size={18} />
+              </span>
+              <div className="stat-label">Completed</div>
+              <div className="stat-num">{stats.completed}</div>
             </div>
 
-            <div className="stat-card">
-              <div className="stat-content">
-                <p className="stat-label">Rejected</p>
-                <h2 className="stat-value">{stats.rejected}</h2>
-              </div>
-              <div className="stat-icon" style={{ backgroundColor: "#FEE2E2" }}>
-                <XCircle size={24} color="#EF4444" />
-              </div>
+            <div className="stat-box red">
+              <span className="stat-icon">
+                <XCircle size={18} />
+              </span>
+              <div className="stat-label">Rejected</div>
+              <div className="stat-num">{stats.rejected}</div>
             </div>
 
-            <div className="stat-card">
-              <div className="stat-content">
-                <p className="stat-label">Completion Rate</p>
-                <h2 className="stat-value">{stats.completionRate}%</h2>
-              </div>
-              <div className="stat-icon" style={{ backgroundColor: "#E0E7FF" }}>
-                <TrendingUp size={24} color="#6366F1" />
-              </div>
+            <div className="stat-box blue">
+              <span className="stat-icon">
+                <TrendingUp size={18} />
+              </span>
+              <div className="stat-label">Completion Rate</div>
+              <div className="stat-num">{stats.completionRate}%</div>
             </div>
           </div>
 
           {/* CHARTS SECTION */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: activeTab === "requests" ? "1fr 1fr" : "1fr",
-              gap: "1.5rem",
-              marginBottom: "2rem",
-            }}
-          >
+          <div className="charts-section">
             {/* Status Breakdown Pie Chart */}
             <div className="chart-card">
               <div className="chart-header">

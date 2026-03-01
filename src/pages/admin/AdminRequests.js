@@ -321,16 +321,11 @@ export default function AdminRequests() {
         )}
 
         {loadingRequests && (
-          <div
-            style={{
-              padding: "1rem",
-              marginBottom: "1rem",
-              backgroundColor: "#dbeafe",
-              borderRadius: "0.5rem",
-              color: "#1e40af",
-            }}
-          >
-            Loading requests...
+          <div style={{ padding: "1rem", marginBottom: "1rem" }}>
+            <div className="loading-wrap">
+              <div className="loading-spinner" aria-hidden="true"></div>
+              <div className="loading-text">Loading requests...</div>
+            </div>
           </div>
         )}
 

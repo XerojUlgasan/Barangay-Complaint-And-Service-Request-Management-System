@@ -306,7 +306,10 @@ export default function OfficialRequests() {
       <div className="requests-list">
         {loading ? (
           <div className="empty-state">
-            <p>Loading requests...</p>
+            <div className="loading-wrap">
+              <div className="loading-spinner" aria-hidden="true"></div>
+              <div className="loading-text">Loading requests...</div>
+            </div>
           </div>
         ) : getFilteredRequests().length > 0 ? (
           getFilteredRequests().map((request) => {

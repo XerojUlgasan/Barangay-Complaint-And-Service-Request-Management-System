@@ -32,11 +32,75 @@
 /* Stats Grid */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(5, 1fr);
   gap: 1.5rem;
   margin-bottom: 2rem;
   padding: 0 2rem;
   box-sizing: border-box;
+}
+
+/* reusable stat-box design (same as admin) */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.stat-box {
+  background: #fff;
+  padding: 20px 20px 20px 92px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+  position: relative;
+}
+.stat-box:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(12, 16, 24, 0.04);
+  background: #fbfdfc;
+}
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: #f6f7f8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #374151;
+  position: absolute;
+  left: 18px;
+  top: 16px;
+}
+.stat-label {
+  font-size: 12px;
+  color: #6b7280;
+  text-transform: uppercase;
+  margin: 0 0 6px 0;
+}
+.stat-num {
+  font-size: 24px;
+  font-weight: 800;
+  margin-top: 12px;
+}
+.stat-box.yellow {
+  border-color: #fbe8b5;
+}
+.stat-box.blue {
+  border-color: #dbe9ff;
+}
+.stat-box.green {
+  border-color: #dff6ec;
+}
+.stat-box.red {
+  border-color: #fdecea;
 }
 
 .stat-card {
@@ -131,24 +195,30 @@
   grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
   margin-top: 1rem;
+  overflow: hidden;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  overflow: hidden;
+  word-break: break-word;
 }
 
 .legend-color {
   width: 12px;
   height: 12px;
   border-radius: 2px;
+  flex-shrink: 0;
 }
 
 .legend-label {
   font-size: 0.875rem;
   color: #6b7280;
   font-weight: 500;
+  overflow: hidden;
+  word-break: break-word;
 }
 
 /* Bottom Section */
@@ -315,6 +385,13 @@
     box-sizing: border-box;
   }
 
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+    padding: 0 1.5rem;
+    gap: 1rem;
+    box-sizing: border-box;
+  }
+
   .charts-section {
     grid-template-columns: 1fr;
     padding: 0 1.5rem;
@@ -371,7 +448,7 @@
   }
 
   .stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
     gap: 1rem;
     padding: 0 1rem;
     margin-bottom: 1.25rem;
@@ -410,9 +487,10 @@
   }
 
   .chart-card {
-    padding: 1rem;
+    padding: 1.25rem;
     border-radius: 10px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    min-height: 420px;
   }
 
   .chart-header {
@@ -429,26 +507,35 @@
     margin-bottom: 0.75rem;
     display: flex;
     justify-content: center;
+    height: 240px;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   .status-legend {
     grid-template-columns: repeat(2, 1fr);
     gap: 0.75rem;
     margin-top: 0.75rem;
+    overflow: hidden;
   }
 
   .legend-item {
     gap: 0.375rem;
+    overflow: hidden;
+    word-break: break-word;
   }
 
   .legend-label {
     font-size: 0.8rem;
     font-weight: 500;
+    overflow: hidden;
+    word-break: break-word;
   }
 
   .legend-color {
     width: 10px;
     height: 10px;
+    flex-shrink: 0;
   }
 
   .bottom-section {
@@ -620,6 +707,7 @@
     padding: 0.875rem;
     border-radius: 8px;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
   }
 
   .chart-header {
@@ -633,29 +721,39 @@
   }
 
   .pie-chart-container {
-    margin-bottom: 0.5rem;
+    height: 180px;
     display: flex;
     justify-content: center;
+    max-width: 100%;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
   }
 
   .status-legend {
     grid-template-columns: 1fr;
     gap: 0.5rem;
     margin-top: 0.5rem;
+    overflow: hidden;
   }
 
   .legend-item {
     gap: 0.3rem;
+    overflow: hidden;
+    word-break: break-word;
   }
 
   .legend-color {
     width: 8px;
     height: 8px;
+    flex-shrink: 0;
   }
 
   .legend-label {
     font-size: 0.75rem;
     font-weight: 500;
+    overflow: hidden;
+    word-break: break-word;
+    line-height: 1.3;
   }
 
   .bottom-section {
@@ -754,4 +852,17 @@
   .recent-section {
     margin-top: 0.75rem;
   }
+}
+
+/* Loading wrapper and text (same as admin) */
+.loading-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.loading-text {
+  color: #374151;
+  font-weight: 600;
+  font-size: 14px;
 }
