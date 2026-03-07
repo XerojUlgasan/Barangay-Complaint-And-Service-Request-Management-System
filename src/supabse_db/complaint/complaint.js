@@ -6,7 +6,7 @@ const checkUserRole = async (userId) => {
     .from("superadmin_tbl")
     .select("id")
     .eq("auth_uid", userId);
-  
+
   const { data: officialData } = await supabase
     .from("official_tbl")
     .select("id")
@@ -14,11 +14,17 @@ const checkUserRole = async (userId) => {
 
   return {
     isSuperAdmin: superadminData && superadminData.length > 0,
-    isOfficial: officialData && officialData.length > 0
+    isOfficial: officialData && officialData.length > 0,
   };
 };
 
-export const insertComplaint = async (type, inci_date, inci_loc, desc) => {
+export const insertComplaint = async (
+  type,
+  inci_date,
+  inci_loc,
+  desc,
+  respondent_ids = null,
+) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
 
   if (authError || !userData || !userData.user) {
@@ -30,16 +36,21 @@ export const insertComplaint = async (type, inci_date, inci_loc, desc) => {
   const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
 
   if (isSuperAdmin || isOfficial) {
-    return { success: false, message: "Officials and superadmin cannot insert complaints" };
+    return {
+      success: false,
+      message: "Officials and superadmin cannot insert complaints",
+    };
   }
-  
+
   const { data, error } = await supabase
     .from("complaint_tbl")
     .insert({
       complaint_type: type,
       incident_date: inci_date,
       incident_location: inci_loc,
-      description: desc
+      description: desc,
+      respondent_id:
+        respondent_ids && respondent_ids.length > 0 ? respondent_ids : null,
     })
     .select("id")
     .single();
@@ -55,7 +66,7 @@ export const insertComplaint = async (type, inci_date, inci_loc, desc) => {
 
 export const getComplaints = async () => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
-  
+
   if (authError || !userData || !userData.user) {
     console.log("No authenticated user found.");
     return { success: false, message: "Not authenticated" };
@@ -65,7 +76,8 @@ export const getComplaints = async () => {
 
   let query = supabase
     .from("complaint_tbl")
-    .select(`
+    .select(
+      `
       *,
       member:sample_household_members_tbl!complaint_tbl_complainant_id_fkey (
         firstname,
@@ -77,7 +89,8 @@ export const getComplaints = async () => {
         lastname,
         role
       )
-    `)
+    `,
+    )
     .order("created_at", { ascending: false });
 
   if (isSuperAdmin || isOfficial) {
@@ -94,14 +107,16 @@ export const getComplaints = async () => {
     return { success: false, message: "Failed to fetch complaints" };
   }
 
-  const enriched = data.map(complaint => ({
+  const enriched = data.map((complaint) => ({
     ...complaint,
-    complainant_name: complaint.member?.firstname && complaint.member?.lastname
-      ? `${complaint.member.firstname} ${complaint.member.lastname}`
-      : "Unknown",
-    assigned_official_name: complaint.official?.firstname && complaint.official?.lastname
-      ? `${complaint.official.firstname} ${complaint.official.lastname}`
-      : null
+    complainant_name:
+      complaint.member?.firstname && complaint.member?.lastname
+        ? `${complaint.member.firstname} ${complaint.member.lastname}`
+        : "Unknown",
+    assigned_official_name:
+      complaint.official?.firstname && complaint.official?.lastname
+        ? `${complaint.official.firstname} ${complaint.official.lastname}`
+        : null,
   }));
 
   return { success: true, data: enriched };
@@ -109,7 +124,7 @@ export const getComplaints = async () => {
 
 export const getComplaintById = async (complaintId) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
-  
+
   if (authError || !userData || !userData.user) {
     return { success: false, message: "Not authenticated" };
   }
@@ -118,7 +133,8 @@ export const getComplaintById = async (complaintId) => {
 
   let query = supabase
     .from("complaint_tbl")
-    .select(`
+    .select(
+      `
       *,
       member:sample_household_members_tbl!complaint_tbl_complainant_id_fkey (
         firstname,
@@ -130,7 +146,8 @@ export const getComplaintById = async (complaintId) => {
         lastname,
         role
       )
-    `)
+    `,
+    )
     .eq("id", complaintId);
 
   if (!isSuperAdmin && !isOfficial) {
@@ -146,26 +163,31 @@ export const getComplaintById = async (complaintId) => {
   }
 
   if (!data) {
-    return { success: false, message: "Complaint does not exist or you don't have access to it" };
+    return {
+      success: false,
+      message: "Complaint does not exist or you don't have access to it",
+    };
   }
 
-  return { 
-    success: true, 
+  return {
+    success: true,
     data: {
       ...data,
-      complainant_name: data.member?.firstname && data.member?.lastname
-        ? `${data.member.firstname} ${data.member.lastname}`
-        : "Unknown",
-      assigned_official_name: data.official?.firstname && data.official?.lastname
-        ? `${data.official.firstname} ${data.official.lastname}`
-        : null
-    }
+      complainant_name:
+        data.member?.firstname && data.member?.lastname
+          ? `${data.member.firstname} ${data.member.lastname}`
+          : "Unknown",
+      assigned_official_name:
+        data.official?.firstname && data.official?.lastname
+          ? `${data.official.firstname} ${data.official.lastname}`
+          : null,
+    },
   };
 };
 
 export const deleteComplaint = async (complaintId) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
-  
+
   if (authError || !userData || !userData.user) {
     return { success: false, message: "Not authenticated" };
   }
@@ -173,7 +195,10 @@ export const deleteComplaint = async (complaintId) => {
   const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
 
   if (isSuperAdmin || isOfficial) {
-    return { success: false, message: "Officials and superadmin cant delete complaints" };
+    return {
+      success: false,
+      message: "Officials and superadmin cant delete complaints",
+    };
   }
 
   // Check if complaint exists and is owned by the resident
@@ -184,11 +209,17 @@ export const deleteComplaint = async (complaintId) => {
     .maybeSingle();
 
   if (!complaintData) {
-    return { success: false, message: "Complaint does not exist or you don't have access to it" };
+    return {
+      success: false,
+      message: "Complaint does not exist or you don't have access to it",
+    };
   }
 
   if (complaintData.complainant_id !== userData.user.id) {
-    return { success: false, message: "Complaint is not owned by the logged in resident" };
+    return {
+      success: false,
+      message: "Complaint is not owned by the logged in resident",
+    };
   }
 
   const { error } = await supabase
@@ -207,7 +238,7 @@ export const deleteComplaint = async (complaintId) => {
 
 export const getComplaintHistory = async (complaintId) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
-  
+
   if (authError || !userData || !userData.user) {
     return { success: false, message: "Not authenticated" };
   }
@@ -228,19 +259,24 @@ export const getComplaintHistory = async (complaintId) => {
   const { data: accessData } = await accessQuery.maybeSingle();
 
   if (!accessData) {
-    return { success: false, message: "Complaint does not exist or you don't have access to it" };
+    return {
+      success: false,
+      message: "Complaint does not exist or you don't have access to it",
+    };
   }
 
   const { data, error } = await supabase
     .from("complaint_history_tbl")
-    .select(`
+    .select(
+      `
       *,
       updater:official_tbl!complaint_history_tbl_updater_id_fkey (
         firstname,
         lastname,
         role
       )
-    `)
+    `,
+    )
     .eq("complaint_id", complaintId)
     .order("updated_at", { ascending: true });
 
@@ -249,11 +285,12 @@ export const getComplaintHistory = async (complaintId) => {
     return { success: false, message: "Failed to fetch complaint history" };
   }
 
-  const enriched = data.map(history => ({
+  const enriched = data.map((history) => ({
     ...history,
-    updater_name: history.updater?.firstname && history.updater?.lastname
-      ? `${history.updater.firstname} ${history.updater.lastname}`
-      : "System"
+    updater_name:
+      history.updater?.firstname && history.updater?.lastname
+        ? `${history.updater.firstname} ${history.updater.lastname}`
+        : "System",
   }));
 
   return { success: true, data: enriched };
