@@ -35,6 +35,9 @@ const MyComplaints = () => {
   const [showAgainstModal, setShowAgainstModal] = useState(false);
   const [againstDetail, setAgainstDetail] = useState(null);
 
+  // Respondent names map: { auth_uid -> full name }
+  const [respondentNames, setRespondentNames] = useState({});
+
   useEffect(() => {
     const fetchData = async () => {
       const { data: userData } = await supabase.auth.getUser();
@@ -55,7 +58,12 @@ const MyComplaints = () => {
           setUserName(fullName);
         }
 
-        // Fetch complaints filed against the current user
+        // Fetch complaints filed against the current user.
+        // respondent_id is a UUID[] column storing auth_uid values.
+        // userData.user.id IS the auth_uid. We use the `cs` (contains) filter
+        // with a Postgres array literal string for reliable UUID array matching.
+        const currentAuthUid = userData.user.id;
+
         const { data: againstData, error: againstError } = await supabase
           .from('complaint_tbl')
           .select(`
@@ -70,7 +78,11 @@ const MyComplaints = () => {
               lastname
             )
           `)
-          .contains('respondent_id', [userData.user.id]);
+          .filter('respondent_id', 'cs', `{"${currentAuthUid}"}`);
+
+        // Debug: remove these logs once confirmed working
+        console.log('[Filed Against Me] error:', againstError);
+        console.log('[Filed Against Me] rows found:', againstData?.length ?? 0, againstData);
 
         if (!againstError && againstData) {
           const mapped = againstData.map(c => ({
@@ -83,12 +95,65 @@ const MyComplaints = () => {
               : null,
           }));
           setAgainstComplaints(mapped);
+
+          // Collect respondent IDs from "against me" complaints too
+          const againstIds = againstData.flatMap(c => c.respondent_id || []).filter(Boolean);
+
+          // Fetch complaints I filed + build respondent names map
+          const result = await getComplaints();
+          if (result.success) {
+            setComplaints(result.data);
+
+            const filedIds = result.data.flatMap(c => c.respondent_id || []).filter(Boolean);
+            const allIds = [...new Set([...filedIds, ...againstIds])];
+
+            if (allIds.length > 0) {
+              const { data: membersData } = await supabase
+                .from('sample_household_members_tbl')
+                .select('auth_uid, firstname, middlename, lastname')
+                .in('auth_uid', allIds);
+
+              if (membersData) {
+                const map = {};
+                membersData.forEach(m => {
+                  map[m.auth_uid] = [m.firstname, m.middlename, m.lastname]
+                    .filter(Boolean).join(' ');
+                });
+                setRespondentNames(map);
+              }
+            }
+          }
+        } else {
+          // Still fetch complaints even if "against" query had no results
+          const result = await getComplaints();
+          if (result.success) {
+            setComplaints(result.data);
+
+            const filedIds = result.data.flatMap(c => c.respondent_id || []).filter(Boolean);
+            if (filedIds.length > 0) {
+              const { data: membersData } = await supabase
+                .from('sample_household_members_tbl')
+                .select('auth_uid, firstname, middlename, lastname')
+                .in('auth_uid', filedIds);
+
+              if (membersData) {
+                const map = {};
+                membersData.forEach(m => {
+                  map[m.auth_uid] = [m.firstname, m.middlename, m.lastname]
+                    .filter(Boolean).join(' ');
+                });
+                setRespondentNames(map);
+              }
+            }
+          }
         }
+
         setAgainstLoading(false);
+      } else {
+        const result = await getComplaints();
+        if (result.success) setComplaints(result.data);
       }
 
-      const result = await getComplaints();
-      if (result.success) setComplaints(result.data);
       setLoading(false);
     };
 
@@ -196,10 +261,13 @@ const MyComplaints = () => {
     return '#f59e0b';
   };
 
+  // Resolves respondent UUIDs to full names using the fetched map
   const formatRespondents = (respondentId) => {
-    if (!respondentId) return null;
-    if (Array.isArray(respondentId)) return respondentId.join(', ');
-    return respondentId;
+    if (!respondentId) return '—';
+    const ids = Array.isArray(respondentId) ? respondentId : [respondentId];
+    if (ids.length === 0) return '—';
+    const names = ids.map(id => respondentNames[id] || id);
+    return names.join(', ');
   };
 
   return (
@@ -320,10 +388,18 @@ const MyComplaints = () => {
                     <span className="details-label">Location</span>
                     <span className="details-value">{detailsComplaint.incident_location || '—'}</span>
                   </div>
+                  {/* ASSIGNED TO: barangay official handling the complaint */}
                   <div className="details-row">
-                    <span className="details-label">Respondents</span>
+                    <span className="details-label">Assigned To</span>
                     <span className="details-value">
-                      {detailsComplaint.assigned_official_name || formatRespondents(detailsComplaint.respondent_id) || '—'}
+                      {detailsComplaint.assigned_official_name || '—'}
+                    </span>
+                  </div>
+                  {/* RESPONDENT: resident(s) named in the complaint, resolved to real names */}
+                  <div className="details-row">
+                    <span className="details-label">Respondent</span>
+                    <span className="details-value">
+                      {formatRespondents(detailsComplaint.respondent_id)}
                     </span>
                   </div>
                   {detailsComplaint.description && (
@@ -399,12 +475,20 @@ const MyComplaints = () => {
                     <span className="details-label">Location</span>
                     <span className="details-value">{againstDetail.incident_location || '—'}</span>
                   </div>
-                  {againstDetail.assigned_official_name && (
-                    <div className="details-row">
-                      <span className="details-label">Assigned Official</span>
-                      <span className="details-value">{againstDetail.assigned_official_name}</span>
-                    </div>
-                  )}
+                  {/* ASSIGNED TO: barangay official handling the complaint */}
+                  <div className="details-row">
+                    <span className="details-label">Assigned To</span>
+                    <span className="details-value">
+                      {againstDetail.assigned_official_name || '—'}
+                    </span>
+                  </div>
+                  {/* RESPONDENT: resident(s) named in the complaint, resolved to real names */}
+                  <div className="details-row">
+                    <span className="details-label">Respondent</span>
+                    <span className="details-value">
+                      {formatRespondents(againstDetail.respondent_id)}
+                    </span>
+                  </div>
                   {againstDetail.description && (
                     <div className="details-full">
                       <span className="details-label">Description</span>
