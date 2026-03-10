@@ -587,7 +587,9 @@ function DashboardView({
                     </div>
                   </div>
                   <div
-                    className={`feed-status ${(req.status || req.request_status || "pending").toLowerCase().replace(" ", "-")}`}
+                    className={`feed-status ${(req.status || req.request_status || "pending")
+                      .toLowerCase()
+                      .replace(/[_ ]/g, "-")}`}
                   >
                     {req.status || req.request_status || "Pending"}
                   </div>
@@ -751,76 +753,81 @@ function ComplaintsView({ complaints = [] }) {
       {/* Complaints Table */}
       <div style={{ marginTop: "2rem" }}>
         <h4>All Complaints</h4>
-        <div className="table" style={{ overflowX: "auto" }}>
-          <div
-            className="table-row table-head"
-            style={{ gridTemplateColumns: "repeat(7, 1fr)" }}
-          >
-            <div>ID</div>
-            <div>Complainant</div>
-            <div>Type</div>
-            <div>Location</div>
-            <div>Status</div>
-            <div>Priority</div>
-            <div>Date</div>
-          </div>
-          {complaints.length > 0 ? (
-            complaints.map((c) => (
-              <div
-                className="table-row"
-                key={c.id}
-                style={{ gridTemplateColumns: "repeat(7, 1fr)" }}
-              >
-                <div>#{c.id}</div>
-                <div
-                  style={{
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {c.complainant_name || "Unknown"}
-                </div>
-                <div
-                  style={{
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {c.complaint_type || "General"}
-                </div>
-                <div
-                  style={{
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {(c.incident_location || "Unknown").substring(0, 20)}
-                </div>
-                <div>
-                  <span
-                    className={`status ${(c.status || "pending").toLowerCase().replace(" ", "_")}`}
-                  >
-                    {c.status || "Pending"}
-                  </span>
-                </div>
-                <div style={{ textAlign: "center" }}>
-                  {c.priority_level || "Normal"}
-                </div>
-                <div style={{ textAlign: "center" }}>
-                  {new Date(c.created_at).toLocaleDateString()}
-                </div>
-              </div>
-            ))
-          ) : (
+        <div className="table-responsive">
+          <div className="table">
             <div
-              style={{ padding: "2rem", textAlign: "center", color: "#999" }}
+              className="table-row table-head"
+              style={{ gridTemplateColumns: "repeat(7, 1fr)" }}
             >
-              <p>No complaints yet</p>
+              <div data-label="ID">ID</div>
+              <div data-label="Complainant">Complainant</div>
+              <div data-label="Type">Type</div>
+              <div data-label="Location">Location</div>
+              <div data-label="Status">Status</div>
+              <div data-label="Priority">Priority</div>
+              <div data-label="Date">Date</div>
             </div>
-          )}
+            {complaints.length > 0 ? (
+              complaints.map((c) => (
+                <div
+                  className="table-row"
+                  key={c.id}
+                  style={{ gridTemplateColumns: "repeat(7, 1fr)" }}
+                >
+                  <div data-label="ID">#{c.id}</div>
+                  <div
+                    data-label="Complainant"
+                    style={{
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {c.complainant_name || "Unknown"}
+                  </div>
+                  <div
+                    data-label="Type"
+                    style={{
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {c.complaint_type || "General"}
+                  </div>
+                  <div
+                    data-label="Location"
+                    style={{
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {(c.incident_location || "Unknown").substring(0, 20)}
+                  </div>
+                  <div data-label="Status">
+                    <span
+                      className={`status ${(c.status || "pending").toLowerCase().replace(" ", "_")}`}
+                    >
+                      {c.status || "Pending"}
+                    </span>
+                  </div>
+                  <div data-label="Priority" style={{ textAlign: "center" }}>
+                    {c.priority_level || "Normal"}
+                  </div>
+                  <div data-label="Date" style={{ textAlign: "center" }}>
+                    {new Date(c.created_at).toLocaleDateString()}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div
+                style={{ padding: "2rem", textAlign: "center", color: "#999" }}
+              >
+                <p>No complaints yet</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -856,36 +863,44 @@ function OfficialsView({ officials = [] }) {
       </div>
 
       {/* Summary Stats */}
-      <div className="stat-row">
-        <div className="stat-box blue">
-          <span className="stat-icon">
-            <Users size={18} />
-          </span>
-          <div className="stat-label">Total Officials</div>
-          <div className="stat-num">{officials.length}</div>
-        </div>
-        <div className="stat-box">
-          <span className="stat-icon">
-            <FileText size={18} />
-          </span>
-          <div className="stat-label">Total Cases</div>
-          <div className="stat-num">{totalCases}</div>
-        </div>
-        <div className="stat-box green">
-          <span className="stat-icon">
-            <CheckCircle size={18} />
-          </span>
-          <div className="stat-label">Completed</div>
-          <div className="stat-num">{totalCompleted}</div>
-        </div>
-        <div className="stat-box yellow">
-          <span className="stat-icon">
-            <TrendingUp size={18} />
-          </span>
-          <div className="stat-label">Avg Completion</div>
-          <div className="stat-num">{avgCompletionRate}%</div>
-        </div>
-      </div>
+      {/* choose color for avg completion based on percent */}
+      {(() => {
+        let avgClass = "yellow";
+        if (avgCompletionRate >= 75) avgClass = "green";
+        else if (avgCompletionRate < 50) avgClass = "red";
+        return (
+          <div className="stat-row">
+            <div className="stat-box blue">
+              <span className="stat-icon">
+                <Users size={18} />
+              </span>
+              <div className="stat-label">Total Officials</div>
+              <div className="stat-num">{officials.length}</div>
+            </div>
+            <div className="stat-box">
+              <span className="stat-icon">
+                <FileText size={18} />
+              </span>
+              <div className="stat-label">Total Cases</div>
+              <div className="stat-num">{totalCases}</div>
+            </div>
+            <div className="stat-box green">
+              <span className="stat-icon">
+                <CheckCircle size={18} />
+              </span>
+              <div className="stat-label">Completed</div>
+              <div className="stat-num">{totalCompleted}</div>
+            </div>
+            <div className={`stat-box ${avgClass}`}>
+              <span className="stat-icon">
+                <TrendingUp size={18} />
+              </span>
+              <div className="stat-label">Avg Completion</div>
+              <div className="stat-num">{avgCompletionRate}%</div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Officials Performance Cards */}
       <div className="officials-grid">
@@ -938,12 +953,21 @@ function OfficialsView({ officials = [] }) {
                   </div>
                   <div className="stat-label-small">Pending</div>
                 </div>
-                <div className="official-stat highlight">
-                  <div className="stat-value">
-                    {official.stats?.completionRate || 0}%
-                  </div>
-                  <div className="stat-label-small">Completion Rate</div>
-                </div>
+                {(() => {
+                  const rate = parseFloat(official.stats?.completionRate || 0);
+                  let cls = "highlight";
+                  if (rate >= 75) cls += " good";
+                  else if (rate >= 50) cls += " warning";
+                  else cls += " bad";
+                  return (
+                    <div className={`official-stat ${cls}`}>
+                      <div className="stat-value">
+                        {rate}%
+                      </div>
+                      <div className="stat-label-small">Completion Rate</div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           ))
@@ -964,60 +988,67 @@ function OfficialsView({ officials = [] }) {
       {/* Performance Table */}
       <div style={{ marginTop: "2rem" }}>
         <h4>Performance Summary Table</h4>
-        <div className="table" style={{ overflowX: "auto" }}>
-          <div
-            className="table-row table-head"
-            style={{ gridTemplateColumns: "repeat(8, 1fr)" }}
-          >
-            <div>Name</div>
-            <div>Role</div>
-            <div>Requests</div>
-            <div>Complaints</div>
-            <div>Total Cases</div>
-            <div>Completed</div>
-            <div>Pending</div>
-            <div>Completion Rate</div>
-          </div>
-          {officials.map((o) => (
+        <div className="table-responsive">
+          <div className="table">
             <div
-              className="table-row"
-              key={o.id}
+              className="table-row table-head"
               style={{ gridTemplateColumns: "repeat(8, 1fr)" }}
             >
-              <div
-                style={{
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {o.full_name || `${o.firstname} ${o.lastname}`}
-              </div>
-              <div style={{ textAlign: "center" }}>{o.role || "Official"}</div>
-              <div style={{ textAlign: "center" }}>
-                {o.stats?.totalRequests || 0}
-              </div>
-              <div style={{ textAlign: "center" }}>
-                {o.stats?.totalComplaints || 0}
-              </div>
-              <div style={{ textAlign: "center" }}>
-                {o.stats?.totalCases || 0}
-              </div>
-              <div style={{ textAlign: "center" }}>
-                {o.stats?.completedCases || 0}
-              </div>
-              <div style={{ textAlign: "center" }}>
-                {o.stats?.pendingCases || 0}
-              </div>
-              <div style={{ textAlign: "center" }}>
-                <span
-                  className={`status ${parseFloat(o.stats?.completionRate || 0) > 70 ? "completed" : "pending"}`}
-                >
-                  {o.stats?.completionRate || 0}%
-                </span>
-              </div>
+              <div data-label="Name">Name</div>
+              <div data-label="Role">Role</div>
+              <div data-label="Requests">Requests</div>
+              <div data-label="Complaints">Complaints</div>
+              <div data-label="Total Cases">Total Cases</div>
+              <div data-label="Completed">Completed</div>
+              <div data-label="Pending">Pending</div>
+              <div data-label="Completion Rate">Completion Rate</div>
             </div>
-          ))}
+            {officials.map((o) => (
+              <div
+                className="table-row"
+                key={o.id}
+                style={{ gridTemplateColumns: "repeat(8, 1fr)" }}
+              >
+                <div
+                  data-label="Name"
+                  style={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {o.full_name || `${o.firstname} ${o.lastname}`}
+                </div>
+                <div data-label="Role" style={{ textAlign: "center" }}>
+                  {o.role || "Official"}
+                </div>
+                <div data-label="Requests" style={{ textAlign: "center" }}>
+                  {o.stats?.totalRequests || 0}
+                </div>
+                <div data-label="Complaints" style={{ textAlign: "center" }}>
+                  {o.stats?.totalComplaints || 0}
+                </div>
+                <div data-label="Total Cases" style={{ textAlign: "center" }}>
+                  {o.stats?.totalCases || 0}
+                </div>
+                <div data-label="Completed" style={{ textAlign: "center" }}>
+                  {o.stats?.completedCases || 0}
+                </div>
+                <div data-label="Pending" style={{ textAlign: "center" }}>
+                  {o.stats?.pendingCases || 0}
+                </div>
+                <div data-label="Completion Rate" style={{ textAlign: "center" }}>
+                  {(() => {
+                    const rate = parseFloat(o.stats?.completionRate || 0);
+                    let st = rate >= 75 ? "completed" : rate >= 50 ? "warning" : "rejected";
+                    return (
+                      <span className={`status ${st}`}>{rate}%</span>
+                    );
+                  })()}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

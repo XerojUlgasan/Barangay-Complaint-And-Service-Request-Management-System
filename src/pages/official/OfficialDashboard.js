@@ -296,13 +296,21 @@ const OfficialDashboard = () => {
               <div className="stat-num">{stats.rejected}</div>
             </div>
 
-            <div className="stat-box blue">
-              <span className="stat-icon">
-                <TrendingUp size={18} />
-              </span>
-              <div className="stat-label">Completion Rate</div>
-              <div className="stat-num">{stats.completionRate}%</div>
-            </div>
+            {(() => {
+              let compClass = "blue";
+              if (stats.completionRate >= 75) compClass = "green";
+              else if (stats.completionRate < 50) compClass = "red";
+              else compClass = "yellow";
+              return (
+                <div className={`stat-box ${compClass}`}>
+                  <span className="stat-icon">
+                    <TrendingUp size={18} />
+                  </span>
+                  <div className="stat-label">Completion Rate</div>
+                  <div className="stat-num">{stats.completionRate}%</div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* CHARTS SECTION */}

@@ -210,11 +210,11 @@ export default function AdminAnnouncements() {
 
   return (
     <div className="admin-page announcements-wrap">
-      <div className="page-actions" style={{ alignItems: "center" }}>
-        <div>
-          <h3>Manage Announcements</h3>
-          <p className="muted">Create and monitor official barangay updates</p>
-        </div>
+      {/* subtitle & action button moved below shared header */}
+      <div style={{ marginBottom: '18px' }}>
+        <p className="muted">Create and monitor official barangay updates</p>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '18px' }}>
         <button className="btn-new-ann" onClick={openModal}>
           + New Announcement
         </button>
