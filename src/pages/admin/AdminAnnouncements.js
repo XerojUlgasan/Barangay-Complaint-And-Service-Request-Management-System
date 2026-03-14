@@ -24,6 +24,10 @@ export default function AdminAnnouncements() {
     title: "",
     content: "",
     imageFile: null,
+    event_start: "",
+    event_end: "",
+    audience: "residents",
+    max_participants: "",
   });
   const modalRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -117,6 +121,52 @@ export default function AdminAnnouncements() {
       return;
     }
 
+    const isEventCategory = formData.category === "event";
+    if (isEventCategory && !formData.event_start) {
+      alert("Please select an event start date and time");
+      return;
+    }
+
+    if (isEventCategory && !formData.event_end) {
+      alert("Please select an event end date and time");
+      return;
+    }
+
+    if (
+      isEventCategory &&
+      formData.event_start &&
+      formData.event_end &&
+      new Date(formData.event_end) < new Date(formData.event_start)
+    ) {
+      alert("Event end must be after event start");
+      return;
+    }
+
+    if (
+      isEventCategory &&
+      formData.max_participants &&
+      Number(formData.max_participants) <= 0
+    ) {
+      alert("Max participants must be greater than 0");
+      return;
+    }
+
+    const eventData = isEventCategory
+      ? {
+          event_start: formData.event_start || null,
+          event_end: formData.event_end || null,
+          audience: formData.audience || null,
+          max_participants: formData.max_participants
+            ? Number(formData.max_participants)
+            : null,
+        }
+      : {
+          event_start: null,
+          event_end: null,
+          audience: null,
+          max_participants: null,
+        };
+
     try {
       setPosting(true);
       console.log("Posting announcement:", formData);
@@ -137,6 +187,7 @@ export default function AdminAnnouncements() {
         formData.priority,
         formData.title,
         formData.content,
+        eventData,
       );
 
       if (result.success) {
@@ -177,6 +228,10 @@ export default function AdminAnnouncements() {
           title: "",
           content: "",
           imageFile: null,
+          event_start: "",
+          event_end: "",
+          audience: "residents",
+          max_participants: "",
         });
         closeModal();
         // Refresh announcements list
@@ -211,10 +266,16 @@ export default function AdminAnnouncements() {
   return (
     <div className="admin-page announcements-wrap">
       {/* subtitle & action button moved below shared header */}
-      <div style={{ marginBottom: '18px' }}>
+      <div style={{ marginBottom: "18px" }}>
         <p className="muted">Create and monitor official barangay updates</p>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '18px' }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          marginBottom: "18px",
+        }}
+      >
         <button className="btn-new-ann" onClick={openModal}>
           + New Announcement
         </button>
@@ -398,9 +459,21 @@ export default function AdminAnnouncements() {
                   </label>
                   <select
                     value={formData.category}
-                    onChange={(e) =>
-                      setFormData({ ...formData, category: e.target.value })
-                    }
+                    onChange={(e) => {
+                      const nextCategory = e.target.value;
+                      setFormData({
+                        ...formData,
+                        category: nextCategory,
+                        ...(nextCategory !== "event"
+                          ? {
+                              event_start: "",
+                              event_end: "",
+                              audience: "residents",
+                              max_participants: "",
+                            }
+                          : {}),
+                      });
+                    }}
                     style={{
                       width: "100%",
                       padding: "10px",
@@ -505,6 +578,148 @@ export default function AdminAnnouncements() {
                   }}
                 />
               </div>
+
+              {formData.category === "event" && (
+                <>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "16px",
+                    }}
+                  >
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "6px",
+                          fontWeight: "500",
+                          fontSize: "14px",
+                        }}
+                      >
+                        Event Start
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={formData.event_start}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            event_start: e.target.value,
+                          })
+                        }
+                        style={{
+                          width: "100%",
+                          padding: "10px",
+                          border: "1px solid #ddd",
+                          borderRadius: "6px",
+                          fontFamily: "inherit",
+                          boxSizing: "border-box",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "6px",
+                          fontWeight: "500",
+                          fontSize: "14px",
+                        }}
+                      >
+                        Event End
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={formData.event_end}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            event_end: e.target.value,
+                          })
+                        }
+                        style={{
+                          width: "100%",
+                          padding: "10px",
+                          border: "1px solid #ddd",
+                          borderRadius: "6px",
+                          fontFamily: "inherit",
+                          boxSizing: "border-box",
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "16px",
+                    }}
+                  >
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "6px",
+                          fontWeight: "500",
+                          fontSize: "14px",
+                        }}
+                      >
+                        Audience
+                      </label>
+                      <select
+                        value={formData.audience}
+                        onChange={(e) =>
+                          setFormData({ ...formData, audience: e.target.value })
+                        }
+                        style={{
+                          width: "100%",
+                          padding: "10px",
+                          border: "1px solid #ddd",
+                          borderRadius: "6px",
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        <option value="residents">Residents</option>
+                        <option value="officials">Officials</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "6px",
+                          fontWeight: "500",
+                          fontSize: "14px",
+                        }}
+                      >
+                        Max Participants
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="E.g., 50"
+                        value={formData.max_participants}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            max_participants: e.target.value,
+                          })
+                        }
+                        style={{
+                          width: "100%",
+                          padding: "10px",
+                          border: "1px solid #ddd",
+                          borderRadius: "6px",
+                          fontFamily: "inherit",
+                          boxSizing: "border-box",
+                        }}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Image Upload */}
               <div>

@@ -1,6 +1,12 @@
 import supabase from "../supabase_client";
 
-export const postAnnouncement = async (category, priority, title, content) => {
+export const postAnnouncement = async (
+  category,
+  priority,
+  title,
+  content,
+  eventData = {},
+) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
 
   if (authError || !userData || !userData.user) {
@@ -14,6 +20,11 @@ export const postAnnouncement = async (category, priority, title, content) => {
       priority: priority,
       title: title,
       content: content,
+      event_start: eventData.event_start ?? null,
+      event_end: eventData.event_end ?? null,
+      participants: eventData.participants ?? null,
+      audience: eventData.audience ?? null,
+      max_participants: eventData.max_participants ?? null,
     })
     .select()
     .single();
