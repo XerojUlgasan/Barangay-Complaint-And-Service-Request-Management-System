@@ -254,56 +254,39 @@ export default function AdminRequests() {
   return (
     <div className="admin-page">
       {/* Page Header */}
-      <div style={{ marginBottom: "2rem" }}>
-        <h2 className="page-title">System-wide Requests</h2>
-        <p className="page-subtitle">
-          Monitor all service requests across the barangay.
-        </p>
+      <div className="page-actions" style={{alignItems:'flex-start', marginBottom: 12}}>
+        <div>
+          <h3>System-wide Requests</h3>
+          <p className="muted">Monitor all service requests across the barangay.</p>
+        </div>
       </div>
 
       {/* REQUESTS SECTION */}
       <div style={{ marginBottom: "2.5rem" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "1rem",
-          }}
-        >
-          <div>
-            <h3 className="page-title" style={{ fontSize: "1.25rem" }}>
-              Requests
-            </h3>
-            <p className="page-subtitle" style={{ marginTop: "0.25rem" }}>
-              All service requests submitted by residents.
-            </p>
-          </div>
-          <div className="status-filter-wrapper">
-            <button
-              className="status-filter-btn"
-              onClick={() => setRequestDropdownOpen(!requestDropdownOpen)}
-            >
-              {selectedRequestStatus}
-              <ChevronDown size={18} style={{ marginLeft: "0.5rem" }} />
-            </button>
-            {requestDropdownOpen && (
-              <div className="status-filter-dropdown">
-                {statusOptions.map((option) => (
-                  <div
-                    key={option}
-                    className="status-filter-item"
-                    onClick={() => {
-                      setSelectedRequestStatus(option);
-                      setRequestDropdownOpen(false);
-                    }}
-                  >
-                    {option}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+        <div className="status-filter-wrapper" style={{ marginBottom: "1rem" }}>
+          <button
+            className="status-filter-btn"
+            onClick={() => setRequestDropdownOpen(!requestDropdownOpen)}
+          >
+            {selectedRequestStatus}
+            <ChevronDown size={18} style={{ marginLeft: "0.5rem" }} />
+          </button>
+          {requestDropdownOpen && (
+            <div className="status-filter-dropdown">
+              {statusOptions.map((option) => (
+                <div
+                  key={option}
+                  className="status-filter-item"
+                  onClick={() => {
+                    setSelectedRequestStatus(option);
+                    setRequestDropdownOpen(false);
+                  }}
+                >
+                  {option}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {errorRequests && (
@@ -350,11 +333,7 @@ export default function AdminRequests() {
                   </td>
                   <td className="req-status">
                     <span
-                      className="status-badge"
-                      style={{
-                        backgroundColor: getStatusColor(request.status),
-                        color: "#fff",
-                      }}
+                      className={`status-badge ${request.status.toLowerCase().replace(/ /g, '_')}`}
                     >
                       {request.status}
                     </span>

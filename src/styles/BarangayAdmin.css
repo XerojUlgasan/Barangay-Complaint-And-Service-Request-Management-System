@@ -287,6 +287,13 @@
   padding: 6px 8px;
   border-radius: 999px;
   font-weight: 700;
+  white-space: nowrap;       /* prevent wrapping of long statuses */
+  text-align: center;        /* center inside grid cell */
+  display: inline-block;     /* shrink to fit content */
+}
+.status.pending {
+  background: #fef3c7;
+  color: #b45309;
 }
 .status.in_progress {
   background: #eef4ff;
@@ -295,6 +302,15 @@
 .status.completed {
   background: #ecfdf5;
   color: #12b76a;
+}
+.status.rejected {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+/* optional warning class for mid-range completion */
+.status.warning {
+  background: #fef9c3;
+  color: #78350f;
 }
 
 /* Responsive */
@@ -328,13 +344,53 @@
   .admin-main {
     width: 100%;
   }
+  /* collapse regular tables to vertical cards for tiny screens */
   .table-row {
     grid-template-columns: 1fr;
     grid-auto-rows: minmax(40px, auto);
   }
+  /* horizontal scroll wrappers */
+  .table-responsive {
+    overflow-x: auto;
+  }
+  .table-responsive .table {
+    /* make table as wide as its contents so horizontal scrolling works naturally */
+    min-width: max-content;
+  }
+  /* keep original column layout inside responsive wrapper */
+  .table-responsive .table-row {
+    grid-template-columns: inherit !important;
+    grid-auto-rows: unset !important;
+  }
   /* ensure request table still scrolls horizontally on very small screens */
   .requests-table-card {
     overflow-x: auto;
+  }
+
+  /* when screen is very small, convert responsive tables into labelled blocks */
+  .table-responsive .table-head {
+    display: none;
+  }
+  .table-responsive .table-row {
+    display: block !important;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  /* each cell becomes a two-column grid: label on left, value on right */
+  .table-responsive .table-row > div {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    column-gap: 0.75rem;
+    padding: 6px 0;
+  }
+  .table-responsive .table-row > div::before {
+    content: attr(data-label) ":";
+    font-weight: 600;
+    color: #374151;
+    text-align: right;
+  }
+  /* never add a pseudo label for hidden header cells (safeguard) */
+  .table-responsive .table-head > div::before {
+    content: none !important;
   }
 }
 
@@ -665,6 +721,22 @@
     background 0.15s ease,
     transform 0.15s ease,
     box-shadow 0.15s ease;
+  /* allow items to wrap so the status badge can move below if space is tight */
+  flex-wrap: wrap;
+}
+
+/* ensure body text can shrink without forcing badge outside */
+.feed-body {
+  flex: 1;
+  min-width: 0;
+}
+
+/* mobile adjustments for the status badge */
+@media (max-width: 600px) {
+  .feed-status {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
 }
 .feed-item:hover {
   background: #f7fafb;
@@ -694,14 +766,25 @@
   padding: 6px 12px;
   border-radius: 999px;
   font-weight: 700;
+  white-space: nowrap;
 }
-.feed-status.in-progress {
+.feed-status.pending {
+  background: #fef3c7;
+  color: #b45309;
+}
+/* cover both hyphen and underscore just in case */
+.feed-status.in-progress,
+.feed-status.in_progress {
   background: #eef4ff;
   color: #0f62fe;
 }
 .feed-status.completed {
   background: #ecfdf5;
   color: #12b76a;
+}
+.feed-status.rejected {
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
 @media (max-width: 1000px) {
@@ -1694,13 +1777,31 @@
   background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
   border: 1px solid #6ee7b7;
 }
+.official-stat.highlight.good {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border: 1px solid #6ee7b7;
+}
+.official-stat.highlight.warning {
+  background: linear-gradient(135deg, #fef9c3 0%, #fef3c7 100%);
+  border: 1px solid #facc15;
+}
+.official-stat.highlight.bad {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border: 1px solid #f87171;
+}
 .stat-value {
   font-size: 18px;
   font-weight: 800;
   color: #111827;
 }
-.official-stat.highlight .stat-value {
+.official-stat.highlight.good .stat-value {
   color: #059669;
+}
+.official-stat.highlight.warning .stat-value {
+  color: #d97706;
+}
+.official-stat.highlight.bad .stat-value {
+  color: #b91c1c;
 }
 .stat-label-small {
   font-size: 11px;
