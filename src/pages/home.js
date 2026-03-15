@@ -6,6 +6,7 @@ import {
   getAnnouncementById,
   updateAnnouncement,
   deleteAnnouncement,
+  signupForEvent,
 } from "../supabse_db/announcement/announcement";
 
 import {
@@ -352,11 +353,44 @@ const Home = () => {
       </button>
       <button
         onClick={async () => {
-          const result = await getAnnouncementById(1368);
+          const result = await getAnnouncementById(1395);
           console.log("GET ANNOUNCEMENT #1:", result);
         }}
       >
         Get Announcement #1 GOODS
+      </button>
+
+      <button
+        onClick={async () => {
+          const result = await signupForEvent(1368);
+          console.log("SIGNUP FOR EVENT #1368:", result);
+        }}
+      >
+        Sign Up Event #1368
+      </button>
+
+      <button
+        onClick={async () => {
+          const idStr = window.prompt("Enter announcement ID to sign up (resident):");
+          if (!idStr) return;
+          const id = parseInt(idStr, 10);
+          const result = await signupForEvent(id);
+          console.log(`SIGNUP FOR EVENT (resident) #${id}:`, result);
+        }}
+      >
+        Sign Up Event (Residents)
+      </button>
+
+      <button
+        onClick={async () => {
+          const idStr = window.prompt("Enter announcement ID to sign up (official):");
+          if (!idStr) return;
+          const id = parseInt(idStr, 10);
+          const result = await signupForEvent(id);
+          console.log(`SIGNUP FOR EVENT (official) #${id}:`, result);
+        }}
+      >
+        Sign Up Event (Officials)
       </button>
 
         <button
