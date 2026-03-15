@@ -4,6 +4,7 @@ import "./homepage.css";
 import { Link } from "react-router-dom";
 import { getAnnouncements } from "../supabse_db/announcement/announcement";
 import { fetchAnnouncementImages } from "../supabse_db/uploadImages";
+import household_supabase from "../supabse_db/household_supabase_client";
 
 function Homepage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

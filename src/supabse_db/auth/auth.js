@@ -1,11 +1,8 @@
 import supabase from "../supabase_client";
+import household_supabase from "../household_supabase_client";
 
 var member_id = null;
-var fname = null;
-var lname = null;
-var mname = null;
-var bdate = null;
-var house_id = null;
+var member_email = null;
 
 // CHECK USER ROLE (resident, official, super_admin)
 export const checkUserRole = async (uid) => {
@@ -30,23 +27,25 @@ export const checkHouseholdMember = async (
   middlename,
   birthdate,
 ) => {
-  let query = supabase
-    .from("sample_household_members_tbl")
-    .select("id,is_activated,auth_uid")
-    .eq("firstname", firstname)
-    .eq("lastname", lastname)
-    .eq("birthdate", birthdate)
+  let query = household_supabase
+    .from("residents")
+    .select("id,email")
+    .eq("first_name", firstname)
+    .eq("last_name", lastname)
+    .eq("date_of_birth", birthdate)
     .eq("household_id", household_id);
 
   if (middlename === null || middlename === "") {
-    query = query.is("middlename", null);
+    query = query.is("middle_name", null);
   } else {
-    query = query.eq("middlename", middlename);
+    query = query.eq("middle_name", middlename);
   }
 
   const { data, error } = await query.maybeSingle();
 
   if (error) {
+    member_id = null;
+    member_email = null;
     console.log(error.message);
     return {
       success: false,
@@ -57,6 +56,8 @@ export const checkHouseholdMember = async (
   console.log("DATA FOUND : ", data);
 
   if (data == null) {
+    member_id = null;
+    member_email = null;
     console.log("NO DATA FOUND");
     return {
       success: true,
@@ -67,20 +68,33 @@ export const checkHouseholdMember = async (
 
   // SAVE MEMBER ID
   member_id = data.id;
-  fname = firstname;
-  lname = lastname;
-  mname = middlename;
-  bdate = birthdate;
-  house_id = household_id;
+  member_email = data.email ? data.email.trim().toLowerCase() : null;
 
-  if (data.is_activated) {
+  const { data: registrationData, error: registrationError } = await supabase
+    .from("registered_residents")
+    .select("id,is_activated,email")
+    .eq("id", member_id)
+    .maybeSingle();
+
+  if (registrationError) {
+    console.log("REGISTERED RESIDENT CHECK ERROR:", registrationError.message);
+    return {
+      success: false,
+      isExist: true,
+      isActivated: false,
+    };
+  }
+
+  const isActivated = registrationData?.is_activated === true;
+
+  if (isActivated) {
     console.log("MEMBER ALREADY ACTIVATED (EMAIL ALREADY REGISTERED)");
   }
 
   return {
     success: true,
     isExist: true,
-    isActivated: data.is_activated,
+    isActivated,
   };
 };
 
@@ -91,6 +105,8 @@ export const registerByEmail = async (email, password) => {
   console.log("EMAIL:", email);
   console.log("MEMBER ID:", member_id);
 
+  const normalizedEmail = email.trim().toLowerCase();
+
   // 1. Check if member_id is valid
   if (!(await checkMemberId())) {
     console.log("NO MEMBER IDENTIFIED");
@@ -100,12 +116,19 @@ export const registerByEmail = async (email, password) => {
     };
   }
 
-  // 2. Check if this household member is already activated
+  if (member_email && normalizedEmail !== member_email) {
+    return {
+      success: false,
+      message: "Email does not match barangay resident record.",
+    };
+  }
+
+  // 2. Check if this resident already has a registered account
   const { data: memberData, error: memberError } = await supabase
-    .from("sample_household_members_tbl")
-    .select("is_activated")
+    .from("registered_residents")
+    .select("id,auth_uid,is_activated,email")
     .eq("id", member_id)
-    .single();
+    .maybeSingle();
 
   console.log("MEMBER STATUS:", memberData);
 
@@ -117,7 +140,7 @@ export const registerByEmail = async (email, password) => {
     };
   }
 
-  if (memberData.is_activated) {
+  if (memberData?.is_activated === true) {
     console.log("REGISTRATION BLOCKED: MEMBER ALREADY HAS EMAIL");
     return {
       success: false,
@@ -125,17 +148,24 @@ export const registerByEmail = async (email, password) => {
     };
   }
 
-  const bindSuccess = await bindEmailToResident(email);
-  if (!bindSuccess) {
-    console.log("WARNING: Failed to bind auth UID to household member");
+  if (memberData?.is_activated === false) {
+    if ((memberData.email || "").trim().toLowerCase() !== normalizedEmail) {
+      return {
+        success: false,
+        message: "Email does not match pending registration record.",
+      };
+    }
+
     return {
       success: false,
+      message:
+        "Account already exists but is not activated yet. Please verify your email then sign in.",
     };
   }
 
   // 3. Try to register email in Supabase Auth
   const { data, error } = await supabase.auth.signUp({
-    email: email,
+    email: normalizedEmail,
     password: password,
   });
 
@@ -158,6 +188,45 @@ export const registerByEmail = async (email, password) => {
     return {
       success: false,
       message: error.message,
+    };
+  }
+
+  if (!data.user?.id) {
+    return {
+      success: false,
+      message: "Registration failed: no auth user returned.",
+    };
+  }
+
+  // 4. Map resident profile ID to auth user ID in main database
+  const { error: registeredInsertError } = await supabase
+    .from("registered_residents")
+    .insert({
+      id: member_id,
+      auth_uid: data.user.id,
+      is_activated: false,
+      email: normalizedEmail,
+    });
+
+  if (registeredInsertError) {
+    console.log("REGISTERED_RESIDENTS INSERT ERROR:", registeredInsertError);
+    return {
+      success: false,
+      message: registeredInsertError.message,
+    };
+  }
+
+  // 5. Update resident email in household database
+  const { error: residentUpdateError } = await household_supabase
+    .from("residents")
+    .update({ email: normalizedEmail })
+    .eq("id", member_id);
+
+  if (residentUpdateError) {
+    console.log("RESIDENT EMAIL UPDATE ERROR:", residentUpdateError);
+    return {
+      success: false,
+      message: residentUpdateError.message,
     };
   }
 
@@ -202,6 +271,15 @@ export const loginByEmail = async (email, password) => {
   if (data.user?.confirmed_at) {
     console.log(data);
     console.log("LOGGED IN");
+
+    const { error: activationError } = await supabase
+      .from("registered_residents")
+      .update({ is_activated: true })
+      .eq("auth_uid", data.user.id);
+
+    if (activationError) {
+      console.log("failed to update resident activation : ", activationError);
+    }
 
     const { error } = await supabase.rpc("activate_resident");
 
@@ -253,9 +331,11 @@ const checkUser = async () => {
 const checkMemberId = async () => {
   console.log("CHECKING MEMBER ID:", member_id);
 
-  const { data, error } = await supabase.rpc("check_member_id", {
-    member_id_input: member_id,
-  });
+  const { data, error } = await household_supabase
+    .from("residents")
+    .select("id")
+    .eq("id", member_id)
+    .maybeSingle();
 
   if (error) {
     console.log(error.message);
@@ -264,53 +344,5 @@ const checkMemberId = async () => {
 
   console.log("CHECK MEMBER RPC RESULT:", data);
 
-  if (data) {
-    return true;
-  }
-
-  return false;
-};
-
-const bindEmailToResident = async (email) => {
-  // const userResponse = await supabase.auth.getUser();
-  // const user = userResponse.data?.user;
-
-  // if (!user) {
-  //   console.log("No authenticated user found.");
-  //   return false;
-  // }
-
-  console.log("MEMBER ID : " + member_id);
-  console.log(
-    "Binding with - fname:",
-    fname,
-    "lname:",
-    lname,
-    "mname:",
-    mname,
-    "bdate:",
-    bdate,
-    "house_id:",
-    house_id,
-    "email:",
-    email,
-  );
-
-  const { data, error } = await supabase.rpc("bind_email_to_resident_new", {
-    p_fname: fname,
-    p_lname: lname,
-    p_mname: mname || null,
-    p_bdate: bdate,
-    p_house_id: house_id,
-    p_email: email,
-  });
-
-  if (error) {
-    console.log("RPC ERROR:", error.message);
-    console.log("Full error:", error);
-    return false;
-  }
-
-  console.log(`BINDING SUCCESSFULL TO : ${fname} ${lname}`);
-  return true;
+  return Boolean(data);
 };

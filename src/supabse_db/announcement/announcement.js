@@ -22,7 +22,6 @@ export const postAnnouncement = async (
       content: content,
       event_start: eventData.event_start ?? null,
       event_end: eventData.event_end ?? null,
-      participants: eventData.participants ?? null,
       audience: eventData.audience ?? null,
       max_participants: eventData.max_participants ?? null,
     })

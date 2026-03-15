@@ -33,6 +33,7 @@ import AdminUsers from "./pages/admin/AdminUsers";
 
 //test
 import Home from "./pages/home";
+import household_supabase from "./supabse_db/household_supabase_client";
 
 // Demo placeholder
 function UserPage() {
