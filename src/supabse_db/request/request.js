@@ -1,4 +1,8 @@
 import supabase from "../supabase_client";
+import {
+  formatResidentFullName,
+  getResidentsByAuthUids,
+} from "../resident/resident";
 
 // Helper function to check user role without causing 406 errors
 const checkUserRole = async (userId) => {
@@ -101,11 +105,6 @@ export const getRequests = async () => {
     .select(
       `
       *,
-      member:sample_household_members_tbl!request_tbl_user_id_fkey (
-        firstname,
-        lastname,
-        middlename
-      ),
       official:official_tbl!request_tbl_assigned_official_id_fkey (
         firstname,
         lastname,
@@ -176,12 +175,22 @@ export const getRequests = async () => {
     data && data.length > 0 ? data[0] : "No data",
   );
 
+  const requesterAuthUids = [
+    ...new Set(data.map((row) => row.requester_id)),
+  ].filter(Boolean);
+  const residentsResult = await getResidentsByAuthUids(requesterAuthUids);
+  const residentNameMap = residentsResult.success
+    ? Object.fromEntries(
+        Object.entries(residentsResult.data).map(([authUid, resident]) => [
+          authUid,
+          formatResidentFullName(resident),
+        ]),
+      )
+    : {};
+
   const enriched = data.map((request) => ({
     ...request,
-    requester_name:
-      request.member?.firstname && request.member?.lastname
-        ? `${request.member.firstname} ${request.member.lastname}`
-        : "Unknown",
+    requester_name: residentNameMap[request.requester_id] || "Unknown",
     assigned_official_name:
       request.official?.firstname && request.official?.lastname
         ? `${request.official.firstname} ${request.official.lastname}`
@@ -221,11 +230,6 @@ export const getRequestById = async (requestId) => {
     .select(
       `
       *,
-      member:sample_household_members_tbl!request_tbl_user_id_fkey (
-        firstname,
-        lastname,
-        middlename
-      ),
       official:official_tbl!request_tbl_assigned_official_id_fkey (
         firstname,
         lastname,
@@ -259,14 +263,17 @@ export const getRequestById = async (requestId) => {
     };
   }
 
+  const residentsResult = await getResidentsByAuthUids([data.requester_id]);
+  const requesterName = residentsResult.success
+    ? formatResidentFullName(residentsResult.data[data.requester_id]) ||
+      "Unknown"
+    : "Unknown";
+
   return {
     success: true,
     data: {
       ...data,
-      requester_name:
-        data.member?.firstname && data.member?.lastname
-          ? `${data.member.firstname} ${data.member.lastname}`
-          : "Unknown",
+      requester_name: requesterName,
       assigned_official_name:
         data.official?.firstname && data.official?.lastname
           ? `${data.official.firstname} ${data.official.lastname}`

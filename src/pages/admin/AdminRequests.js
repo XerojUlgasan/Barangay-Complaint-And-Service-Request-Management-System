@@ -2,79 +2,10 @@ import React, { useState, useEffect } from "react";
 import { ChevronDown, X } from "lucide-react";
 import "../../styles/BarangayAdmin.css";
 import "../../styles/RequestDetail.css"; // reuse modal/history styles from official view
-import { getRequests, getRequestHistory } from "../../supabse_db/request/request";
-
-const SAMPLE_REQUESTS = [
-  {
-    id: "REQ-001",
-    title: "Certificate of Indigency Request",
-    subtitle: "Official poverty certification",
-    status: "In Progress",
-    submittedBy: "Maria Santos",
-    date: "2025-12-10",
-    lastUpdate: "2025-12-15",
-    assignedOfficial: "Jane Smith",
-    description:
-      "Resident is requesting a certificate of indigency for medical assistance program enrollment. Supporting documents have been verified.",
-    response:
-      "Document is being processed. Preliminary verification completed. Awaiting final approval from municipal office.",
-  },
-  {
-    id: "REQ-002",
-    title: "Barangay Clearance Application",
-    subtitle: "Good moral character certificate",
-    status: "Pending",
-    submittedBy: "Juan Dela Cruz",
-    date: "2025-12-16",
-    lastUpdate: "2025-12-16",
-    assignedOfficial: "Robert Johnson",
-    description:
-      "Resident requires a barangay clearance for employment purposes. Background verification is in progress.",
-    response: "Assigned to verification team. Expected completion: 3 days.",
-  },
-  {
-    id: "REQ-003",
-    title: "Business Permit Application",
-    subtitle: "Small business registration",
-    status: "Completed",
-    submittedBy: "Ana Garcia",
-    date: "2025-12-05",
-    lastUpdate: "2025-12-14",
-    assignedOfficial: "Emily Roberts",
-    description:
-      "Applicant is opening a small sari-sari store in the barangay. All required documents submitted and verified.",
-    response:
-      "Business permit approved. Document ready for pickup at barangay office during office hours.",
-  },
-  {
-    id: "REQ-004",
-    title: "Complaint: Illegal Dumping",
-    subtitle: "Environmental concern",
-    status: "In Progress",
-    submittedBy: "Pedro Montoya",
-    date: "2025-12-12",
-    lastUpdate: "2025-12-15",
-    assignedOfficial: "Carlos Mendez",
-    description:
-      "Resident reported illegal waste disposal near the community center. Photos and location coordinates provided.",
-    response:
-      "Site inspection scheduled for December 18. Will coordinate with environmental team for immediate cleanup.",
-  },
-  {
-    id: "REQ-005",
-    title: "Street Repair Request",
-    subtitle: "Infrastructure maintenance",
-    status: "Rejected",
-    submittedBy: "Rosa Magsaysay",
-    date: "2025-12-08",
-    lastUpdate: "2025-12-13",
-    assignedOfficial: "Mark Wilson",
-    description:
-      "Reported road damage on Main Street. However, subsequent inspection found damage to be within acceptable wear limits.",
-    response:
-      "Request denied. Road condition meets current municipal standards. Scheduled for regular maintenance cycle.",
-  },
-];
+import {
+  getRequests,
+  getRequestHistory,
+} from "../../supabse_db/request/request";
 
 const STATUS_COLORS = {
   Pending: "#fbbf24",
@@ -110,7 +41,7 @@ export default function AdminRequests() {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [requestDropdownOpen, setRequestDropdownOpen] = useState(false);
-  const [requests, setRequests] = useState(SAMPLE_REQUESTS);
+  const [requests, setRequests] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
   const [errorRequests, setErrorRequests] = useState(null);
 
@@ -158,27 +89,19 @@ export default function AdminRequests() {
           console.log("AdminRequests: Transformed data:", transformedRequests);
 
           // If database returned results, use them; otherwise use sample data
-          if (transformedRequests.length > 0) {
-            setRequests(transformedRequests);
-          } else {
-            console.log(
-              "AdminRequests: No data in database, using sample data",
-            );
-            setRequests(SAMPLE_REQUESTS);
-          }
+          setRequests(transformedRequests);
         } else {
           console.error(
             "AdminRequests: Failed to fetch requests:",
             result.message,
           );
           setErrorRequests(result.message || "Failed to fetch requests");
-          // Keep sample data visible if fetch fails
-          setRequests(SAMPLE_REQUESTS);
+          setRequests([]);
         }
       } catch (err) {
         console.error("AdminRequests: Catch error:", err);
         setErrorRequests("Error fetching requests: " + err.message);
-        setRequests(SAMPLE_REQUESTS);
+        setRequests([]);
       } finally {
         setLoadingRequests(false);
       }
@@ -254,10 +177,15 @@ export default function AdminRequests() {
   return (
     <div className="admin-page">
       {/* Page Header */}
-      <div className="page-actions" style={{alignItems:'flex-start', marginBottom: 12}}>
+      <div
+        className="page-actions"
+        style={{ alignItems: "flex-start", marginBottom: 12 }}
+      >
         <div>
           <h3>System-wide Requests</h3>
-          <p className="muted">Monitor all service requests across the barangay.</p>
+          <p className="muted">
+            Monitor all service requests across the barangay.
+          </p>
         </div>
       </div>
 
@@ -333,7 +261,7 @@ export default function AdminRequests() {
                   </td>
                   <td className="req-status">
                     <span
-                      className={`status-badge ${request.status.toLowerCase().replace(/ /g, '_')}`}
+                      className={`status-badge ${request.status.toLowerCase().replace(/ /g, "_")}`}
                     >
                       {request.status}
                     </span>
@@ -440,17 +368,13 @@ export default function AdminRequests() {
                           <span className="history-date">
                             {date.toLocaleString()}
                           </span>
-                          <span className="history-status">
-                            {statusLabel}
-                          </span>
+                          <span className="history-status">{statusLabel}</span>
                           <span className="history-user">
                             {h.updater_name || "System"}
                           </span>
                         </div>
                         {h.remarks && (
-                          <div className="history-remarks">
-                            {h.remarks}
-                          </div>
+                          <div className="history-remarks">{h.remarks}</div>
                         )}
                       </li>
                     );

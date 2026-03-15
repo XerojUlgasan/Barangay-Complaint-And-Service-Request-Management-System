@@ -6,14 +6,18 @@ import {
 } from "../supabse_db/complaint/complaint";
 import { logout } from "../supabse_db/auth/auth";
 import supabase from "../supabse_db/supabase_client";
+import {
+  formatResidentFullName,
+  getResidentByAuthUid,
+  getResidentsByAuthUids,
+  getResidentsByIds,
+} from "../supabse_db/resident/resident";
 import "./userlanding.css";
 
 const MyComplaints = () => {
   const navigate = useNavigate();
 
-  // Tab: 'filed' = complaints I filed, 'against' = complaints filed against me
   const [activeTab, setActiveTab] = useState("filed");
-
   const [complaints, setComplaints] = useState([]);
   const [againstComplaints, setAgainstComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,21 +28,15 @@ const MyComplaints = () => {
   const [againstFilter, setAgainstFilter] = useState("All Status");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historyData, setHistoryData] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [selectedComplaint, setSelectedComplaint] = useState(null);
-
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [detailsComplaint, setDetailsComplaint] = useState(null);
   const [detailsIsAgainst, setDetailsIsAgainst] = useState(false);
-
-  // Against me detail modal
   const [showAgainstModal, setShowAgainstModal] = useState(false);
   const [againstDetail, setAgainstDetail] = useState(null);
-
-  // Respondent names map: { auth_uid -> full name }
   const [respondentNames, setRespondentNames] = useState({});
 
   useEffect(() => {
@@ -48,142 +46,97 @@ const MyComplaints = () => {
       if (userData?.user) {
         setCurrentUserId(userData.user.id);
 
-        const { data: memberData } = await supabase
-          .from("sample_household_members_tbl")
-          .select("firstname, lastname, middlename")
-          .eq("auth_uid", userData.user.id)
-          .single();
+        const residentResult = await getResidentByAuthUid(userData.user.id);
+        let currentResidentId = null;
 
-        if (memberData) {
-          const fullName =
-            memberData.firstname +
-            (memberData.middlename ? " " + memberData.middlename : "") +
-            " " +
-            memberData.lastname;
-          setUserName(fullName);
+        if (residentResult.success && residentResult.data) {
+          setUserName(formatResidentFullName(residentResult.data));
+          currentResidentId = residentResult.data.id;
         }
 
-        // Fetch complaints filed against the current user.
-        // respondent_id is a UUID[] column storing auth_uid values.
-        // userData.user.id IS the auth_uid. We use the `cs` (contains) filter
-        // with a Postgres array literal string for reliable UUID array matching.
-        const currentAuthUid = userData.user.id;
+        const result = await getComplaints();
+        if (result.success) {
+          setComplaints(result.data);
+        }
 
-        const { data: againstData, error: againstError } = await supabase
-          .from("complaint_tbl")
-          .select(
-            `
-            *,
-            complainant:complainant_id (
-              firstname,
-              lastname,
-              middlename
-            ),
-            assigned_official:assigned_official_id (
-              firstname,
-              lastname
+        let againstRows = [];
+
+        if (currentResidentId) {
+          const { data: againstData, error: againstError } = await supabase
+            .from("complaint_tbl")
+            .select(
+              `
+              *,
+              assigned_official:assigned_official_id (
+                firstname,
+                lastname
+              )
+            `,
             )
-          `,
-          )
-          .filter("respondent_id", "cs", `{"${currentAuthUid}"}`);
+            .filter("respondent_id", "cs", `{"${currentResidentId}"}`);
 
-        // Debug: remove these logs once confirmed working
-        console.log("[Filed Against Me] error:", againstError);
-        console.log(
-          "[Filed Against Me] rows found:",
-          againstData?.length ?? 0,
-          againstData,
-        );
+          console.log("[Filed Against Me] error:", againstError);
+          console.log(
+            "[Filed Against Me] rows found:",
+            againstData?.length ?? 0,
+            againstData,
+          );
 
-        if (!againstError && againstData) {
-          const mapped = againstData.map((c) => ({
-            ...c,
-            complainant_name: c.complainant
-              ? c.complainant.firstname +
-                (c.complainant.middlename
-                  ? " " + c.complainant.middlename
-                  : "") +
-                " " +
-                c.complainant.lastname
-              : "—",
-            assigned_official_name: c.assigned_official
-              ? c.assigned_official.firstname +
-                " " +
-                c.assigned_official.lastname
-              : null,
-          }));
-          setAgainstComplaints(mapped);
-
-          // Collect respondent IDs from "against me" complaints too
-          const againstIds = againstData
-            .flatMap((c) => c.respondent_id || [])
-            .filter(Boolean);
-
-          // Fetch complaints I filed + build respondent names map
-          const result = await getComplaints();
-          if (result.success) {
-            setComplaints(result.data);
-
-            const filedIds = result.data
-              .flatMap((c) => c.respondent_id || [])
-              .filter(Boolean);
-            const allIds = [...new Set([...filedIds, ...againstIds])];
-
-            if (allIds.length > 0) {
-              const { data: membersData } = await supabase
-                .from("sample_household_members_tbl")
-                .select("auth_uid, firstname, middlename, lastname")
-                .in("auth_uid", allIds);
-
-              if (membersData) {
-                const map = {};
-                membersData.forEach((m) => {
-                  // Format full name matching residents_view
-                  map[m.auth_uid] =
-                    m.firstname +
-                    (m.middlename ? " " + m.middlename : "") +
-                    " " +
-                    m.lastname;
-                });
-                setRespondentNames(map);
-              }
-            }
-          }
-        } else {
-          // Still fetch complaints even if "against" query had no results
-          const result = await getComplaints();
-          if (result.success) {
-            setComplaints(result.data);
-
-            const filedIds = result.data
-              .flatMap((c) => c.respondent_id || [])
-              .filter(Boolean);
-            if (filedIds.length > 0) {
-              const { data: membersData } = await supabase
-                .from("sample_household_members_tbl")
-                .select("auth_uid, firstname, middlename, lastname")
-                .in("auth_uid", filedIds);
-
-              if (membersData) {
-                const map = {};
-                membersData.forEach((m) => {
-                  // Format full name matching residents_view
-                  map[m.auth_uid] =
-                    m.firstname +
-                    (m.middlename ? " " + m.middlename : "") +
-                    " " +
-                    m.lastname;
-                });
-                setRespondentNames(map);
-              }
-            }
-          }
+          againstRows =
+            !againstError && againstData
+              ? againstData.map((complaint) => ({
+                  ...complaint,
+                  complainant_name: "—",
+                  assigned_official_name: complaint.assigned_official
+                    ? `${complaint.assigned_official.firstname} ${complaint.assigned_official.lastname}`
+                    : null,
+                }))
+              : [];
         }
 
+        const filedRows = result.success ? result.data : [];
+        const respondentResidentIds = [...filedRows, ...againstRows]
+          .flatMap((complaint) => complaint.respondent_id || [])
+          .filter(Boolean);
+        const complainantAuthUids = againstRows
+          .map((complaint) => complaint.complainant_id)
+          .filter(Boolean);
+
+        const [respondentsResult, complainantsResult] = await Promise.all([
+          getResidentsByIds(respondentResidentIds),
+          getResidentsByAuthUids(complainantAuthUids),
+        ]);
+
+        const residentNameMap = {};
+
+        if (respondentsResult.success) {
+          Object.entries(respondentsResult.data).forEach(
+            ([residentId, resident]) => {
+              residentNameMap[residentId] = formatResidentFullName(resident);
+            },
+          );
+        }
+
+        if (complainantsResult.success) {
+          Object.entries(complainantsResult.data).forEach(
+            ([authUid, resident]) => {
+              residentNameMap[authUid] = formatResidentFullName(resident);
+            },
+          );
+        }
+
+        setRespondentNames(residentNameMap);
+        setAgainstComplaints(
+          againstRows.map((complaint) => ({
+            ...complaint,
+            complainant_name: residentNameMap[complaint.complainant_id] || "—",
+          })),
+        );
         setAgainstLoading(false);
       } else {
         const result = await getComplaints();
         if (result.success) setComplaints(result.data);
+        setAgainstLoading(false);
       }
 
       setLoading(false);

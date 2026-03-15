@@ -4,6 +4,11 @@ import { insertRequest } from "../supabse_db/request/request";
 import { insertComplaint } from "../supabse_db/complaint/complaint";
 import { uploadAnImage } from "../supabse_db/uploadImages";
 import supabase from "../supabse_db/supabase_client";
+import household_supabase from "../supabse_db/household_supabase_client";
+import {
+  formatResidentFullName,
+  getResidentByAuthUid,
+} from "../supabse_db/resident/resident";
 import "./userlanding.css";
 
 const SubmitRequest = () => {
@@ -15,7 +20,7 @@ const SubmitRequest = () => {
   const [submitError, setSubmitError] = useState("");
   const [submitLoading, setSubmitLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [currentUserAuthId, setCurrentUserAuthId] = useState(null);
+  const [currentUserResidentId, setCurrentUserResidentId] = useState(null);
   const [respondentInput, setRespondentInput] = useState("");
   const [respondentSuggestions, setRespondentSuggestions] = useState([]);
   const [selectedRespondents, setSelectedRespondents] = useState([]);
@@ -38,22 +43,10 @@ const SubmitRequest = () => {
     const fetchUser = async () => {
       const { data: userData } = await supabase.auth.getUser();
       if (userData?.user) {
-        setCurrentUserAuthId(userData.user.id);
-        const { data: memberData } = await supabase
-          .from("sample_household_members_tbl")
-          .select("firstname, lastname, middlename")
-          .eq("auth_uid", userData.user.id)
-          .single();
-
-        if (memberData) {
-          const fullName = [
-            memberData.firstname,
-            memberData.middlename,
-            memberData.lastname,
-          ]
-            .filter(Boolean)
-            .join(" ");
-          setUserName(fullName);
+        const residentResult = await getResidentByAuthUid(userData.user.id);
+        if (residentResult.success && residentResult.data) {
+          setUserName(formatResidentFullName(residentResult.data));
+          setCurrentUserResidentId(residentResult.data.id);
         }
       }
     };
@@ -79,10 +72,10 @@ const SubmitRequest = () => {
     }
 
     try {
-      const { data, error } = await supabase
-        .from("resident_view")
-        .select("id, full_name")
-        .ilike("full_name", `%${query}%`)
+      const { data, error } = await household_supabase
+        .from("resident_fullnames_vw")
+        .select("id, fullname")
+        .ilike("fullname", `%${query}%`)
         .limit(20);
 
       if (error) {
@@ -95,11 +88,11 @@ const SubmitRequest = () => {
       const filtered =
         data?.filter(
           (resident) =>
-            resident.id !== currentUserAuthId &&
+            resident.id !== currentUserResidentId &&
             !selectedIds.includes(resident.id),
         ) || [];
 
-      console.log("RESIDENTS_VIEW Data:", data);
+      console.log("resident_fullnames_vw Data:", data);
       console.log("Filtered Suggestions:", filtered);
       setRespondentSuggestions(filtered);
     } catch (error) {
@@ -141,6 +134,7 @@ const SubmitRequest = () => {
       // 1. Create the complaint or request first
       if (isComplaint) {
         const respondentIds = selectedRespondents.map((r) => r.id);
+
         result = await insertComplaint(
           formData.complaintType,
           formData.incidentDate,
@@ -531,7 +525,7 @@ const SubmitRequest = () => {
                                     "transparent")
                                 }
                               >
-                                {suggestion.full_name}
+                                {suggestion.fullname}
                               </div>
                             ))}
                           </div>
@@ -559,7 +553,7 @@ const SubmitRequest = () => {
                               }}
                             >
                               <span style={{ marginRight: "6px" }}>
-                                {respondent.full_name}
+                                {respondent.fullname}
                               </span>
                               <button
                                 type="button"

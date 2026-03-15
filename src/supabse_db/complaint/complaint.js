@@ -1,4 +1,8 @@
 import supabase from "../supabase_client";
+import {
+  formatResidentFullName,
+  getResidentsByAuthUids,
+} from "../resident/resident";
 
 // Helper function to check user role without causing 406 errors
 const checkUserRole = async (userId) => {
@@ -79,11 +83,6 @@ export const getComplaints = async () => {
     .select(
       `
       *,
-      member:sample_household_members_tbl!complaint_tbl_complainant_id_fkey (
-        firstname,
-        lastname,
-        middlename
-      ),
       official:official_tbl!complaint_tbl_assigned_official_id_fkey (
         firstname,
         lastname,
@@ -107,12 +106,22 @@ export const getComplaints = async () => {
     return { success: false, message: "Failed to fetch complaints" };
   }
 
+  const complainantAuthUids = [
+    ...new Set(data.map((row) => row.complainant_id)),
+  ].filter(Boolean);
+  const residentsResult = await getResidentsByAuthUids(complainantAuthUids);
+  const residentNameMap = residentsResult.success
+    ? Object.fromEntries(
+        Object.entries(residentsResult.data).map(([authUid, resident]) => [
+          authUid,
+          formatResidentFullName(resident),
+        ]),
+      )
+    : {};
+
   const enriched = data.map((complaint) => ({
     ...complaint,
-    complainant_name:
-      complaint.member?.firstname && complaint.member?.lastname
-        ? `${complaint.member.firstname} ${complaint.member.lastname}`
-        : "Unknown",
+    complainant_name: residentNameMap[complaint.complainant_id] || "Unknown",
     assigned_official_name:
       complaint.official?.firstname && complaint.official?.lastname
         ? `${complaint.official.firstname} ${complaint.official.lastname}`
@@ -136,11 +145,6 @@ export const getComplaintById = async (complaintId) => {
     .select(
       `
       *,
-      member:sample_household_members_tbl!complaint_tbl_complainant_id_fkey (
-        firstname,
-        lastname,
-        middlename
-      ),
       official:official_tbl!complaint_tbl_assigned_official_id_fkey (
         firstname,
         lastname,
@@ -169,14 +173,17 @@ export const getComplaintById = async (complaintId) => {
     };
   }
 
+  const residentsResult = await getResidentsByAuthUids([data.complainant_id]);
+  const complainantName = residentsResult.success
+    ? formatResidentFullName(residentsResult.data[data.complainant_id]) ||
+      "Unknown"
+    : "Unknown";
+
   return {
     success: true,
     data: {
       ...data,
-      complainant_name:
-        data.member?.firstname && data.member?.lastname
-          ? `${data.member.firstname} ${data.member.lastname}`
-          : "Unknown",
+      complainant_name: complainantName,
       assigned_official_name:
         data.official?.firstname && data.official?.lastname
           ? `${data.official.firstname} ${data.official.lastname}`
