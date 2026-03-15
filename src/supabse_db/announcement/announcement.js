@@ -96,7 +96,10 @@ export const getAnnouncements = async () => {
   }
 
   if (nonEventsRes.error) {
-    console.error("Error fetching non-event announcements:", nonEventsRes.error);
+    console.error(
+      "Error fetching non-event announcements:",
+      nonEventsRes.error,
+    );
     // continue — there may still be event announcements
   }
 
@@ -129,7 +132,6 @@ export const getAnnouncements = async () => {
   console.log("Announcements retrieved (merged):", merged);
   return { success: true, data: merged };
 };
-
 
 export const getAnnouncementById = async (id) => {
   const { data, error } = await supabase
@@ -195,7 +197,10 @@ export const updateAnnouncement = async (
   }
 
   if (existingAnn.announcer !== userId) {
-    return { success: false, message: "Only the announcer superadmin can update this announcement" };
+    return {
+      success: false,
+      message: "Only the announcer superadmin can update this announcement",
+    };
   }
 
   const updatePayload = {
@@ -266,7 +271,10 @@ export const deleteAnnouncement = async (id) => {
   }
 
   if (existingAnn.announcer !== userId) {
-    return { success: false, message: "Only the announcer superadmin can delete this announcement" };
+    return {
+      success: false,
+      message: "Only the announcer superadmin can delete this announcement",
+    };
   }
 
   const { error } = await supabase
@@ -313,7 +321,7 @@ export const signupForEvent = async (announcementId) => {
     .single();
 
   const { data: residentData } = await supabase
-    .from("sample_household_members_tbl")
+    .from("registered_residents")
     .select("id")
     .eq("auth_uid", userId)
     .single();
@@ -323,7 +331,10 @@ export const signupForEvent = async (announcementId) => {
   else if (residentData && residentData.id) userRole = "residents";
 
   if (!userRole) {
-    return { success: false, message: "Only registered residents or officials may sign up" };
+    return {
+      success: false,
+      message: "Only registered residents or officials may sign up",
+    };
   }
 
   // audience on announcement should match user role
@@ -348,7 +359,10 @@ export const signupForEvent = async (announcementId) => {
   }
 
   if (typeof existingCount === "number" && existingCount > 0) {
-    return { success: false, message: "You have already signed up for this event" };
+    return {
+      success: false,
+      message: "You have already signed up for this event",
+    };
   }
 
   // check max participants
@@ -363,7 +377,10 @@ export const signupForEvent = async (announcementId) => {
       return { success: false, message: "Failed to verify participant count" };
     }
 
-    if (typeof participantCount === "number" && participantCount >= announcement.max_participants) {
+    if (
+      typeof participantCount === "number" &&
+      participantCount >= announcement.max_participants
+    ) {
       return { success: false, message: "Event is full" };
     }
   }
@@ -379,7 +396,10 @@ export const signupForEvent = async (announcementId) => {
       insertError.code === "23505" || /unique|duplicate key/i.test(msg);
 
     if (isUniqueViolation) {
-      return { success: false, message: "You have already signed up for this event" };
+      return {
+        success: false,
+        message: "You have already signed up for this event",
+      };
     }
 
     console.error("Error signing up for event:", insertError);
@@ -397,7 +417,10 @@ export const signupForEvent = async (announcementId) => {
       .order("created_at", { ascending: true });
 
     if (allRowsError) {
-      console.warn("Could not verify participant rows after insert:", allRowsError);
+      console.warn(
+        "Could not verify participant rows after insert:",
+        allRowsError,
+      );
       // Return success because insert succeeded, but warn.
       return { success: true, message: "Signed up successfully" };
     }
@@ -407,13 +430,17 @@ export const signupForEvent = async (announcementId) => {
       const extras = allRows.slice(1);
       for (const ex of extras) {
         // delete by matching the identifying columns and created_at to avoid removing the kept row
-        await supabase
-          .from("event_participants")
-          .delete()
-          .match({ announcement_id: announcementId, user_uid: userId, created_at: ex.created_at });
+        await supabase.from("event_participants").delete().match({
+          announcement_id: announcementId,
+          user_uid: userId,
+          created_at: ex.created_at,
+        });
       }
 
-      return { success: false, message: "You have already signed up for this event" };
+      return {
+        success: false,
+        message: "You have already signed up for this event",
+      };
     }
   } catch (err) {
     console.warn("Post-insert duplicate cleanup failed:", err);
@@ -428,15 +455,22 @@ export const signupForEvent = async (announcementId) => {
         .eq("announcement_id", announcementId);
 
       if (finalCountError) {
-        console.warn("Could not verify final participant count:", finalCountError);
-      } else if (typeof finalCount === "number" && finalCount > announcement.max_participants) {
+        console.warn(
+          "Could not verify final participant count:",
+          finalCountError,
+        );
+      } else if (
+        typeof finalCount === "number" &&
+        finalCount > announcement.max_participants
+      ) {
         // remove the row we just inserted
         const inserted = Array.isArray(insertData) ? insertData[0] : insertData;
         if (inserted && inserted.created_at) {
-          await supabase
-            .from("event_participants")
-            .delete()
-            .match({ announcement_id: announcementId, user_uid: userId, created_at: inserted.created_at });
+          await supabase.from("event_participants").delete().match({
+            announcement_id: announcementId,
+            user_uid: userId,
+            created_at: inserted.created_at,
+          });
         }
 
         return { success: false, message: "Event is full" };
