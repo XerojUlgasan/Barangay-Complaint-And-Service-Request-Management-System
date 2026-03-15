@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import supabase from "../supabse_db/supabase_client";
-import { getAnnouncements } from "../supabse_db/announcement/announcement";
+import { getAnnouncements, signupForEvent } from "../supabse_db/announcement/announcement";
 import { logout } from "../supabse_db/auth/auth";
 import { fetchAnnouncementImages } from "../supabse_db/uploadImages";
 import {
@@ -19,6 +19,10 @@ const Announcements = () => {
   const [loading, setLoading] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showSignupModal, setShowSignupModal] = useState(false);
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
+  const [signupLoading, setSignupLoading] = useState(false);
+  const [signupMessage, setSignupMessage] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -348,6 +352,18 @@ const Announcements = () => {
                         <span className="ann-date">
                           {formatDate(ann.created_at)}
                         </span>
+                        {ann.category && ann.category.toLowerCase() === "event" && (
+                          <button
+                            className="ann-signup-btn"
+                            onClick={() => {
+                              setSelectedAnnouncement(ann);
+                              setSignupMessage(null);
+                              setShowSignupModal(true);
+                            }}
+                          >
+                            Sign Up
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -356,6 +372,64 @@ const Announcements = () => {
             )}
           </div>
         </main>
+
+        {/* SIGNUP CONFIRMATION MODAL */}
+        {showSignupModal && selectedAnnouncement && (
+          <div
+            className="logout-modal-overlay"
+            onClick={() => setShowSignupModal(false)}
+          >
+            <div
+              className="logout-modal"
+              onClick={(e) => e.stopPropagation()}
+              style={{ maxWidth: 480 }}
+            >
+              <h3 className="logout-modal-title">Confirm Signup</h3>
+              <p>
+                Are you sure you want to sign up for <b>{selectedAnnouncement.title}</b>?
+              </p>
+              {signupMessage && (
+                <p style={{ color: signupMessage.success ? "green" : "red" }}>
+                  {signupMessage.message}
+                </p>
+              )}
+              <div className="logout-modal-actions">
+                <button
+                  className="logout-modal-no"
+                  onClick={() => setShowSignupModal(false)}
+                  disabled={signupLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="logout-modal-yes"
+                  onClick={async () => {
+                    setSignupLoading(true);
+                    setSignupMessage(null);
+                    try {
+                      const res = await signupForEvent(selectedAnnouncement.id);
+                      setSignupMessage(res);
+                      if (res && res.success) {
+                        // close modal after short delay
+                        setTimeout(() => {
+                          setShowSignupModal(false);
+                        }, 1000);
+                      }
+                    } catch (err) {
+                      console.error("Signup error:", err);
+                      setSignupMessage({ success: false, message: "Signup failed" });
+                    } finally {
+                      setSignupLoading(false);
+                    }
+                  }}
+                  disabled={signupLoading}
+                >
+                  {signupLoading ? "Signing up..." : "Yes, Sign Up"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
