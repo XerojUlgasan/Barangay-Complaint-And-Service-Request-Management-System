@@ -41,6 +41,7 @@ export default function OfficialComplaints() {
         id: complaint.id,
         title: complaint.complaint_type || "Complaint",
         submittedBy: complaint.complainant_name || "Unknown",
+        respondents: complaint.respondent_names || "",
         submissionDate: complaint.created_at
           ? new Date(complaint.created_at).toLocaleDateString()
           : "N/A",

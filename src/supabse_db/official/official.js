@@ -2,6 +2,7 @@ import supabase from "../supabase_client";
 import {
   formatResidentFullName,
   getResidentsByAuthUids,
+  getResidentsByIds,
 } from "../resident/resident";
 
 // Helper function to check user role without causing 406 errors
@@ -74,6 +75,20 @@ export const getAssignedComplaints = async () => {
       )
     : {};
 
+  // Resolve respondent resident IDs (stored as array) to full names
+  const allRespondentIds = [
+    ...new Set(data.flatMap((row) => row.respondent_id || [])),
+  ].filter(Boolean);
+  const respondentsResult = await getResidentsByIds(allRespondentIds);
+  const respondentNameMap = respondentsResult.success
+    ? Object.fromEntries(
+        Object.entries(respondentsResult.data).map(([id, resident]) => [
+          id,
+          formatResidentFullName(resident),
+        ]),
+      )
+    : {};
+
   const enriched = data.map((complaint) => ({
     ...complaint,
     complainant_name: residentNameMap[complaint.complainant_id] || "Unknown",
@@ -81,6 +96,10 @@ export const getAssignedComplaints = async () => {
       complaint.official?.firstname && complaint.official?.lastname
         ? `${complaint.official.firstname} ${complaint.official.lastname}`
         : null,
+    // Attach respondents as a joined string for UI consumption
+    respondent_names: (complaint.respondent_id || [])
+      .map((rid) => respondentNameMap[rid] || rid)
+      .join(", "),
   }));
 
   return { success: true, data: enriched };

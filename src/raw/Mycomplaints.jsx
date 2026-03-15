@@ -62,26 +62,162 @@ const MyComplaints = () => {
         let againstRows = [];
 
         if (currentResidentId) {
-          const { data: againstData, error: againstError } = await supabase
-            .from("complaint_tbl")
-            .select(
-              `
+          // Try multiple strategies to find complaints where respondent_id contains the resident id.
+          // Different DB setups may store respondent_id as number, string, text[], or jsonb array.
+          console.log(
+            `[Filed Against Me] currentResidentId=${currentResidentId} (type=${typeof currentResidentId})`,
+          );
+
+          const selectExpr = `
               *,
               assigned_official:assigned_official_id (
                 firstname,
                 lastname
               )
-            `,
-            )
-            .filter("respondent_id", "cs", `{"${currentResidentId}"}`);
+            `;
 
-          console.log("[Filed Against Me] error:", againstError);
-          console.log(
-            "[Filed Against Me] rows found:",
-            againstData?.length ?? 0,
-            againstData,
+          let againstData = null;
+          let againstError = null;
+
+          const attempts = Array.from(
+            new Set([
+              currentResidentId,
+              userData.user.id,
+              String(currentResidentId),
+              String(userData.user.id),
+            ].filter(Boolean)),
           );
 
+          // 1) Try .contains with numeric and string representation
+          for (const attemptVal of attempts) {
+            try {
+              const res = await supabase
+                .from("complaint_tbl")
+                .select(selectExpr)
+                .contains("respondent_id", [attemptVal]);
+
+              if (res.error) {
+                console.log(
+                  `[Filed Against Me] .contains attempt(${typeof attemptVal}): error`,
+                  res.error,
+                );
+              } else if (res.data && res.data.length > 0) {
+                againstData = res.data;
+                againstError = null;
+                console.log(
+                  `[Filed Against Me] .contains success with value=${attemptVal}: rows=`,
+                  res.data.length,
+                );
+                break;
+              } else {
+                console.log(
+                  `[Filed Against Me] .contains attempt(${attemptVal}) returned 0 rows`,
+                );
+              }
+            } catch (err) {
+              console.log(
+                `[Filed Against Me] .contains attempt(${attemptVal}) threw:`,
+                err,
+              );
+            }
+          }
+
+          // 2) Try raw 'cs' filter with JSON string (older approach) as fallback
+          if (!againstData) {
+            for (const attemptVal of attempts) {
+              try {
+                // Postgres array literal for the 'cs' operator expects {"val1","val2"}
+                const pgArray = `{"${attemptVal}"}`;
+                const res = await supabase
+                  .from("complaint_tbl")
+                  .select(selectExpr)
+                  .filter("respondent_id", "cs", pgArray);
+
+                if (res.error) {
+                  console.log(
+                    `[Filed Against Me] .filter cs attempt(${attemptVal}): error`,
+                    res.error,
+                  );
+                } else if (res.data && res.data.length > 0) {
+                  againstData = res.data;
+                  againstError = null;
+                  console.log(
+                    `[Filed Against Me] .filter cs success with value=${attemptVal}: rows=`,
+                    res.data.length,
+                  );
+                  break;
+                } else {
+                  console.log(
+                    `[Filed Against Me] .filter cs attempt(${attemptVal}) returned 0 rows`,
+                  );
+                }
+              } catch (err) {
+                console.log(
+                  `[Filed Against Me] .filter cs attempt(${attemptVal}) threw:`,
+                  err,
+                );
+              }
+            }
+          }
+
+          // 3) As a last resort, fetch recent complaints and filter client-side (less efficient)
+          if (!againstData) {
+            try {
+              const res = await supabase
+                .from("complaint_tbl")
+                .select(selectExpr)
+                .order("created_at", { ascending: false });
+
+              if (res.error) {
+                console.log("[Filed Against Me] fallback fetch error:", res.error);
+                againstError = res.error;
+              } else if (res.data) {
+                const rows = res.data || [];
+                const filtered = rows.filter((row) => {
+                  const r = row.respondent_id;
+                  if (!r) return false;
+                  if (Array.isArray(r)) {
+                    return (
+                      r.includes(currentResidentId) || r.includes(String(currentResidentId))
+                    );
+                  }
+                  // try parsing if it's a JSON string
+                  if (typeof r === "string") {
+                    try {
+                      const parsed = JSON.parse(r);
+                      if (Array.isArray(parsed)) {
+                        return (
+                          parsed.includes(currentResidentId) || parsed.includes(String(currentResidentId))
+                        );
+                      }
+                    } catch (e) {
+                      // string but not JSON - compare directly
+                      return r === String(currentResidentId) || r === currentResidentId;
+                    }
+                  }
+                  return false;
+                });
+
+                if (filtered.length > 0) {
+                  againstData = filtered;
+                  againstError = null;
+                  console.log(
+                    `[Filed Against Me] client-side filter found rows=`,
+                    filtered.length,
+                  );
+                } else {
+                  console.log(
+                    `[Filed Against Me] client-side filter found 0 rows`,
+                  );
+                }
+              }
+            } catch (err) {
+              console.log("[Filed Against Me] fallback fetch threw:", err);
+              againstError = err;
+            }
+          }
+
+          // Map result to againstRows as before
           againstRows =
             !againstError && againstData
               ? againstData.map((complaint) => ({

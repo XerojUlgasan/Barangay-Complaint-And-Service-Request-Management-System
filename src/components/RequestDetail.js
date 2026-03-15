@@ -250,6 +250,23 @@ const RequestDetail = ({
                 <span>{request.submissionDate}</span>
               </div>
             </div>
+
+            {/* Respondent(s) - only for complaints */}
+            {itemType === "complaint" && (request.respondents || request.respondent_id) && (
+              <div className="detail-section">
+                <label className="detail-label">RESPONDENT(S)</label>
+                <div className="detail-value">
+                  <span className="respondent-icon">👥</span>
+                  <span>
+                    {request.respondents
+                      ? request.respondents
+                      : Array.isArray(request.respondent_id)
+                      ? request.respondent_id.join(", ")
+                      : request.respondent_id || "—"}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Request Description */}
