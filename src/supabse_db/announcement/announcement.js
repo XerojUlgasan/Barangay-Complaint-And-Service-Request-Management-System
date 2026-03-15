@@ -482,3 +482,25 @@ export const signupForEvent = async (announcementId) => {
 
   return { success: true, message: "Signed up successfully" };
 };
+
+export const cancelSignup = async (announcementId) => {
+  const { data: userData, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !userData || !userData.user) {
+    return { success: false, message: "Not authenticated" };
+  }
+
+  const userId = userData.user.id;
+
+  const { error } = await supabase
+    .from("event_participants")
+    .delete()
+    .match({ announcement_id: announcementId, user_uid: userId });
+
+  if (error) {
+    console.error("Error cancelling signup:", error);
+    return { success: false, message: error.message };
+  }
+
+  return { success: true, message: "Signup cancelled successfully" };
+};

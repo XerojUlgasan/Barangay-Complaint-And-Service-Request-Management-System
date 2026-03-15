@@ -11,6 +11,35 @@
     min-height: 100vh;
 }
 
+/* Announcement sign-up / cancel styles */
+.ann-slots {
+  margin-left: 8px;
+  font-size: 13px;
+  color: #374151;
+  font-weight: 600;
+}
+
+.ann-signup-btn {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #10b981; /* green */
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  transition: background 0.12s ease, transform 0.08s ease, box-shadow 0.12s ease;
+}
+.ann-signup-btn:hover { background: #059669; transform: translateY(-1px); }
+.ann-signup-btn:active { transform: translateY(0); }
+.ann-signup-btn:focus { outline: none; box-shadow: 0 0 0 4px rgba(5,150,105,0.12); }
+
+.ann-signup-btn.cancel {
+  background: #ef4444; /* red */
+}
+.ann-signup-btn.cancel:hover { background: #dc2626; }
+.ann-signup-btn.cancel:focus { outline: none; box-shadow: 0 0 0 4px rgba(239,68,68,0.12); }
+
 /* ── LAYOUT ── */
 .user-landing-page .layout {
     display: flex;
