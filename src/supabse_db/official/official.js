@@ -1,4 +1,8 @@
 import supabase from "../supabase_client";
+import {
+  formatResidentFullName,
+  getResidentsByAuthUids,
+} from "../resident/resident";
 
 // Helper function to check user role without causing 406 errors
 const checkUserRole = async (userId) => {
@@ -42,11 +46,6 @@ export const getAssignedComplaints = async () => {
     .select(
       `
       *,
-      member:sample_household_members_tbl!complaint_tbl_complainant_id_fkey (
-        firstname,
-        lastname,
-        middlename
-      ),
       official:official_tbl!complaint_tbl_assigned_official_id_fkey (
         firstname,
         lastname,
@@ -62,12 +61,22 @@ export const getAssignedComplaints = async () => {
     return { success: false, message: "Failed to fetch assigned complaints" };
   }
 
+  const complainantAuthUids = [
+    ...new Set(data.map((row) => row.complainant_id)),
+  ].filter(Boolean);
+  const residentsResult = await getResidentsByAuthUids(complainantAuthUids);
+  const residentNameMap = residentsResult.success
+    ? Object.fromEntries(
+        Object.entries(residentsResult.data).map(([authUid, resident]) => [
+          authUid,
+          formatResidentFullName(resident),
+        ]),
+      )
+    : {};
+
   const enriched = data.map((complaint) => ({
     ...complaint,
-    complainant_name:
-      complaint.member?.firstname && complaint.member?.lastname
-        ? `${complaint.member.firstname} ${complaint.member.lastname}`
-        : "Unknown",
+    complainant_name: residentNameMap[complaint.complainant_id] || "Unknown",
     assigned_official_name:
       complaint.official?.firstname && complaint.official?.lastname
         ? `${complaint.official.firstname} ${complaint.official.lastname}`
@@ -101,11 +110,6 @@ export const getAssignedRequests = async () => {
     .select(
       `
       *,
-      member:sample_household_members_tbl!request_tbl_user_id_fkey (
-        firstname,
-        lastname,
-        middlename
-      ),
       official:official_tbl!request_tbl_assigned_official_id_fkey (
         firstname,
         lastname,
@@ -121,12 +125,22 @@ export const getAssignedRequests = async () => {
     return { success: false, message: "Failed to fetch assigned requests" };
   }
 
+  const requesterAuthUids = [
+    ...new Set(data.map((row) => row.requester_id)),
+  ].filter(Boolean);
+  const residentsResult = await getResidentsByAuthUids(requesterAuthUids);
+  const residentNameMap = residentsResult.success
+    ? Object.fromEntries(
+        Object.entries(residentsResult.data).map(([authUid, resident]) => [
+          authUid,
+          formatResidentFullName(resident),
+        ]),
+      )
+    : {};
+
   const enriched = data.map((request) => ({
     ...request,
-    requester_name:
-      request.member?.firstname && request.member?.lastname
-        ? `${request.member.firstname} ${request.member.lastname}`
-        : "Unknown",
+    requester_name: residentNameMap[request.requester_id] || "Unknown",
     assigned_official_name:
       request.official?.firstname && request.official?.lastname
         ? `${request.official.firstname} ${request.official.lastname}`

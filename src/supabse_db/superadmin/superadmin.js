@@ -1,4 +1,6 @@
 import supabase from "../supabase_client";
+import household_supabase from "../household_supabase_client";
+import { formatResidentFullName } from "../resident/resident";
 
 // Helper function to check if user is superadmin
 const checkIsSuperAdmin = async (userId) => {
@@ -22,30 +24,42 @@ export const getAllResidents = async () => {
 
   if (!isSuperAdmin) {
     console.log("Resident does not exist or you don't have access to it");
-    return { success: false, message: "Resident does not exist or you don't have access to it" };
+    return {
+      success: false,
+      message: "Resident does not exist or you don't have access to it",
+    };
   }
 
   const { data, error } = await supabase
-    .from("sample_household_members_tbl")
-    .select(`
-      *,
-      household:household_tbl (
-        id,
-        created_at
-      )
-    `)
-    .order("id", { ascending: false });
+    .from("registered_residents")
+    .select("id")
+    .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Error fetching residents:", error);
+    console.error("Error fetching resident links:", error);
     return { success: false, message: "Failed to fetch residents" };
   }
 
-  const enriched = data.map(resident => ({
+  const residentIds = (data || []).map((row) => row.id).filter(Boolean);
+
+  if (residentIds.length === 0) {
+    return { success: true, data: [] };
+  }
+
+  const { data: residentsData, error: residentsError } =
+    await household_supabase
+      .from("residents")
+      .select("*")
+      .in("id", residentIds);
+
+  if (residentsError) {
+    console.error("Error fetching residents:", residentsError);
+    return { success: false, message: "Failed to fetch residents" };
+  }
+
+  const enriched = (residentsData || []).map((resident) => ({
     ...resident,
-    full_name: resident.firstname && resident.lastname
-      ? `${resident.firstname} ${resident.middlename ? resident.middlename + ' ' : ''}${resident.lastname}`
-      : "Unknown"
+    full_name: formatResidentFullName(resident) || "Unknown",
   }));
 
   return { success: true, data: enriched };
@@ -63,7 +77,10 @@ export const getAllOfficials = async () => {
 
   if (!isSuperAdmin) {
     console.log("Official does not exist or you don't have access to it");
-    return { success: false, message: "Official does not exist or you don't have access to it" };
+    return {
+      success: false,
+      message: "Official does not exist or you don't have access to it",
+    };
   }
 
   const { data, error } = await supabase
@@ -76,11 +93,12 @@ export const getAllOfficials = async () => {
     return { success: false, message: "Failed to fetch officials" };
   }
 
-  const enriched = data.map(official => ({
+  const enriched = data.map((official) => ({
     ...official,
-    full_name: official.firstname && official.lastname
-      ? `${official.firstname} ${official.middlename ? official.middlename + ' ' : ''}${official.lastname}`
-      : "Unknown"
+    full_name:
+      official.firstname && official.lastname
+        ? `${official.firstname} ${official.middlename ? official.middlename + " " : ""}${official.lastname}`
+        : "Unknown",
   }));
 
   return { success: true, data: enriched };
@@ -97,40 +115,41 @@ export const getResidentById = async (residentId) => {
 
   if (!isSuperAdmin) {
     console.log("Resident does not exist or you don't have access to it");
-    return { success: false, message: "Resident does not exist or you don't have access to it" };
+    return {
+      success: false,
+      message: "Resident does not exist or you don't have access to it",
+    };
   }
 
-  const { data, error } = await supabase
-    .from("sample_household_members_tbl")
-    .select(`
-      *,
-      household:household_tbl (
-        id,
-        created_at
-      )
-    `)
+  const { data, error } = await household_supabase
+    .from("residents")
+    .select("*")
     .eq("id", residentId)
     .single();
 
   if (error) {
     console.error("Error fetching resident:", error);
     console.log("Resident does not exist or you don't have access to it");
-    return { success: false, message: "Resident does not exist or you don't have access to it" };
+    return {
+      success: false,
+      message: "Resident does not exist or you don't have access to it",
+    };
   }
 
   if (!data) {
     console.log("Resident does not exist or you don't have access to it");
-    return { success: false, message: "Resident does not exist or you don't have access to it" };
+    return {
+      success: false,
+      message: "Resident does not exist or you don't have access to it",
+    };
   }
 
   return {
     success: true,
     data: {
       ...data,
-      full_name: data.firstname && data.lastname
-        ? `${data.firstname} ${data.middlename ? data.middlename + ' ' : ''}${data.lastname}`
-        : "Unknown"
-    }
+      full_name: formatResidentFullName(data) || "Unknown",
+    },
   };
 };
 
@@ -145,7 +164,10 @@ export const getOfficialById = async (officialId) => {
 
   if (!isSuperAdmin) {
     console.log("Official does not exist or you don't have access to it");
-    return { success: false, message: "Official does not exist or you don't have access to it" };
+    return {
+      success: false,
+      message: "Official does not exist or you don't have access to it",
+    };
   }
 
   const { data, error } = await supabase
@@ -157,21 +179,28 @@ export const getOfficialById = async (officialId) => {
   if (error) {
     console.error("Error fetching official:", error);
     console.log("Official does not exist or you don't have access to it");
-    return { success: false, message: "Official does not exist or you don't have access to it" };
+    return {
+      success: false,
+      message: "Official does not exist or you don't have access to it",
+    };
   }
 
   if (!data) {
     console.log("Official does not exist or you don't have access to it");
-    return { success: false, message: "Official does not exist or you don't have access to it" };
+    return {
+      success: false,
+      message: "Official does not exist or you don't have access to it",
+    };
   }
 
   return {
     success: true,
     data: {
       ...data,
-      full_name: data.firstname && data.lastname
-        ? `${data.firstname} ${data.middlename ? data.middlename + ' ' : ''}${data.lastname}`
-        : "Unknown"
-    }
+      full_name:
+        data.firstname && data.lastname
+          ? `${data.firstname} ${data.middlename ? data.middlename + " " : ""}${data.lastname}`
+          : "Unknown",
+    },
   };
 };

@@ -4,6 +4,10 @@ import supabase from "../supabse_db/supabase_client";
 import { getAnnouncements } from "../supabse_db/announcement/announcement";
 import { logout } from "../supabse_db/auth/auth";
 import { fetchAnnouncementImages } from "../supabse_db/uploadImages";
+import {
+  formatResidentFullName,
+  getResidentByAuthUid,
+} from "../supabse_db/resident/resident";
 import "./userlanding.css";
 
 const Announcements = () => {
@@ -21,21 +25,9 @@ const Announcements = () => {
       const { data: userData } = await supabase.auth.getUser();
 
       if (userData?.user) {
-        const { data: memberData } = await supabase
-          .from("sample_household_members_tbl")
-          .select("firstname, lastname, middlename")
-          .eq("auth_uid", userData.user.id)
-          .single();
-
-        if (memberData) {
-          const fullName = [
-            memberData.firstname,
-            memberData.middlename,
-            memberData.lastname,
-          ]
-            .filter(Boolean)
-            .join(" ");
-          setUserName(fullName);
+        const residentResult = await getResidentByAuthUid(userData.user.id);
+        if (residentResult.success && residentResult.data) {
+          setUserName(formatResidentFullName(residentResult.data));
         }
       }
 
