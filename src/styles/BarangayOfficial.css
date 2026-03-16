@@ -866,3 +866,262 @@
   font-weight: 600;
   font-size: 14px;
 }
+
+/* ── OFFICIAL ANNOUNCEMENTS PAGE ── */
+.ann-grid-official {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+  padding: 0 2rem 40px 2rem;
+  box-sizing: border-box;
+}
+
+.ann-card-official {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.ann-card-official:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+}
+
+.ann-image-official {
+  width: 100%;
+  height: 200px;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ann-image-official img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ann-image-placeholder-official {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #d1d5db;
+}
+
+.ann-body-official {
+  padding: 18px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.ann-meta-top-official {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.ann-meta-left-official {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ann-category-icon-official {
+  display: flex;
+  align-items: center;
+  color: #6b7280;
+}
+
+.ann-category-official {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #059669;
+  background: #d1fae5;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.ann-title-official {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+}
+
+.ann-description-official {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0 0 12px 0;
+  line-height: 1.5;
+  flex: 1;
+}
+
+.ann-footer-official {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.ann-author-official {
+  font-weight: 600;
+  color: #374151;
+}
+
+.ann-date-official {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.ann-slots-official {
+  margin-left: 8px;
+  font-size: 13px;
+  color: #374151;
+  font-weight: 600;
+}
+
+.ann-priority {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.ann-priority.high {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.ann-priority.medium {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.ann-priority.normal {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.ann-signup-btn-official {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #10b981;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  transition: background 0.12s ease, transform 0.08s ease, box-shadow 0.12s ease;
+}
+
+.ann-signup-btn-official:hover {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.ann-signup-btn-official:active {
+  transform: translateY(0);
+}
+
+.ann-signup-btn-official:focus {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.12);
+}
+
+.ann-signup-btn-official.cancel {
+  background: #ef4444;
+}
+
+.ann-signup-btn-official.cancel:hover {
+  background: #dc2626;
+}
+
+.ann-signup-btn-official.cancel:focus {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
+}
+
+/* MODAL STYLES FOR OFFICIAL */
+.modal-overlay-official {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.modal-content-official {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 480px;
+  width: 90%;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.16);
+}
+
+.modal-title-official {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 12px 0;
+}
+
+.modal-message-official {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0 0 20px 0;
+}
+
+.modal-actions-official {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.modal-btn-official {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+  font-size: 14px;
+}
+
+.modal-btn-official:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.modal-btn-official.confirm {
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}
+
+.modal-btn-official.confirm:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.modal-btn-official:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

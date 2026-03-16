@@ -24,6 +24,7 @@ import Announcements from "./raw/Announcements";
 import OfficialDashboard from "./pages/official/OfficialDashboard";
 import OfficialRequests from "./pages/official/OfficialRequests";
 import OfficialComplaints from "./pages/official/OfficialComplaints";
+import OfficialAnnouncements from "./pages/official/OfficialAnnouncements";
 
 // --- Admin pages ---
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -84,6 +85,11 @@ function AppRoutes() {
                 end: true,
               },
               {
+                path: "/BarangayOfficial/announcements",
+                label: "Announcements",
+                icon: <Megaphone size={18} />,
+              },
+              {
                 path: "/BarangayOfficial/requests",
                 label: "Requests",
                 icon: <FileText size={18} />,
@@ -102,6 +108,7 @@ function AppRoutes() {
         }
       >
         <Route index element={<OfficialDashboard />} />
+        <Route path="announcements" element={<OfficialAnnouncements />} />
         <Route path="requests" element={<OfficialRequests />} />
         <Route path="complaints" element={<OfficialComplaints />} />
       </Route>
