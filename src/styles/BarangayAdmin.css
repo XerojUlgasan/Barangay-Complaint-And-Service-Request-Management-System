@@ -2385,9 +2385,18 @@
   border-radius: 20px;
   text-transform: uppercase;
 }
-.cat-general { background: #dbeafe; color: #1d4ed8; }
-.cat-event   { background: #d1fae5; color: #065f46; }
-.cat-alert   { background: #fee2e2; color: #991b1b; }
+.cat-general {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+.cat-event {
+  background: #d1fae5;
+  color: #065f46;
+}
+.cat-alert {
+  background: #fee2e2;
+  color: #991b1b;
+}
 
 .ann-details-title {
   margin: 0;
@@ -2416,7 +2425,9 @@
   justify-content: center;
   cursor: pointer;
   color: #6b7280;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 .ann-details-close:hover {
   background: #fee2e2;

@@ -1,6 +1,15 @@
 import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Trash2, Calendar, X, Eye, Users, Clock, Tag, AlertCircle } from "lucide-react";
+import {
+  Trash2,
+  Calendar,
+  X,
+  Eye,
+  Users,
+  Clock,
+  Tag,
+  AlertCircle,
+} from "lucide-react";
 import "../../styles/BarangayAdmin.css";
 import {
   getAnnouncements,
@@ -112,7 +121,10 @@ export default function AdminAnnouncements() {
     const load = async () => {
       setParticipantsLoading(true);
       try {
-        const result = await getAnnouncementParticipants(selectedAnnouncement.id, selectedAnnouncement.audience);
+        const result = await getAnnouncementParticipants(
+          selectedAnnouncement.id,
+          selectedAnnouncement.audience,
+        );
         if (!cancelled) setParticipants(result.success ? result.data : []);
       } catch {
         if (!cancelled) setParticipants([]);
@@ -121,20 +133,24 @@ export default function AdminAnnouncements() {
       }
     };
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [selectedAnnouncement]);
 
   // Escape key + scroll lock for details modal
   useEffect(() => {
     if (!selectedAnnouncement) return;
     document.body.style.overflow = "hidden";
-    const onKey = (e) => { if (e.key === "Escape") closeAnnDetails(); };
+    const onKey = (e) => {
+      if (e.key === "Escape") closeAnnDetails();
+    };
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAnnouncement]);
 
   const handleDeleteAnnouncement = async (id) => {
@@ -452,12 +468,10 @@ export default function AdminAnnouncements() {
                     </span>
                     <span
                       className={`priority-pill priority-${
-                        selectedAnnouncement.priority?.toLowerCase() ||
-                        "normal"
+                        selectedAnnouncement.priority?.toLowerCase() || "normal"
                       }`}
                     >
-                      {selectedAnnouncement.priority?.toUpperCase() ||
-                        "NORMAL"}
+                      {selectedAnnouncement.priority?.toUpperCase() || "NORMAL"}
                     </span>
                   </div>
                   <h2 className="ann-details-title">
@@ -575,8 +589,7 @@ export default function AdminAnnouncements() {
                               {participantsLoading
                                 ? "..."
                                 : participants.length}{" "}
-                              /{" "}
-                              {selectedAnnouncement.max_participants}
+                              / {selectedAnnouncement.max_participants}
                             </span>
                           </div>
                           <div className="ann-details-fill-bar">
@@ -612,10 +625,7 @@ export default function AdminAnnouncements() {
 
                       {participantsLoading ? (
                         <div className="ann-details-loading">
-                          <div
-                            className="loading-spinner"
-                            aria-hidden="true"
-                          />
+                          <div className="loading-spinner" aria-hidden="true" />
                           Loading participants...
                         </div>
                       ) : participants.length === 0 ? (
@@ -632,7 +642,8 @@ export default function AdminAnnouncements() {
                                 <th>Full Name</th>
                                 <th>Email</th>
                                 <th>
-                                  {selectedAnnouncement.audience?.toLowerCase() === "officials"
+                                  {selectedAnnouncement.audience?.toLowerCase() ===
+                                  "officials"
                                     ? "Role"
                                     : "Contact Number"}
                                 </th>
@@ -646,18 +657,20 @@ export default function AdminAnnouncements() {
                                   <td>{p.fullName}</td>
                                   <td>{p.email}</td>
                                   <td style={{ textTransform: "capitalize" }}>
-                                    {selectedAnnouncement.audience?.toLowerCase() === "officials"
+                                    {selectedAnnouncement.audience?.toLowerCase() ===
+                                    "officials"
                                       ? p.role
                                       : p.contactNumber}
                                   </td>
                                   <td className="muted">
-                                    {new Date(
-                                      p.signedUpAt,
-                                    ).toLocaleDateString("en-US", {
-                                      year: "numeric",
-                                      month: "long",
-                                      day: "numeric",
-                                    })}
+                                    {new Date(p.signedUpAt).toLocaleDateString(
+                                      "en-US",
+                                      {
+                                        year: "numeric",
+                                        month: "long",
+                                        day: "numeric",
+                                      },
+                                    )}
                                   </td>
                                 </tr>
                               ))}
