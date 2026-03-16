@@ -1,4 +1,5 @@
 import supabase from "../supabase_client";
+import household_supabase from "../household_supabase_client";
 
 export const postAnnouncement = async (
   category,
@@ -503,4 +504,79 @@ export const cancelSignup = async (announcementId) => {
   }
 
   return { success: true, message: "Signup cancelled successfully" };
+};
+
+export const getAnnouncementParticipants = async (announcementId) => {
+  // Step 1: fetch all participant rows for this announcement
+  const { data: participants, error: pErr } = await supabase
+    .from("event_participants")
+    .select("id, user_uid, created_at")
+    .eq("announcement_id", announcementId)
+    .order("created_at", { ascending: true });
+
+  if (pErr) {
+    console.error("Error fetching participants:", pErr);
+    return { success: false, message: pErr.message };
+  }
+
+  if (!participants || participants.length === 0) {
+    return { success: true, data: [] };
+  }
+
+  const userUids = participants.map((p) => p.user_uid);
+
+  // Step 2: resolve auth_uid -> registered_residents.id + email
+  const { data: regResidents, error: rrErr } = await supabase
+    .from("registered_residents")
+    .select("id, auth_uid, email")
+    .in("auth_uid", userUids);
+
+  if (rrErr) {
+    console.error("Error fetching registered residents:", rrErr);
+    return { success: false, message: rrErr.message };
+  }
+
+  const regMap = new Map((regResidents || []).map((r) => [r.auth_uid, r]));
+  const residentIds = (regResidents || []).map((r) => r.id).filter(Boolean);
+
+  // Step 3: fetch full resident details from household_supabase
+  let detailMap = new Map();
+  if (residentIds.length > 0) {
+    const { data: residentDetails, error: rdErr } = await household_supabase
+      .from("residents")
+      .select(
+        "id, first_name, middle_name, last_name, suffix, contact_number, email, address_line",
+      )
+      .in("id", residentIds);
+
+    if (!rdErr && residentDetails) {
+      detailMap = new Map(residentDetails.map((r) => [r.id, r]));
+    }
+  }
+
+  // Merge into a flat list
+  const merged = participants.map((p) => {
+    const reg = regMap.get(p.user_uid);
+    const detail = reg ? detailMap.get(reg.id) : null;
+    const nameParts = detail
+      ? [
+          detail.first_name,
+          detail.middle_name,
+          detail.last_name,
+          detail.suffix,
+        ].filter(Boolean)
+      : [];
+    const fullName = nameParts.length ? nameParts.join(" ") : "Unknown";
+    return {
+      participantId: p.id,
+      userUid: p.user_uid,
+      signedUpAt: p.created_at,
+      email: reg?.email || detail?.email || "—",
+      fullName,
+      contactNumber: detail?.contact_number || "—",
+      addressLine: detail?.address_line || "—",
+    };
+  });
+
+  return { success: true, data: merged };
 };

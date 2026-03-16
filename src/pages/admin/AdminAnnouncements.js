@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Trash2, Calendar, Info, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Trash2, Calendar, X, Eye, Users, Clock, Tag, AlertCircle } from "lucide-react";
 import "../../styles/BarangayAdmin.css";
 import {
   getAnnouncements,
   postAnnouncement,
   deleteAnnouncement,
+  getAnnouncementParticipants,
 } from "../../supabse_db/announcement/announcement";
 import {
   uploadAnnouncementImage,
@@ -29,6 +31,9 @@ export default function AdminAnnouncements() {
     audience: "residents",
     max_participants: "",
   });
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
+  const [participants, setParticipants] = useState([]);
+  const [participantsLoading, setParticipantsLoading] = useState(false);
   const modalRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -93,6 +98,44 @@ export default function AdminAnnouncements() {
     console.log("Closing modal...");
     setShowModal(false);
   };
+
+  const openAnnDetails = (ann) => setSelectedAnnouncement(ann);
+  const closeAnnDetails = () => setSelectedAnnouncement(null);
+
+  // Load participants whenever an event announcement is selected
+  useEffect(() => {
+    if (!selectedAnnouncement || selectedAnnouncement.category !== "event") {
+      setParticipants([]);
+      return;
+    }
+    let cancelled = false;
+    const load = async () => {
+      setParticipantsLoading(true);
+      try {
+        const result = await getAnnouncementParticipants(selectedAnnouncement.id, selectedAnnouncement.audience);
+        if (!cancelled) setParticipants(result.success ? result.data : []);
+      } catch {
+        if (!cancelled) setParticipants([]);
+      } finally {
+        if (!cancelled) setParticipantsLoading(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [selectedAnnouncement]);
+
+  // Escape key + scroll lock for details modal
+  useEffect(() => {
+    if (!selectedAnnouncement) return;
+    document.body.style.overflow = "hidden";
+    const onKey = (e) => { if (e.key === "Escape") closeAnnDetails(); };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAnnouncement]);
 
   const handleDeleteAnnouncement = async (id) => {
     if (window.confirm("Are you sure you want to delete this announcement?")) {
@@ -346,6 +389,13 @@ export default function AdminAnnouncements() {
                     </div>
                     <div className="ann-actions">
                       <button
+                        className="ann-view-btn"
+                        title="View Details"
+                        onClick={() => openAnnDetails(it)}
+                      >
+                        <Eye size={16} />
+                      </button>
+                      <button
                         className="ann-trash"
                         title="Delete"
                         onClick={() => handleDeleteAnnouncement(it.id)}
@@ -376,6 +426,253 @@ export default function AdminAnnouncements() {
               </div>
             )}
       </div>
+
+      {/* Announcement Details Modal */}
+      {selectedAnnouncement &&
+        createPortal(
+          <div
+            className="ann-details-overlay"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) closeAnnDetails();
+            }}
+          >
+            <div className="ann-details-shell">
+              {/* Header */}
+              <div className="ann-details-header">
+                <div className="ann-details-header-left">
+                  <div className="ann-details-badges">
+                    <span
+                      className={`ann-details-category-badge cat-${
+                        selectedAnnouncement.category?.toLowerCase() ||
+                        "general"
+                      }`}
+                    >
+                      {selectedAnnouncement.category?.toUpperCase() ||
+                        "GENERAL"}
+                    </span>
+                    <span
+                      className={`priority-pill priority-${
+                        selectedAnnouncement.priority?.toLowerCase() ||
+                        "normal"
+                      }`}
+                    >
+                      {selectedAnnouncement.priority?.toUpperCase() ||
+                        "NORMAL"}
+                    </span>
+                  </div>
+                  <h2 className="ann-details-title">
+                    {selectedAnnouncement.title}
+                  </h2>
+                  <p className="ann-details-meta">
+                    Posted{" "}
+                    {new Date(
+                      selectedAnnouncement.created_at,
+                    ).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </p>
+                </div>
+                <button
+                  className="ann-details-close"
+                  onClick={closeAnnDetails}
+                  aria-label="Close"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Scrollable body */}
+              <div className="ann-details-content">
+                {/* Full content */}
+                <div className="ann-details-section">
+                  <div className="ann-details-section-header">
+                    <Tag size={15} />
+                    Content
+                  </div>
+                  <p className="ann-details-content-text">
+                    {selectedAnnouncement.content}
+                  </p>
+                </div>
+
+                {/* Event-only sections */}
+                {selectedAnnouncement.category === "event" && (
+                  <>
+                    {/* Event details */}
+                    <div className="ann-details-section">
+                      <div className="ann-details-section-header">
+                        <Clock size={15} />
+                        Event Details
+                      </div>
+                      <div className="ann-details-info-grid">
+                        <div className="ann-details-info-row">
+                          <span className="ann-details-info-label">
+                            Event Start
+                          </span>
+                          <span className="ann-details-info-value">
+                            {selectedAnnouncement.event_start
+                              ? new Date(
+                                  selectedAnnouncement.event_start,
+                                ).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "long",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              : "—"}
+                          </span>
+                        </div>
+                        <div className="ann-details-info-row">
+                          <span className="ann-details-info-label">
+                            Event End
+                          </span>
+                          <span className="ann-details-info-value">
+                            {selectedAnnouncement.event_end
+                              ? new Date(
+                                  selectedAnnouncement.event_end,
+                                ).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "long",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              : "—"}
+                          </span>
+                        </div>
+                        <div className="ann-details-info-row">
+                          <span className="ann-details-info-label">
+                            Audience
+                          </span>
+                          <span
+                            className="ann-details-info-value"
+                            style={{ textTransform: "capitalize" }}
+                          >
+                            {selectedAnnouncement.audience || "—"}
+                          </span>
+                        </div>
+                        <div className="ann-details-info-row">
+                          <span className="ann-details-info-label">
+                            Max Participants
+                          </span>
+                          <span className="ann-details-info-value">
+                            {selectedAnnouncement.max_participants ??
+                              "Unlimited"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Fill bar */}
+                      {selectedAnnouncement.max_participants && (
+                        <div className="ann-details-fill-wrap">
+                          <div className="ann-details-fill-label">
+                            <span>
+                              <Users size={13} /> Participants signed up
+                            </span>
+                            <span>
+                              {participantsLoading
+                                ? "..."
+                                : participants.length}{" "}
+                              /{" "}
+                              {selectedAnnouncement.max_participants}
+                            </span>
+                          </div>
+                          <div className="ann-details-fill-bar">
+                            <div
+                              className="ann-details-fill-inner"
+                              style={{
+                                width: participantsLoading
+                                  ? "0%"
+                                  : `${Math.min(
+                                      100,
+                                      (participants.length /
+                                        selectedAnnouncement.max_participants) *
+                                        100,
+                                    )}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Participants list */}
+                    <div className="ann-details-section">
+                      <div className="ann-details-section-header">
+                        <Users size={15} />
+                        Participants
+                        {!participantsLoading && (
+                          <span className="ann-details-count-chip">
+                            {participants.length}
+                          </span>
+                        )}
+                      </div>
+
+                      {participantsLoading ? (
+                        <div className="ann-details-loading">
+                          <div
+                            className="loading-spinner"
+                            aria-hidden="true"
+                          />
+                          Loading participants...
+                        </div>
+                      ) : participants.length === 0 ? (
+                        <div className="ann-details-empty">
+                          <AlertCircle size={18} />
+                          No participants have signed up yet.
+                        </div>
+                      ) : (
+                        <div className="ann-details-table-wrap">
+                          <table className="ann-details-table">
+                            <thead>
+                              <tr>
+                                <th>#</th>
+                                <th>Full Name</th>
+                                <th>Email</th>
+                                <th>
+                                  {selectedAnnouncement.audience?.toLowerCase() === "officials"
+                                    ? "Role"
+                                    : "Contact Number"}
+                                </th>
+                                <th>Signed Up At</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {participants.map((p, idx) => (
+                                <tr key={p.participantId}>
+                                  <td className="muted">{idx + 1}</td>
+                                  <td>{p.fullName}</td>
+                                  <td>{p.email}</td>
+                                  <td style={{ textTransform: "capitalize" }}>
+                                    {selectedAnnouncement.audience?.toLowerCase() === "officials"
+                                      ? p.role
+                                      : p.contactNumber}
+                                  </td>
+                                  <td className="muted">
+                                    {new Date(
+                                      p.signedUpAt,
+                                    ).toLocaleDateString("en-US", {
+                                      year: "numeric",
+                                      month: "long",
+                                      day: "numeric",
+                                    })}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
 
       {/* Modal - TEST VERSION */}
       {showModal && (
