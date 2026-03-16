@@ -68,15 +68,30 @@ export const insertComplaint = async (
   return { success: true, data };
 };
 
-export const getComplaints = async () => {
-  const { data: userData, error: authError } = await supabase.auth.getUser();
+export const getComplaints = async (options = {}) => {
+  const { userId: providedUserId = null, userRole: providedUserRole = null } =
+    options;
 
-  if (authError || !userData || !userData.user) {
-    console.log("No authenticated user found.");
-    return { success: false, message: "Not authenticated" };
+  let userId = providedUserId;
+  let userRole = providedUserRole;
+
+  if (!userId) {
+    const { data: userData, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !userData || !userData.user) {
+      console.log("No authenticated user found.");
+      return { success: false, message: "Not authenticated" };
+    }
+
+    userId = userData.user.id;
   }
 
-  const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
+  if (!userRole) {
+    const { isSuperAdmin, isOfficial } = await checkUserRole(userId);
+    if (isSuperAdmin) userRole = "superadmin";
+    else if (isOfficial) userRole = "official";
+    else userRole = "resident";
+  }
 
   let query = supabase
     .from("complaint_tbl")
@@ -92,11 +107,11 @@ export const getComplaints = async () => {
     )
     .order("created_at", { ascending: false });
 
-  if (isSuperAdmin || isOfficial) {
+  if (userRole === "superadmin" || userRole === "official") {
     // Officials and superadmin can view all complaints
   } else {
     // Residents can view only their own complaints
-    query = query.eq("complainant_id", userData.user.id);
+    query = query.eq("complainant_id", userId);
   }
 
   const { data, error } = await query;

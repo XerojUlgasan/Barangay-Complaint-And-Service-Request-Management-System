@@ -1,19 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import supabase from "../../supabse_db/supabase_client";
-import { getAnnouncements, signupForEvent, cancelSignup } from "../../supabse_db/announcement/announcement";
+import {
+  getAnnouncements,
+  signupForEvent,
+  cancelSignup,
+} from "../../supabse_db/announcement/announcement";
 import { logout } from "../../supabse_db/auth/auth";
 import { fetchAnnouncementImages } from "../../supabse_db/uploadImages";
-import {
-  formatResidentFullName,
-  getResidentByAuthUid,
-} from "../../supabse_db/resident/resident";
+import { useAuth } from "../../context/AuthContext";
 import "../../styles/UserPages.css";
 
 const Announcements = () => {
   const navigate = useNavigate();
-
-  const [userName, setUserName] = useState("");
+  const { authUser, userLoading, userName } = useAuth();
   const [announcements, setAnnouncements] = useState([]);
   const [announcementImages, setAnnouncementImages] = useState({});
   const [loading, setLoading] = useState(true);
@@ -25,18 +24,12 @@ const Announcements = () => {
   const [signupMessage, setSignupMessage] = useState(null);
   const [signupAction, setSignupAction] = useState("signup");
   const [userSignups, setUserSignups] = useState({});
+  const [participantCounts, setParticipantCounts] = useState({});
 
   useEffect(() => {
+    if (userLoading || !authUser) return;
+
     const fetchData = async () => {
-      const { data: userData } = await supabase.auth.getUser();
-
-      if (userData?.user) {
-        const residentResult = await getResidentByAuthUid(userData.user.id);
-        if (residentResult.success && residentResult.data) {
-          setUserName(formatResidentFullName(residentResult.data));
-        }
-      }
-
       const result = await getAnnouncements();
       if (result.success) {
         setAnnouncements(result.data);
@@ -50,58 +43,22 @@ const Announcements = () => {
         await Promise.all(imagePromises);
         setAnnouncementImages(imageMap);
 
-        // fetch participant counts for event announcements that have max_participants
+        // Use participant_count from vw_events_with_participant_count
         const eventAnns = result.data.filter(
-          (a) => a.category && String(a.category).toLowerCase() === "event"
+          (a) => a.category && String(a.category).toLowerCase() === "event",
         );
-        if (eventAnns.length > 0) {
-          const counts = {};
-          await Promise.all(
-            eventAnns.map(async (a) => {
-              try {
-                const { count, error } = await supabase
-                  .from("event_participants")
-                  .select("*", { count: "exact", head: true })
-                  .eq("announcement_id", a.id);
-                if (!error) counts[a.id] = typeof count === "number" ? count : 0;
-                else counts[a.id] = 0;
-              } catch (err) {
-                counts[a.id] = 0;
-              }
-            })
-          );
-          setParticipantCounts(counts);
-          // if logged in, fetch which events this user signed up for
-          if (userData && userData.user) {
-            try {
-              const annIds = eventAnns.map((a) => a.id);
-              const { data: signupRows, error: signupError } = await supabase
-                .from("event_participants")
-                .select("announcement_id")
-                .in("announcement_id", annIds)
-                .eq("user_uid", userData.user.id);
-
-              if (!signupError && Array.isArray(signupRows)) {
-                const signups = {};
-                signupRows.forEach((r) => {
-                  signups[r.announcement_id] = true;
-                });
-                setUserSignups(signups);
-              }
-            } catch (err) {
-              // ignore
-            }
-          }
-        }
+        const counts = {};
+        eventAnns.forEach((a) => {
+          counts[a.id] = Number(a.participant_count) || 0;
+        });
+        setParticipantCounts(counts);
       }
 
       setLoading(false);
     };
 
     fetchData();
-  }, []);
-
-  const [participantCounts, setParticipantCounts] = useState({});
+  }, [authUser, userLoading]);
 
   const handleLogoutConfirm = async () => {
     try {
@@ -400,41 +357,47 @@ const Announcements = () => {
                         <span className="ann-date">
                           {formatDate(ann.created_at)}
                         </span>
-                        {ann.category && ann.category.toLowerCase() === "event" && (
-                          <>
-                            {typeof ann.max_participants !== "undefined" && ann.max_participants !== null && (
-                              <span className="ann-slots">
-                                {((participantCounts && participantCounts[ann.id]) || 0) + " / " + ann.max_participants}
-                              </span>
-                            )}
+                        {ann.category &&
+                          ann.category.toLowerCase() === "event" && (
+                            <>
+                              {typeof ann.max_participants !== "undefined" &&
+                                ann.max_participants !== null && (
+                                  <span className="ann-slots">
+                                    {((participantCounts &&
+                                      participantCounts[ann.id]) ||
+                                      0) +
+                                      " / " +
+                                      ann.max_participants}
+                                  </span>
+                                )}
 
-                            {userSignups && userSignups[ann.id] ? (
-                              <button
-                                className="ann-signup-btn cancel"
-                                onClick={() => {
-                                  setSelectedAnnouncement(ann);
-                                  setSignupMessage(null);
-                                  setSignupAction("cancel");
-                                  setShowSignupModal(true);
-                                }}
-                              >
-                                Cancel Signup
-                              </button>
-                            ) : (
-                              <button
-                                className="ann-signup-btn"
-                                onClick={() => {
-                                  setSelectedAnnouncement(ann);
-                                  setSignupMessage(null);
-                                  setSignupAction("signup");
-                                  setShowSignupModal(true);
-                                }}
-                              >
-                                Sign Up
-                              </button>
-                            )}
-                          </>
-                        )}
+                              {userSignups && userSignups[ann.id] ? (
+                                <button
+                                  className="ann-signup-btn cancel"
+                                  onClick={() => {
+                                    setSelectedAnnouncement(ann);
+                                    setSignupMessage(null);
+                                    setSignupAction("cancel");
+                                    setShowSignupModal(true);
+                                  }}
+                                >
+                                  Cancel Signup
+                                </button>
+                              ) : (
+                                <button
+                                  className="ann-signup-btn"
+                                  onClick={() => {
+                                    setSelectedAnnouncement(ann);
+                                    setSignupMessage(null);
+                                    setSignupAction("signup");
+                                    setShowSignupModal(true);
+                                  }}
+                                >
+                                  Sign Up
+                                </button>
+                              )}
+                            </>
+                          )}
                       </div>
                     </div>
                   </div>
@@ -457,7 +420,8 @@ const Announcements = () => {
             >
               <h3 className="logout-modal-title">Confirm Signup</h3>
               <p>
-                Are you sure you want to sign up for <b>{selectedAnnouncement.title}</b>?
+                Are you sure you want to sign up for{" "}
+                <b>{selectedAnnouncement.title}</b>?
               </p>
               {signupMessage && (
                 <p style={{ color: signupMessage.success ? "green" : "red" }}>
@@ -479,12 +443,21 @@ const Announcements = () => {
                     setSignupMessage(null);
                     try {
                       if (signupAction === "signup") {
-                        const res = await signupForEvent(selectedAnnouncement.id);
+                        const res = await signupForEvent(
+                          selectedAnnouncement.id,
+                        );
                         setSignupMessage(res);
                         if (res && res.success) {
                           // update local state: mark as signed up and increment count
-                          setUserSignups((s) => ({ ...s, [selectedAnnouncement.id]: true }));
-                          setParticipantCounts((c) => ({ ...c, [selectedAnnouncement.id]: (c[selectedAnnouncement.id] || 0) + 1 }));
+                          setUserSignups((s) => ({
+                            ...s,
+                            [selectedAnnouncement.id]: true,
+                          }));
+                          setParticipantCounts((c) => ({
+                            ...c,
+                            [selectedAnnouncement.id]:
+                              (c[selectedAnnouncement.id] || 0) + 1,
+                          }));
                           // close modal after short delay
                           setTimeout(() => {
                             setShowSignupModal(false);
@@ -500,7 +473,13 @@ const Announcements = () => {
                             delete n[selectedAnnouncement.id];
                             return n;
                           });
-                          setParticipantCounts((c) => ({ ...c, [selectedAnnouncement.id]: Math.max(0, (c[selectedAnnouncement.id] || 1) - 1) }));
+                          setParticipantCounts((c) => ({
+                            ...c,
+                            [selectedAnnouncement.id]: Math.max(
+                              0,
+                              (c[selectedAnnouncement.id] || 1) - 1,
+                            ),
+                          }));
                           setTimeout(() => {
                             setShowSignupModal(false);
                           }, 400);
@@ -508,14 +487,23 @@ const Announcements = () => {
                       }
                     } catch (err) {
                       console.error("Signup action error:", err);
-                      setSignupMessage({ success: false, message: "Operation failed" });
+                      setSignupMessage({
+                        success: false,
+                        message: "Operation failed",
+                      });
                     } finally {
                       setSignupLoading(false);
                     }
                   }}
                   disabled={signupLoading}
                 >
-                  {signupLoading ? (signupAction === "signup" ? "Signing up..." : "Cancelling...") : signupAction === "signup" ? "Yes, Sign Up" : "Yes, Cancel"}
+                  {signupLoading
+                    ? signupAction === "signup"
+                      ? "Signing up..."
+                      : "Cancelling..."
+                    : signupAction === "signup"
+                      ? "Yes, Sign Up"
+                      : "Yes, Cancel"}
                 </button>
               </div>
             </div>

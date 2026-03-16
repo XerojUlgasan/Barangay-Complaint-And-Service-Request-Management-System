@@ -8,14 +8,15 @@ import { logout } from "../../supabse_db/auth/auth";
 import supabase from "../../supabse_db/supabase_client";
 import {
   formatResidentFullName,
-  getResidentByAuthUid,
   getResidentsByAuthUids,
   getResidentsByIds,
 } from "../../supabse_db/resident/resident";
+import { useAuth } from "../../context/AuthContext";
 import "../../styles/UserPages.css";
 
 const MyComplaints = () => {
   const navigate = useNavigate();
+  const { authUser, resident, residentLoading, userName, userRole } = useAuth();
 
   const [activeTab, setActiveTab] = useState("filed");
   const [complaints, setComplaints] = useState([]);
@@ -23,7 +24,6 @@ const MyComplaints = () => {
   const [loading, setLoading] = useState(true);
   const [againstLoading, setAgainstLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState(null);
-  const [userName, setUserName] = useState("");
   const [filter, setFilter] = useState("All Status");
   const [againstFilter, setAgainstFilter] = useState("All Status");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -40,21 +40,22 @@ const MyComplaints = () => {
   const [respondentNames, setRespondentNames] = useState({});
 
   useEffect(() => {
+    // Wait until auth context has finished loading the resident so this
+    // effect only fires once — not once for authUser changing and again
+    // when resident data arrives.
+    if (residentLoading) return;
+
     const fetchData = async () => {
-      const { data: userData } = await supabase.auth.getUser();
+      if (authUser) {
+        setCurrentUserId(authUser.id);
 
-      if (userData?.user) {
-        setCurrentUserId(userData.user.id);
+        let currentResidentId = resident?.id || null;
 
-        const residentResult = await getResidentByAuthUid(userData.user.id);
-        let currentResidentId = null;
-
-        if (residentResult.success && residentResult.data) {
-          setUserName(formatResidentFullName(residentResult.data));
-          currentResidentId = residentResult.data.id;
-        }
-
-        const result = await getComplaints();
+        const result = await getComplaints({
+          userId: authUser.id,
+          userRole: userRole || "resident",
+        });
+        const filedData = result.success ? result.data : [];
         if (result.success) {
           setComplaints(result.data);
         }
@@ -80,12 +81,14 @@ const MyComplaints = () => {
           let againstError = null;
 
           const attempts = Array.from(
-            new Set([
-              currentResidentId,
-              userData.user.id,
-              String(currentResidentId),
-              String(userData.user.id),
-            ].filter(Boolean)),
+            new Set(
+              [
+                currentResidentId,
+                authUser.id,
+                String(currentResidentId),
+                String(authUser.id),
+              ].filter(Boolean),
+            ),
           );
 
           // 1) Try .contains with numeric and string representation
@@ -169,7 +172,10 @@ const MyComplaints = () => {
                 .order("created_at", { ascending: false });
 
               if (res.error) {
-                console.log("[Filed Against Me] fallback fetch error:", res.error);
+                console.log(
+                  "[Filed Against Me] fallback fetch error:",
+                  res.error,
+                );
                 againstError = res.error;
               } else if (res.data) {
                 const rows = res.data || [];
@@ -178,7 +184,8 @@ const MyComplaints = () => {
                   if (!r) return false;
                   if (Array.isArray(r)) {
                     return (
-                      r.includes(currentResidentId) || r.includes(String(currentResidentId))
+                      r.includes(currentResidentId) ||
+                      r.includes(String(currentResidentId))
                     );
                   }
                   // try parsing if it's a JSON string
@@ -187,12 +194,16 @@ const MyComplaints = () => {
                       const parsed = JSON.parse(r);
                       if (Array.isArray(parsed)) {
                         return (
-                          parsed.includes(currentResidentId) || parsed.includes(String(currentResidentId))
+                          parsed.includes(currentResidentId) ||
+                          parsed.includes(String(currentResidentId))
                         );
                       }
                     } catch (e) {
                       // string but not JSON - compare directly
-                      return r === String(currentResidentId) || r === currentResidentId;
+                      return (
+                        r === String(currentResidentId) ||
+                        r === currentResidentId
+                      );
                     }
                   }
                   return false;
@@ -230,7 +241,7 @@ const MyComplaints = () => {
               : [];
         }
 
-        const filedRows = result.success ? result.data : [];
+        const filedRows = Array.isArray(filedData) ? filedData : [];
         const respondentResidentIds = [...filedRows, ...againstRows]
           .flatMap((complaint) => complaint.respondent_id || [])
           .filter(Boolean);
@@ -270,8 +281,7 @@ const MyComplaints = () => {
         );
         setAgainstLoading(false);
       } else {
-        const result = await getComplaints();
-        if (result.success) setComplaints(result.data);
+        setComplaints([]);
         setAgainstLoading(false);
       }
 
@@ -279,7 +289,7 @@ const MyComplaints = () => {
     };
 
     fetchData();
-  }, []);
+  }, [authUser, resident, residentLoading]);
 
   const handleLogoutConfirm = async () => {
     try {
