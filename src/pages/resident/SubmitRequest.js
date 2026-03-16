@@ -1,15 +1,15 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { insertRequest } from "../supabse_db/request/request";
-import { insertComplaint } from "../supabse_db/complaint/complaint";
-import { uploadAnImage } from "../supabse_db/uploadImages";
-import supabase from "../supabse_db/supabase_client";
-import household_supabase from "../supabse_db/household_supabase_client";
+import { insertRequest } from "../../supabse_db/request/request";
+import { insertComplaint } from "../../supabse_db/complaint/complaint";
+import { uploadAnImage } from "../../supabse_db/uploadImages";
+import supabase from "../../supabse_db/supabase_client";
+import household_supabase from "../../supabse_db/household_supabase_client";
 import {
   formatResidentFullName,
   getResidentByAuthUid,
-} from "../supabse_db/resident/resident";
-import "./userlanding.css";
+} from "../../supabse_db/resident/resident";
+import "../../styles/UserPages.css";
 
 const SubmitRequest = () => {
   const navigate = useNavigate();

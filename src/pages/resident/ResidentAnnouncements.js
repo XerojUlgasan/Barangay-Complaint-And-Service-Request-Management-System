@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import supabase from "../supabse_db/supabase_client";
-import { getAnnouncements, signupForEvent, cancelSignup } from "../supabse_db/announcement/announcement";
-import { logout } from "../supabse_db/auth/auth";
-import { fetchAnnouncementImages } from "../supabse_db/uploadImages";
+import supabase from "../../supabse_db/supabase_client";
+import { getAnnouncements, signupForEvent, cancelSignup } from "../../supabse_db/announcement/announcement";
+import { logout } from "../../supabse_db/auth/auth";
+import { fetchAnnouncementImages } from "../../supabse_db/uploadImages";
 import {
   formatResidentFullName,
   getResidentByAuthUid,
-} from "../supabse_db/resident/resident";
-import "./userlanding.css";
+} from "../../supabse_db/resident/resident";
+import "../../styles/UserPages.css";
 
 const Announcements = () => {
   const navigate = useNavigate();

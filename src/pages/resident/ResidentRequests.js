@@ -4,15 +4,15 @@ import {
   getRequests,
   getRequestHistory,
   markRequestResidentComplied,
-} from "../supabse_db/request/request";
-import { logout } from "../supabse_db/auth/auth";
-import { uploadAnImage } from "../supabse_db/uploadImages";
-import supabase from "../supabse_db/supabase_client";
+} from "../../supabse_db/request/request";
+import { logout } from "../../supabse_db/auth/auth";
+import { uploadAnImage } from "../../supabse_db/uploadImages";
+import supabase from "../../supabse_db/supabase_client";
 import {
   formatResidentFullName,
   getResidentByAuthUid,
-} from "../supabse_db/resident/resident";
-import "./userlanding.css";
+} from "../../supabse_db/resident/resident";
+import "../../styles/UserPages.css";
 
 const MyRequests = () => {
   const navigate = useNavigate();

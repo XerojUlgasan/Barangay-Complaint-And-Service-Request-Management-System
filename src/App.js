@@ -12,13 +12,13 @@ import Layout from "./components/Layout";
 import { LayoutDashboard, FileText, Megaphone, Users } from "lucide-react";
 
 // --- Public / User-facing pages ---
-import Homepage from "./raw/Homepage";
-import Login from "./raw/Login";
-import UserLanding from "./raw/Userlanding";
-import SubmitRequest from "./raw/SubmitRequest";
-import MyRequest from "./raw/Myrequest";
-import MyComplaints from "./raw/Mycomplaints";
-import Announcements from "./raw/Announcements";
+import Homepage from "./pages/guest/Home";
+import Login from "./pages/guest/Login";
+import UserLanding from "./pages/resident/ResidentDashboard";
+import SubmitRequest from "./pages/resident/SubmitRequest";
+import MyRequest from "./pages/resident/ResidentRequests";
+import MyComplaints from "./pages/resident/ResidentComplaints";
+import Announcements from "./pages/resident/ResidentAnnouncements";
 
 // --- Official pages ---
 import OfficialDashboard from "./pages/official/OfficialDashboard";

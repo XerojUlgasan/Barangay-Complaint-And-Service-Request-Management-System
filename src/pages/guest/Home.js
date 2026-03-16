@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
-import "./homepage.css";
+import "../../styles/Home.css";
 import { Link } from "react-router-dom";
-import { getAnnouncements } from "../supabse_db/announcement/announcement";
-import { fetchAnnouncementImages } from "../supabse_db/uploadImages";
-import household_supabase from "../supabse_db/household_supabase_client";
+import { getAnnouncements } from "../../supabse_db/announcement/announcement";
+import { fetchAnnouncementImages } from "../../supabse_db/uploadImages";
+import household_supabase from "../../supabse_db/household_supabase_client";
 
-function Homepage() {
+function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [announcements, setAnnouncements] = useState([]);
   const [announcementImages, setAnnouncementImages] = useState({});
@@ -577,4 +577,4 @@ function Homepage() {
   );
 }
 
-export default Homepage;
+export default Home;

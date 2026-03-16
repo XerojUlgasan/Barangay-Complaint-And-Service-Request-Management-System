@@ -3,16 +3,16 @@ import { useNavigate } from "react-router-dom";
 import {
   getComplaints,
   getComplaintHistory,
-} from "../supabse_db/complaint/complaint";
-import { logout } from "../supabse_db/auth/auth";
-import supabase from "../supabse_db/supabase_client";
+} from "../../supabse_db/complaint/complaint";
+import { logout } from "../../supabse_db/auth/auth";
+import supabase from "../../supabse_db/supabase_client";
 import {
   formatResidentFullName,
   getResidentByAuthUid,
   getResidentsByAuthUids,
   getResidentsByIds,
-} from "../supabse_db/resident/resident";
-import "./userlanding.css";
+} from "../../supabse_db/resident/resident";
+import "../../styles/UserPages.css";
 
 const MyComplaints = () => {
   const navigate = useNavigate();

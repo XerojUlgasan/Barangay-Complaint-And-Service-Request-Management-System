@@ -5,8 +5,8 @@ import {
   checkHouseholdMember,
   registerByEmail,
   checkUserRole,
-} from "../supabse_db/auth/auth";
-import "./login.css";
+} from "../../supabse_db/auth/auth";
+import "../../styles/Auth.css";
 
 const Login = () => {
   const [isSignIn, setIsSignIn] = useState(true);

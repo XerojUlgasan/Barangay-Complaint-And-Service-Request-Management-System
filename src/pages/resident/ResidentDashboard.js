@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getRequests } from "../supabse_db/request/request";
-import { getComplaints } from "../supabse_db/complaint/complaint";
-import { logout } from "../supabse_db/auth/auth";
-import supabase from "../supabse_db/supabase_client";
+import { getRequests } from "../../supabse_db/request/request";
+import { getComplaints } from "../../supabse_db/complaint/complaint";
+import { logout } from "../../supabse_db/auth/auth";
+import supabase from "../../supabse_db/supabase_client";
 import {
   formatResidentFullName,
   getResidentByAuthUid,
-} from "../supabse_db/resident/resident";
-import "./userlanding.css";
+} from "../../supabse_db/resident/resident";
+import "../../styles/UserPages.css";
 
-const UserLanding = () => {
+const Dashboard = () => {
   const navigate = useNavigate();
 
   const [requests, setRequests] = useState([]);
@@ -66,7 +66,6 @@ const UserLanding = () => {
 
   const closeSidebar = () => setSidebarOpen(false);
 
-  // Normalize strips spaces/underscores and lowercases for safe comparison
   const normalize = (str) => (str || "").toLowerCase().replace(/[\s_-]/g, "");
 
   const pendingCount =
@@ -249,7 +248,6 @@ const UserLanding = () => {
 
         {/* SIDEBAR */}
         <aside className={`sidebar${sidebarOpen ? " open" : ""}`}>
-          {/* Close button (mobile only) */}
           <button
             className="sidebar-close"
             onClick={closeSidebar}
@@ -322,9 +320,7 @@ const UserLanding = () => {
 
         {/* MAIN CONTENT */}
         <main className="main">
-          {/* TOPBAR */}
           <div className="topbar">
-            {/* Hamburger — visible only on mobile */}
             <button
               className="hamburger-btn"
               onClick={() => setSidebarOpen(true)}
@@ -370,13 +366,11 @@ const UserLanding = () => {
             </div>
           </div>
 
-          {/* WELCOME */}
           <div className="welcome">
             <h1>Welcome, {userName || "..."}!</h1>
             <p>Manage your barangay services and requests</p>
           </div>
 
-          {/* ACTION CARDS */}
           <div className="action-cards">
             <button
               onClick={() => setShowSubmitModal(true)}
@@ -398,7 +392,6 @@ const UserLanding = () => {
             </a>
           </div>
 
-          {/* STATUS CARDS */}
           <div className="status-cards">
             <div className="status">
               <div className="status-left">
@@ -443,7 +436,6 @@ const UserLanding = () => {
             </div>
           </div>
 
-          {/* RECENT REQUESTS */}
           <div className="recent">
             <div className="recent-header">
               <h3>Recent Requests</h3>
@@ -499,4 +491,4 @@ const UserLanding = () => {
   );
 };
 
-export default UserLanding;
+export default Dashboard;
