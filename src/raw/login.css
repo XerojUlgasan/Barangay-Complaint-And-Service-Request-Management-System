@@ -47,17 +47,18 @@ html, body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 70px;
-  height: 70px;
-  background-color: #059669;
+  width: 160px;
+  height: 160px;
+  background-color: transparent;
   border: none;
-  border-radius: 40px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  border-radius: 80px;
+  box-shadow: none;
   cursor: pointer;
   transition: background-color 0.2s ease;
   outline: none;
-  margin-bottom: 20px;
+  margin-bottom: -1px;
   margin-left: 10px;
+  overflow: hidden;
 }
 
 .login-page .shield-icon {
@@ -68,6 +69,52 @@ html, body {
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.login-page .brgy-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.login-page .password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.login-page .password-input-wrapper .form-control {
+  width: 100%;
+  padding-right: 40px;
+}
+
+.login-page .password-eye-btn {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: #6b7280;
+  transition: color 0.12s ease;
+  padding: 0;
+}
+
+.login-page .password-eye-btn:hover {
+  color: #059669;
+}
+
+.login-page .password-eye-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
 }
 
 .login-page .container {
@@ -284,12 +331,20 @@ html, body {
   }
 
   .login-page .shield-button {
-    width: 55px;
-    height: 55px;
+    width: 120px;
+    height: 120px;
+    border-radius: 60px;
+    margin-bottom: 8px;
   }
 
   .login-page .shield-icon {
     width: 28px;
     height: 28px;
+  }
+
+  .login-page .brgy-logo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 }
