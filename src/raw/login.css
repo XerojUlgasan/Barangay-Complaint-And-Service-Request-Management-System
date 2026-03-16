@@ -56,7 +56,7 @@ html, body {
   cursor: pointer;
   transition: background-color 0.2s ease;
   outline: none;
-  margin-bottom: -1px;
+  margin-bottom: -3px;
   margin-left: 10px;
   overflow: hidden;
 }
