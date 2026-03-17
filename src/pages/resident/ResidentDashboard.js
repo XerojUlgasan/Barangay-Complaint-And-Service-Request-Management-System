@@ -268,13 +268,11 @@ const Dashboard = () => {
 
           <div className="logo-section">
             <div className="logo-icon">
-              <svg viewBox="0 0 24 24" className="shield-logo">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
+              <img src="/brgyease.png" alt="BarangayEase Logo" />
             </div>
             <div>
-              <h2>BARANGAYLINK</h2>
-              <p>Resident Services Registry</p>
+              <h2>BarangayEase</h2>
+              <p>Resident Services</p>
             </div>
           </div>
 
