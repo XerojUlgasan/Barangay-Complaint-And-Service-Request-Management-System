@@ -226,7 +226,7 @@
 }
 
 .user-landing-page .topbar h3 {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 600;
     color: #1f2937;
     margin: 0;
@@ -242,14 +242,15 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    color: #374151;
+    color: #6b7280;
     transition: all 0.15s ease;
     flex-shrink: 0;
 }
 
 .user-landing-page .hamburger-btn:hover { 
-    background: #f9fafb;
+    background: #f3f4f6;
     border-color: #d1d5db;
+    color: #1f2937;
 }
 
 .user-landing-page .user { 
@@ -291,14 +292,15 @@
 }
 
 .user-landing-page .back-button:hover { 
-    background: #f9fafb; 
+    background: #f3f4f6; 
     border-color: #d1d5db;
+    color: #dc2626;
 }
 
 .user-landing-page .back-button svg { 
     width: 18px; 
     height: 18px; 
-    color: #374151;
+    color: #6b7280;
 }
 
 /* ── CONTENT BODY ── */
@@ -379,7 +381,7 @@
 }
 
 .user-landing-page .card.green { 
-    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    background: linear-gradient(135deg, #50c878 0%, #47b366 100%);
 }
 
 .user-landing-page .card.clickable { 
@@ -491,7 +493,7 @@
 
 .user-landing-page .green-icon { 
     background: #dcfce7; 
-    color: #059669;
+    color: #50c878;
 }
 
 /* ── RECENT REQUESTS ── */
@@ -608,14 +610,24 @@
 
 /* ── BADGES ── */
 .user-landing-page .badge {
-    padding: 5px 12px; border-radius: 16px; font-size: 12px; font-weight: 600;
-    white-space: nowrap; flex-shrink: 0; display: inline-flex !important;
-    align-items: center; justify-content: center;
-    width: fit-content !important; min-width: unset !important; max-width: fit-content !important; height: 28px;
+    padding: 6px 12px; 
+    border-radius: 16px; 
+    font-size: 12px; 
+    font-weight: 600;
+    white-space: nowrap; 
+    flex-shrink: 0; 
+    display: inline-flex !important;
+    align-items: center; 
+    justify-content: center;
+    width: fit-content !important; 
+    min-width: unset !important; 
+    max-width: fit-content !important; 
+    height: 28px;
 }
+
 .user-landing-page .badge.pending    { background: #fef3c7; color: #d97706; }
 .user-landing-page .badge.progress   { background: #dbeafe; color: #2563eb; }
-.user-landing-page .badge.completed  { background: #d1fae5; color: #059669; }
+.user-landing-page .badge.completed  { background: #dcfce7; color: #50c878; }
 .user-landing-page .badge.rejected   { background: #fee2e2; color: #dc2626; }
 .user-landing-page .badge.forvalidation { background: #e0f2fe; color: #0369a1; }
 .user-landing-page .badge.noncompliant  { background: #fce7f3; color: #9d174d; }
