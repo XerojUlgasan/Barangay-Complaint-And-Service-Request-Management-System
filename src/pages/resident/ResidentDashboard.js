@@ -1,50 +1,49 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getRequests } from "../../supabse_db/request/request";
-import { getComplaints } from "../../supabse_db/complaint/complaint";
 import { logout } from "../../supabse_db/auth/auth";
 import supabase from "../../supabse_db/supabase_client";
-import {
-  formatResidentFullName,
-  getResidentByAuthUid,
-} from "../../supabse_db/resident/resident";
+import { useAuth } from "../../context/AuthContext";
 import "../../styles/UserPages.css";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { authUser, userName, userLoading } = useAuth();
 
-  const [requests, setRequests] = useState([]);
-  const [complaints, setComplaints] = useState([]);
+  const [counts, setCounts] = useState([]);
+  const [recentRequests, setRecentRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState("");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
+    if (userLoading || !authUser) return;
+
     const fetchData = async () => {
-      const { data: userData } = await supabase.auth.getUser();
+      setLoading(true);
 
-      if (userData?.user) {
-        const residentResult = await getResidentByAuthUid(userData.user.id);
-        if (residentResult.success && residentResult.data) {
-          setUserName(formatResidentFullName(residentResult.data));
-        }
-      }
-
-      const [requestResult, complaintResult] = await Promise.all([
-        getRequests(),
-        getComplaints(),
+      const [countsRes, requestsRes] = await Promise.all([
+        // Pre-aggregated view — one row per (source, category)
+        supabase
+          .from("vw_user_dashboard_counts")
+          .select("source, category, total")
+          .eq("user_id", authUser.id),
+        // Only the 3 most recent requests for the Recent Requests list
+        supabase
+          .from("request_tbl")
+          .select("id, subject, description, created_at, request_status")
+          .eq("requester_id", authUser.id)
+          .order("created_at", { ascending: false })
+          .limit(3),
       ]);
 
-      if (requestResult.success) setRequests(requestResult.data);
-      if (complaintResult.success) setComplaints(complaintResult.data);
-
+      if (countsRes.data) setCounts(countsRes.data);
+      if (requestsRes.data) setRecentRequests(requestsRes.data);
       setLoading(false);
     };
 
     fetchData();
-  }, []);
+  }, [authUser, userLoading]);
 
   const handleLogoutConfirm = async () => {
     try {
@@ -68,24 +67,17 @@ const Dashboard = () => {
 
   const normalize = (str) => (str || "").toLowerCase().replace(/[\s_-]/g, "");
 
-  const pendingCount =
-    requests.filter((r) => normalize(r.request_status) === "pending").length +
-    complaints.filter((c) => normalize(c.status) === "pending").length;
+  // Sum totals from the view for request status counters only.
+  // (Complaint rows in the view are grouped by priority_level, not status.)
+  const requestCounts = counts.filter((r) => r.source === "request");
+  const sumCategory = (cat) =>
+    requestCounts
+      .filter((r) => normalize(r.category) === normalize(cat))
+      .reduce((sum, r) => sum + Number(r.total), 0);
 
-  const inProgressCount =
-    requests.filter((r) => normalize(r.request_status) === "inprogress")
-      .length +
-    complaints.filter((c) => normalize(c.status) === "inprogress").length;
-
-  const completedCount =
-    requests.filter((r) => normalize(r.request_status) === "completed").length +
-    complaints.filter(
-      (c) =>
-        normalize(c.status) === "completed" ||
-        normalize(c.status) === "resolved",
-    ).length;
-
-  const recentRequests = requests.slice(0, 3);
+  const pendingCount = sumCategory("pending");
+  const inProgressCount = sumCategory("inprogress");
+  const completedCount = sumCategory("completed");
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "";

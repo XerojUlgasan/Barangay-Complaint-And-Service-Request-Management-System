@@ -1,39 +1,89 @@
 import supabase from "../supabase_client";
 import household_supabase from "../household_supabase_client";
 
-export const formatResidentFullName = (resident) => {
-  if (!resident) return "";
+const residentByAuthUidCache = new Map();
+const residentByIdCache = new Map();
+const residentLookupPromises = new Map();
+const RESIDENT_CACHE_STORAGE_KEY = "barangaylink:resident-cache";
+let persistentCacheHydrated = false;
 
-  return [resident.first_name, resident.middle_name, resident.last_name]
-    .filter(Boolean)
-    .join(" ");
+const canUseSessionStorage = () => {
+  return typeof window !== "undefined" && !!window.sessionStorage;
 };
 
-export const getResidentByAuthUid = async (authUid) => {
-  const { data: registrationData, error: registrationError } = await supabase
-    .from("registered_residents")
-    .select("id, auth_uid, email, is_activated")
-    .eq("auth_uid", authUid)
-    .maybeSingle();
-
-  if (registrationError) {
-    return { success: false, message: registrationError.message, data: null };
+const writePersistentCache = () => {
+  if (!canUseSessionStorage()) {
+    return;
   }
 
-  if (!registrationData) {
+  try {
+    window.sessionStorage.setItem(
+      RESIDENT_CACHE_STORAGE_KEY,
+      JSON.stringify({
+        byAuthUid: Array.from(residentByAuthUidCache.entries()),
+        byId: Array.from(residentByIdCache.entries()),
+      }),
+    );
+  } catch (error) {
+    console.error("Failed to persist resident cache:", error);
+  }
+};
+
+const hydratePersistentCache = () => {
+  if (persistentCacheHydrated || !canUseSessionStorage()) {
+    return;
+  }
+
+  persistentCacheHydrated = true;
+
+  try {
+    const rawCache = window.sessionStorage.getItem(RESIDENT_CACHE_STORAGE_KEY);
+    if (!rawCache) {
+      return;
+    }
+
+    const parsedCache = JSON.parse(rawCache);
+
+    (parsedCache?.byAuthUid || []).forEach(([authUid, result]) => {
+      if (authUid) {
+        residentByAuthUidCache.set(authUid, result);
+      }
+    });
+
+    (parsedCache?.byId || []).forEach(([residentId, resident]) => {
+      if (residentId) {
+        residentByIdCache.set(residentId, resident);
+      }
+    });
+  } catch (error) {
+    console.error("Failed to hydrate resident cache:", error);
+  }
+};
+
+const cloneResidentResult = (result) => {
+  if (!result) {
     return { success: true, data: null };
   }
 
-  const { data: residentData, error: residentError } = await household_supabase
-    .from("residents")
-    .select("*")
-    .eq("id", registrationData.id)
-    .maybeSingle();
+  return {
+    ...result,
+    data: result.data ? { ...result.data } : null,
+  };
+};
 
-  if (residentError) {
-    return { success: false, message: residentError.message, data: null };
+const cacheResidentResult = (authUid, result) => {
+  if (authUid) {
+    residentByAuthUidCache.set(authUid, cloneResidentResult(result));
   }
 
+  if (result?.success && result.data?.id) {
+    residentByIdCache.set(result.data.id, { ...result.data });
+  }
+
+  writePersistentCache();
+};
+
+const buildResidentResult = (residentData, registrationData) => {
   if (!residentData) {
     return { success: true, data: null };
   }
@@ -42,24 +92,141 @@ export const getResidentByAuthUid = async (authUid) => {
     success: true,
     data: {
       ...residentData,
-      auth_uid: registrationData.auth_uid,
-      registered_email: registrationData.email,
-      is_activated: registrationData.is_activated,
+      auth_uid: registrationData?.auth_uid || null,
+      registered_email: registrationData?.email || null,
+      is_activated: registrationData?.is_activated,
     },
   };
 };
 
-export const getResidentsByAuthUids = async (authUids = []) => {
+export const clearResidentCache = () => {
+  residentByAuthUidCache.clear();
+  residentByIdCache.clear();
+  residentLookupPromises.clear();
+
+  if (canUseSessionStorage()) {
+    window.sessionStorage.removeItem(RESIDENT_CACHE_STORAGE_KEY);
+  }
+};
+
+export const formatResidentFullName = (resident) => {
+  if (!resident) return "";
+
+  return [resident.first_name, resident.middle_name, resident.last_name]
+    .filter(Boolean)
+    .join(" ");
+};
+
+export const getResidentByAuthUid = async (authUid, options = {}) => {
+  const { forceRefresh = false } = options;
+
+  hydratePersistentCache();
+
+  if (!authUid) {
+    return { success: true, data: null };
+  }
+
+  if (!forceRefresh) {
+    const cachedResult = residentByAuthUidCache.get(authUid);
+    if (cachedResult) {
+      return cloneResidentResult(cachedResult);
+    }
+
+    const pendingLookup = residentLookupPromises.get(authUid);
+    if (pendingLookup) {
+      return pendingLookup;
+    }
+  }
+
+  const lookupPromise = (async () => {
+    const { data: registrationData, error: registrationError } = await supabase
+      .from("registered_residents")
+      .select("id, auth_uid, email, is_activated")
+      .eq("auth_uid", authUid)
+      .maybeSingle();
+
+    if (registrationError) {
+      return {
+        success: false,
+        message: registrationError.message,
+        data: null,
+      };
+    }
+
+    if (!registrationData) {
+      return { success: true, data: null };
+    }
+
+    const cachedResident = !forceRefresh
+      ? residentByIdCache.get(registrationData.id)
+      : null;
+
+    if (cachedResident) {
+      return buildResidentResult(cachedResident, registrationData);
+    }
+
+    const { data: residentData, error: residentError } =
+      await household_supabase
+        .from("residents")
+        .select("*")
+        .eq("id", registrationData.id)
+        .maybeSingle();
+
+    if (residentError) {
+      return { success: false, message: residentError.message, data: null };
+    }
+
+    return buildResidentResult(residentData, registrationData);
+  })();
+
+  residentLookupPromises.set(authUid, lookupPromise);
+
+  try {
+    const result = await lookupPromise;
+    if (result.success) {
+      cacheResidentResult(authUid, result);
+    }
+    return cloneResidentResult(result);
+  } finally {
+    residentLookupPromises.delete(authUid);
+  }
+};
+
+export const getResidentsByAuthUids = async (authUids = [], options = {}) => {
+  const { forceRefresh = false } = options;
+  hydratePersistentCache();
   const uniqueAuthUids = [...new Set((authUids || []).filter(Boolean))];
 
   if (uniqueAuthUids.length === 0) {
     return { success: true, data: {} };
   }
 
+  const mapped = {};
+  const missingAuthUids = [];
+
+  uniqueAuthUids.forEach((authUid) => {
+    const cachedResult = !forceRefresh
+      ? residentByAuthUidCache.get(authUid)
+      : null;
+
+    if (cachedResult?.success && cachedResult.data) {
+      mapped[authUid] = { ...cachedResult.data };
+      return;
+    }
+
+    if (!cachedResult) {
+      missingAuthUids.push(authUid);
+    }
+  });
+
+  if (missingAuthUids.length === 0) {
+    return { success: true, data: mapped };
+  }
+
   const { data: registrations, error: registrationError } = await supabase
     .from("registered_residents")
     .select("id, auth_uid, email, is_activated")
-    .in("auth_uid", uniqueAuthUids);
+    .in("auth_uid", missingAuthUids);
 
   if (registrationError) {
     return { success: false, message: registrationError.message, data: {} };
@@ -68,58 +235,94 @@ export const getResidentsByAuthUids = async (authUids = []) => {
   const residentIds = [...new Set((registrations || []).map((r) => r.id))];
 
   if (residentIds.length === 0) {
-    return { success: true, data: {} };
-  }
-
-  const { data: residents, error: residentError } = await household_supabase
-    .from("residents")
-    .select("*")
-    .in("id", residentIds);
-
-  if (residentError) {
-    return { success: false, message: residentError.message, data: {} };
+    missingAuthUids.forEach((authUid) => {
+      cacheResidentResult(authUid, { success: true, data: null });
+    });
+    return { success: true, data: mapped };
   }
 
   const residentsById = {};
-  (residents || []).forEach((resident) => {
-    residentsById[resident.id] = resident;
+  const missingResidentIds = [];
+
+  residentIds.forEach((residentId) => {
+    const cachedResident = !forceRefresh
+      ? residentByIdCache.get(residentId)
+      : null;
+    if (cachedResident) {
+      residentsById[residentId] = { ...cachedResident };
+    } else {
+      missingResidentIds.push(residentId);
+    }
   });
 
-  const mapped = {};
+  if (missingResidentIds.length > 0) {
+    const { data: residents, error: residentError } = await household_supabase
+      .from("residents")
+      .select("*")
+      .in("id", missingResidentIds);
+
+    if (residentError) {
+      return { success: false, message: residentError.message, data: {} };
+    }
+
+    (residents || []).forEach((resident) => {
+      residentsById[resident.id] = resident;
+      residentByIdCache.set(resident.id, { ...resident });
+    });
+  }
+
   (registrations || []).forEach((registration) => {
     const resident = residentsById[registration.id];
-    if (!resident) return;
+    const result = buildResidentResult(resident, registration);
+    cacheResidentResult(registration.auth_uid, result);
 
-    mapped[registration.auth_uid] = {
-      ...resident,
-      auth_uid: registration.auth_uid,
-      registered_email: registration.email,
-      is_activated: registration.is_activated,
-    };
+    if (result.data) {
+      mapped[registration.auth_uid] = { ...result.data };
+    }
   });
 
   return { success: true, data: mapped };
 };
 
-export const getResidentsByIds = async (residentIds = []) => {
+export const getResidentsByIds = async (residentIds = [], options = {}) => {
+  const { forceRefresh = false } = options;
+  hydratePersistentCache();
   const uniqueResidentIds = [...new Set((residentIds || []).filter(Boolean))];
 
   if (uniqueResidentIds.length === 0) {
     return { success: true, data: {} };
   }
 
+  const mapped = {};
+  const missingResidentIds = [];
+
+  uniqueResidentIds.forEach((residentId) => {
+    const cachedResident = !forceRefresh
+      ? residentByIdCache.get(residentId)
+      : null;
+    if (cachedResident) {
+      mapped[residentId] = { ...cachedResident };
+    } else {
+      missingResidentIds.push(residentId);
+    }
+  });
+
+  if (missingResidentIds.length === 0) {
+    return { success: true, data: mapped };
+  }
+
   const { data: residents, error: residentError } = await household_supabase
     .from("residents")
     .select("*")
-    .in("id", uniqueResidentIds);
+    .in("id", missingResidentIds);
 
   if (residentError) {
     return { success: false, message: residentError.message, data: {} };
   }
 
-  const mapped = {};
   (residents || []).forEach((resident) => {
     mapped[resident.id] = resident;
+    residentByIdCache.set(resident.id, { ...resident });
   });
 
   return { success: true, data: mapped };

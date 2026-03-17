@@ -3,20 +3,16 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { insertRequest } from "../../supabse_db/request/request";
 import { insertComplaint } from "../../supabse_db/complaint/complaint";
 import { uploadAnImage } from "../../supabse_db/uploadImages";
-import supabase from "../../supabse_db/supabase_client";
 import household_supabase from "../../supabse_db/household_supabase_client";
-import {
-  formatResidentFullName,
-  getResidentByAuthUid,
-} from "../../supabse_db/resident/resident";
+import { useAuth } from "../../context/AuthContext";
 import "../../styles/UserPages.css";
 
 const SubmitRequest = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const fileInputRef = useRef(null);
+  const { resident, userName } = useAuth();
 
-  const [userName, setUserName] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [submitLoading, setSubmitLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -40,18 +36,8 @@ const SubmitRequest = () => {
   });
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      if (userData?.user) {
-        const residentResult = await getResidentByAuthUid(userData.user.id);
-        if (residentResult.success && residentResult.data) {
-          setUserName(formatResidentFullName(residentResult.data));
-          setCurrentUserResidentId(residentResult.data.id);
-        }
-      }
-    };
-    fetchUser();
-  }, []);
+    setCurrentUserResidentId(resident?.id || null);
+  }, [resident]);
 
   // Cleanup timeout on unmount or when component changes
   useEffect(() => {

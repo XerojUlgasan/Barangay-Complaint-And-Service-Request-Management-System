@@ -1,25 +1,21 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  getRequests,
   getRequestHistory,
   markRequestResidentComplied,
 } from "../../supabse_db/request/request";
 import { logout } from "../../supabse_db/auth/auth";
 import { uploadAnImage } from "../../supabse_db/uploadImages";
 import supabase from "../../supabse_db/supabase_client";
-import {
-  formatResidentFullName,
-  getResidentByAuthUid,
-} from "../../supabse_db/resident/resident";
+import { useAuth } from "../../context/AuthContext";
 import "../../styles/UserPages.css";
 
 const MyRequests = () => {
   const navigate = useNavigate();
+  const { authUser, userLoading, userName } = useAuth();
 
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState("");
   const [filter, setFilter] = useState("All Status");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -37,24 +33,28 @@ const MyRequests = () => {
   const [complianceUploading, setComplianceUploading] = useState(false);
 
   useEffect(() => {
+    if (userLoading || !authUser) return;
+
     const fetchData = async () => {
-      const { data: userData } = await supabase.auth.getUser();
+      const { data, error } = await supabase
+        .from("request_tbl")
+        .select(
+          `*,
+          official:official_tbl!request_tbl_assigned_official_id_fkey (
+            firstname,
+            lastname,
+            role
+          )`,
+        )
+        .eq("requester_id", authUser.id)
+        .order("created_at", { ascending: false });
 
-      if (userData?.user) {
-        const residentResult = await getResidentByAuthUid(userData.user.id);
-        if (residentResult.success && residentResult.data) {
-          setUserName(formatResidentFullName(residentResult.data));
-        }
-      }
-
-      const result = await getRequests();
-      if (result.success) setRequests(result.data);
-
+      if (!error && data) setRequests(data);
       setLoading(false);
     };
 
     fetchData();
-  }, []);
+  }, [authUser, userLoading]);
 
   const handleLogoutConfirm = async () => {
     try {
@@ -154,9 +154,6 @@ const MyRequests = () => {
           );
           return;
         }
-
-        const refreshed = await getRequests();
-        if (refreshed.success) setRequests(refreshed.data);
 
         alert(
           `Successfully submitted ${uploadedPaths.length} compliance file(s)!`,

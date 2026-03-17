@@ -39,99 +39,17 @@ export const postAnnouncement = async (
 };
 
 export const getAnnouncements = async () => {
-  // Determine viewer role (superadmin / official / resident / anonymous)
-  const { data: userData } = await supabase.auth.getUser();
-  const userId = userData && userData.user ? userData.user.id : null;
+  const { data, error } = await supabase
+    .from("vw_events_with_participant_count")
+    .select("*")
+    .order("created_at", { ascending: false });
 
-  let isSuperadmin = false;
-  let isOfficial = false;
-  let isResident = false;
-
-  if (userId) {
-    const { data: sa } = await supabase
-      .from("superadmin_tbl")
-      .select("id")
-      .eq("auth_uid", userId)
-      .single();
-    if (sa && sa.id) isSuperadmin = true;
-
-    const { data: off } = await supabase
-      .from("official_tbl")
-      .select("id")
-      .eq("auth_uid", userId)
-      .single();
-    if (off && off.id) isOfficial = true;
-
-    const { data: res } = await supabase
-      .from("sample_household_members_tbl")
-      .select("id")
-      .eq("auth_uid", userId)
-      .single();
-    if (res && res.id) isResident = true;
+  if (error) {
+    console.error("Error fetching announcements:", error);
+    return { success: false, message: error.message };
   }
 
-  // Fetch event announcements separately and non-event announcements separately.
-  const baseSelect = `
-      *,
-      announcer_info:superadmin_tbl!announcement_tbl_announcer_fkey (
-        auth_uid
-      )
-    `;
-
-  const [eventsRes, nonEventsRes] = await Promise.all([
-    supabase
-      .from("announcement_tbl")
-      .select(baseSelect)
-      .eq("category", "event")
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("announcement_tbl")
-      .select(baseSelect)
-      .neq("category", "event")
-      .order("created_at", { ascending: false }),
-  ]);
-
-  if (eventsRes.error) {
-    console.error("Error fetching event announcements:", eventsRes.error);
-    // continue — there may still be non-event announcements
-  }
-
-  if (nonEventsRes.error) {
-    console.error(
-      "Error fetching non-event announcements:",
-      nonEventsRes.error,
-    );
-    // continue — there may still be event announcements
-  }
-
-  const events = eventsRes.data || [];
-  const nonEvents = nonEventsRes.data || [];
-
-  // Filter event announcements according to role
-  const filteredEvents = events.filter((ann) => {
-    const audience = ann.audience ? String(ann.audience).toLowerCase() : null;
-
-    if (!audience) return true; // public event
-    if (isSuperadmin) return true;
-    if (isOfficial) return audience === "officials";
-    // residents and anonymous users
-    return audience === "residents";
-  });
-
-  // Merge non-event (public) + filtered events, dedupe by id, and sort by created_at desc
-  const mergedMap = new Map();
-  [...nonEvents, ...filteredEvents].forEach((ann) => {
-    mergedMap.set(ann.id, ann);
-  });
-
-  const merged = Array.from(mergedMap.values()).sort((a, b) => {
-    const ta = new Date(a.created_at).getTime();
-    const tb = new Date(b.created_at).getTime();
-    return tb - ta;
-  });
-
-  console.log("Announcements retrieved (merged):", merged);
-  return { success: true, data: merged };
+  return { success: true, data: data || [] };
 };
 
 export const getAnnouncementById = async (id) => {
