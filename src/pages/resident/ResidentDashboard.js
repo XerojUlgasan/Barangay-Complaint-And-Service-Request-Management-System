@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { logout } from "../../supabse_db/auth/auth";
-import supabase from "../../supabse_db/supabase_client";
 import { useAuth } from "../../context/AuthContext";
+import { getRequests } from "../../supabse_db/request/request";
+import { getComplaints } from "../../supabse_db/complaint/complaint";
 import "../../styles/UserPages.css";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { authUser, userName, userLoading } = useAuth();
 
-  const [counts, setCounts] = useState([]);
+  const [requests, setRequests] = useState([]);
+  const [complaints, setComplaints] = useState([]);
   const [recentRequests, setRecentRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -22,23 +24,24 @@ const Dashboard = () => {
     const fetchData = async () => {
       setLoading(true);
 
-      const [countsRes, requestsRes] = await Promise.all([
-        // Pre-aggregated view — one row per (source, category)
-        supabase
-          .from("vw_user_dashboard_counts")
-          .select("source, category, total")
-          .eq("user_id", authUser.id),
-        // Only the 3 most recent requests for the Recent Requests list
-        supabase
-          .from("request_tbl")
-          .select("id, subject, description, created_at, request_status")
-          .eq("requester_id", authUser.id)
-          .order("created_at", { ascending: false })
-          .limit(3),
-      ]);
+      try {
+        // Fetch requests using the actual function
+        const requestsRes = await getRequests();
+        if (requestsRes.success) {
+          setRequests(requestsRes.data);
+          // Get only the 3 most recent for the recent requests list
+          setRecentRequests(requestsRes.data.slice(0, 3));
+        }
 
-      if (countsRes.data) setCounts(countsRes.data);
-      if (requestsRes.data) setRecentRequests(requestsRes.data);
+        // Fetch complaints using the actual function
+        const complaintsRes = await getComplaints();
+        if (complaintsRes.success) {
+          setComplaints(complaintsRes.data);
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+
       setLoading(false);
     };
 
@@ -67,17 +70,18 @@ const Dashboard = () => {
 
   const normalize = (str) => (str || "").toLowerCase().replace(/[\s_-]/g, "");
 
-  // Sum totals from the view for request status counters only.
-  // (Complaint rows in the view are grouped by priority_level, not status.)
-  const requestCounts = counts.filter((r) => r.source === "request");
-  const sumCategory = (cat) =>
-    requestCounts
-      .filter((r) => normalize(r.category) === normalize(cat))
-      .reduce((sum, r) => sum + Number(r.total), 0);
-
-  const pendingCount = sumCategory("pending");
-  const inProgressCount = sumCategory("inprogress");
-  const completedCount = sumCategory("completed");
+  // Calculate counts from actual requests data
+  const pendingCount = requests.filter((r) => 
+    normalize(r.request_status) === normalize("pending")
+  ).length;
+  
+  const inProgressCount = requests.filter((r) => 
+    normalize(r.request_status) === normalize("inprogress")
+  ).length;
+  
+  const completedCount = requests.filter((r) => 
+    normalize(r.request_status) === normalize("completed")
+  ).length;
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
