@@ -75,8 +75,8 @@
 }
 
 .user-landing-page .logo-icon {
-    width: 50px;
-    height: 50px;
+    width: 60px;
+    height: 60px;
     background-color: transparent;
     border-radius: 8px;
     display: flex;
@@ -100,7 +100,7 @@
 }
 
 .user-landing-page .logo-section h2 {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 800;
     color: #047857;
     letter-spacing: -0.02em;
@@ -109,7 +109,7 @@
 }
 
 .user-landing-page .logo-section p {
-    font-size: 11px;
+    font-size: 12px;
     color: #047857;
     font-weight: 600;
     margin: 0;

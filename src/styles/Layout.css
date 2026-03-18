@@ -19,7 +19,7 @@
   flex: 1;
   overflow-y: auto;
   padding: 2rem;
-  background-color: #f9fafb;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f9fafb 50%, #ffffff 100%);
   box-sizing: border-box;
 }
 

@@ -2,14 +2,15 @@
   position: sticky;
   top: 0;
   right: 0;
-  background-color: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 2px solid #d1fae5;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 1rem 2rem;
   z-index: 500;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 12px rgba(16, 185, 129, 0.06);
   font-family: var(--font-family);
 }
 
@@ -19,9 +20,10 @@
 
 .page-title {
   font-size: 1.5rem;
-  font-weight: 700;
+  font-weight: 800;
   color: #1f2937;
   margin: 0;
+  letter-spacing: -0.3px;
 }
 
 .header-right {
