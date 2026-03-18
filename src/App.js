@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 
 // --- Shared Layout (Official/Admin) ---
 import Layout from "./components/Layout";
+import ResidentLayout from "./components/ResidentLayout";
 import { LayoutDashboard, FileText, Megaphone, Users } from "lucide-react";
 
 // --- Public / User-facing pages ---
@@ -62,13 +63,62 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
 
       {/* USER ROUTES - Requires authentication */}
-      <Route path="/dashboard" element={<UserLanding />} />
-      <Route path="/requests" element={<MyRequest />} />
-      <Route path="/complaints" element={<MyComplaints />} />
-      <Route path="/announcements" element={<Announcements />} />
-      <Route path="/submit" element={<SubmitRequest />} />
-      <Route path="/submit/certificate" element={<SubmitRequest />} />
-      <Route path="/submit/complaint" element={<SubmitRequest />} />
+      <Route
+        path="/dashboard"
+        element={
+          <ResidentLayout>
+            <UserLanding />
+          </ResidentLayout>
+        }
+      />
+      <Route
+        path="/requests"
+        element={
+          <ResidentLayout>
+            <MyRequest />
+          </ResidentLayout>
+        }
+      />
+      <Route
+        path="/complaints"
+        element={
+          <ResidentLayout>
+            <MyComplaints />
+          </ResidentLayout>
+        }
+      />
+      <Route
+        path="/announcements"
+        element={
+          <ResidentLayout>
+            <Announcements />
+          </ResidentLayout>
+        }
+      />
+      <Route
+        path="/submit"
+        element={
+          <ResidentLayout>
+            <SubmitRequest />
+          </ResidentLayout>
+        }
+      />
+      <Route
+        path="/submit/certificate"
+        element={
+          <ResidentLayout>
+            <SubmitRequest />
+          </ResidentLayout>
+        }
+      />
+      <Route
+        path="/submit/complaint"
+        element={
+          <ResidentLayout>
+            <SubmitRequest />
+          </ResidentLayout>
+        }
+      />
       <Route path="/user" element={<UserPage />} />
       <Route path="/testingan" element={<Home />} />
 
