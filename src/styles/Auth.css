@@ -24,22 +24,16 @@ html, body {
 .login-page .container-fluid {
     background-color: rgb(255, 255, 255);
     width: 90%;
-    max-width: 450px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    border-radius: 20px;
+    max-width: 420px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    border-radius: 18px;
     text-align: center;  
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 20px;
-
-    /* Responsive: margin auto centers it, and top/bottom margin gives breathing room */
+    padding: 24px 28px;
     margin: 20px auto;
-
-    /* Remove fixed min-heights so content determines height */
     min-height: unset !important;
-
-    /* If somehow the container is taller than viewport, allow internal scroll as fallback */
     max-height: none;
 }
 
@@ -47,17 +41,17 @@ html, body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 160px;
-  height: 160px;
+  width: 140px;
+  height: 140px;
   background-color: transparent;
   border: none;
-  border-radius: 80px;
+  border-radius: 70px;
   box-shadow: none;
   cursor: pointer;
   transition: background-color 0.2s ease;
   outline: none;
-  margin-bottom: -3px;
-  margin-left: 10px;
+  margin-bottom: 8px;
+  margin-left: 0;
   overflow: hidden;
 }
 
@@ -140,13 +134,15 @@ html, body {
 
 .login-page .container-fluid h5 {
     font-weight: 700;
-    font-size: 25px !important;
-    margin-bottom: 10px;
+    font-size: 22px !important;
+    margin-bottom: 8px;
+    color: #0f172a;
 }
 
 .login-page .container-fluid p {
-    color: rgba(0, 0, 0, 0.514);
-    margin-bottom: 20px;
+    color: #6b7280;
+    margin-bottom: 18px;
+    font-size: 14px;
 }
 
 .login-page form {
@@ -315,19 +311,23 @@ html, body {
 
 /* ── Responsive tweaks ── */
 
-/* On very small screens, reduce horizontal padding so form isn't cramped */
-@media (max-width: 400px) {
+@media (max-width: 480px) {
   .login-page .container-fluid {
-    padding: 16px 12px;
+    padding: 20px 20px;
     border-radius: 16px;
+    max-width: 380px;
   }
 
   .login-page .new-user-container {
-    padding: 16px 12px 30px;
+    padding: 20px 20px 32px;
   }
 
   .login-page .container-fluid h5 {
     font-size: 20px !important;
+  }
+  
+  .login-page .container-fluid p {
+    font-size: 13px;
   }
 
   .login-page .shield-button {
@@ -337,14 +337,36 @@ html, body {
     margin-bottom: 8px;
   }
 
-  .login-page .shield-icon {
-    width: 28px;
-    height: 28px;
+  .login-page .form {
+    max-width: 100%;
+  }
+  
+  .login-page .container {
+    max-width: 100%;
+  }
+  
+  .login-page .identity-section {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 400px) {
+  .login-page .container-fluid {
+    padding: 18px 16px;
+    border-radius: 14px;
   }
 
-  .login-page .brgy-logo {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+  .login-page .new-user-container {
+    padding: 18px 16px 28px;
+  }
+
+  .login-page .container-fluid h5 {
+    font-size: 18px !important;
+  }
+
+  .login-page .shield-button {
+    width: 100px;
+    height: 100px;
+    border-radius: 50px;
   }
 }
