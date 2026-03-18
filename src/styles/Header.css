@@ -8,9 +8,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 2rem;
+  padding: 16px 40px;
   z-index: 500;
-  box-shadow: 0 2px 12px rgba(16, 185, 129, 0.06);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   font-family: var(--font-family);
 }
 
@@ -19,7 +19,7 @@
 }
 
 .page-title {
-  font-size: 1.5rem;
+  font-size: 17px;
   font-weight: 800;
   color: #1f2937;
   margin: 0;
