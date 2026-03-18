@@ -5,6 +5,7 @@ import { insertComplaint } from "../../supabse_db/complaint/complaint";
 import { uploadAnImage } from "../../supabse_db/uploadImages";
 import household_supabase from "../../supabse_db/household_supabase_client";
 import { useAuth } from "../../context/AuthContext";
+import ResidentSidebar from "../../components/ResidentSidebar";
 import "../../styles/UserPages.css";
 
 const SubmitRequest = () => {
@@ -196,82 +197,12 @@ const SubmitRequest = () => {
   return (
     <div className="user-landing-page">
       <div className="layout">
-        {/* MOBILE SIDEBAR OVERLAY */}
-        <div
-          className={`sidebar-overlay${sidebarOpen ? " visible" : ""}`}
-          onClick={closeSidebar}
+        {/* SIDEBAR COMPONENT */}
+        <ResidentSidebar
+          isOpen={sidebarOpen}
+          onClose={closeSidebar}
+          activePage=""
         />
-
-        {/* SIDEBAR */}
-        <aside className={`sidebar${sidebarOpen ? " open" : ""}`}>
-          <button
-            className="sidebar-close"
-            onClick={closeSidebar}
-            aria-label="Close menu"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              width="18"
-              height="18"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-
-          <div className="logo-section">
-            <div className="logo-icon">
-              <svg viewBox="0 0 24 24" className="shield-logo">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-            </div>
-            <div>
-              <h2>BARANGAYLINK</h2>
-              <p>Resident Services Registry</p>
-            </div>
-          </div>
-
-          <div className="menu">
-            <h4>GENERAL</h4>
-            <a href="/dashboard" onClick={closeSidebar}>
-              <svg viewBox="0 0 24 24">
-                <path d="M3 12l9-9 9 9" />
-                <path d="M9 21V9h6v12" />
-              </svg>
-              Dashboard
-            </a>
-            <h4>SERVICES</h4>
-            <a href="/requests" onClick={closeSidebar}>
-              <svg viewBox="0 0 24 24">
-                <path d="M4 4h16v16H4z" />
-                <path d="M8 2v4M16 2v4M4 10h16" />
-              </svg>
-              My Requests
-            </a>
-            <a href="/complaints" onClick={closeSidebar}>
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                <line x1="12" y1="9" x2="12" y2="13" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
-              My Complaints
-            </a>
-            <a href="/announcements" onClick={closeSidebar}>
-              <svg viewBox="0 0 24 24">
-                <path d="M3 11l18-5v10l-18-5v4" />
-              </svg>
-              Announcements
-            </a>
-          </div>
-        </aside>
 
         {/* MAIN CONTENT */}
         <main className="main">
