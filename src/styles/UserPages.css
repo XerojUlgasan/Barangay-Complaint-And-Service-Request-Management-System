@@ -140,7 +140,7 @@
     border-radius: 8px;
     cursor: pointer;
     font-size: 14px;
-    color: #6b7280;
+    color: #4b5563;
     text-decoration: none;
     transition: all 0.2s ease;
     margin: 0.25rem 0.5rem;
@@ -231,7 +231,7 @@
 .user-landing-page .main {
     flex: 1;
     margin-left: 240px;
-    background: linear-gradient(180deg, #fafafa 0%, #ffffff 100%);
+    background: linear-gradient(180deg, #f0fdf4 0%, #f9fafb 50%, #ffffff 100%);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
