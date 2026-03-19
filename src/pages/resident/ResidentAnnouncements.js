@@ -240,7 +240,7 @@ const Announcements = () => {
               <div className="ann-grid">
                 {announcements.map((ann) => (
                   <div className="ann-card" key={ann.id}>
-                    {/* IMAGE — full width top, tall */}
+                    {/* LEFT: IMAGE */}
                     <div className="ann-image">
                       {announcementImages[ann.id] ? (
                         <img src={announcementImages[ann.id]} alt={ann.title} />
@@ -262,37 +262,40 @@ const Announcements = () => {
                       )}
                     </div>
 
-                    {/* BODY */}
+                    {/* RIGHT: CONTENT */}
                     <div className="ann-body">
-                      {/* Meta row: icon + category pill + priority badge */}
+                      {/* TOP ROW */}
                       <div className="ann-meta-top">
-                        <div className="ann-meta-left">
-                          <span className="ann-category-icon">
-                            {getCategoryIcon(ann.category)}
-                          </span>
-                          {ann.category && (
-                            <span className="ann-category">{ann.category}</span>
-                          )}
+                        <div className="ann-category-icon">
+                          {getCategoryIcon(ann.category)}
                         </div>
-                        {ann.priority &&
-                          ann.priority.toLowerCase() !== "normal" &&
-                          ann.priority.toLowerCase() !== "low" && (
-                            <span className={getPriorityClass(ann.priority)}>
-                              {ann.priority.toUpperCase()}
-                            </span>
-                          )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+                          <div className="ann-title">{ann.title}</div>
+                          {ann.priority &&
+                            ann.priority.toLowerCase() !== "normal" &&
+                            ann.priority.toLowerCase() !== "low" && (
+                              <div className={getPriorityClass(ann.priority)}>
+                                {ann.priority.toUpperCase()}
+                              </div>
+                            )}
+                        </div>
                       </div>
 
-                      <h3 className="ann-title">{ann.title}</h3>
-                      <p className="ann-description">{ann.content}</p>
+                      {/* METADATA */}
+                      <div className="ann-meta-left">
+                        Posted by {ann.author || "Barangay"} •{" "}
+                        {formatDate(ann.created_at)}
+                      </div>
 
+                      {/* DESCRIPTION */}
+                      <div className="ann-description">{ann.content}</div>
+
+                      {/* FOOTER */}
                       <div className="ann-footer">
-                        <span className="ann-author">
-                          {ann.author || "Admin"}
-                        </span>
-                        <span className="ann-date">
-                          {formatDate(ann.created_at)}
-                        </span>
+                        <div className="ann-category">
+                          {ann.category?.toUpperCase() || "ANNOUNCEMENT"}
+                        </div>
+
                         {ann.category &&
                           ann.category.toLowerCase() === "event" && (
                             <>
