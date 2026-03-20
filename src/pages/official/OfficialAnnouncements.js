@@ -402,23 +402,33 @@ const OfficialAnnouncements = () => {
                 <div>
                   <div style={{ fontSize: "13px", fontWeight: "600", color: "#6b7280", marginBottom: "8px" }}>Requirements</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: "6px", padding: "12px", background: "#f9fafb", borderRadius: "8px", border: "1px solid #e5e7eb" }}>
-                    {selectedAnnouncement.age_group && (
-                      <div style={{ fontSize: "13px", color: "#374151" }}><strong>Age Group:</strong> {selectedAnnouncement.age_group}</div>
+                    {selectedAnnouncement.age_group && (Array.isArray(selectedAnnouncement.age_group) ? selectedAnnouncement.age_group.length > 0 : selectedAnnouncement.age_group) && (
+                      <div style={{ fontSize: "13px", color: "#374151" }}>
+                        <strong>Age Group:</strong> {Array.isArray(selectedAnnouncement.age_group) ? selectedAnnouncement.age_group.join(", ") : selectedAnnouncement.age_group}
+                      </div>
                     )}
-                    {selectedAnnouncement.voter_status && (
-                      <div style={{ fontSize: "13px", color: "#374151" }}><strong>Voter Status:</strong> {selectedAnnouncement.voter_status}</div>
+                    {selectedAnnouncement.voter_status && (Array.isArray(selectedAnnouncement.voter_status) ? selectedAnnouncement.voter_status.length > 0 : selectedAnnouncement.voter_status) && (
+                      <div style={{ fontSize: "13px", color: "#374151" }}>
+                        <strong>Voter Status:</strong> {Array.isArray(selectedAnnouncement.voter_status) ? selectedAnnouncement.voter_status.join(", ") : selectedAnnouncement.voter_status}
+                      </div>
                     )}
-                    {selectedAnnouncement.occupation && (
-                      <div style={{ fontSize: "13px", color: "#374151" }}><strong>Occupation:</strong> {selectedAnnouncement.occupation}</div>
+                    {selectedAnnouncement.occupation && (Array.isArray(selectedAnnouncement.occupation) ? selectedAnnouncement.occupation.length > 0 : selectedAnnouncement.occupation) && (
+                      <div style={{ fontSize: "13px", color: "#374151" }}>
+                        <strong>Occupation:</strong> {Array.isArray(selectedAnnouncement.occupation) ? selectedAnnouncement.occupation.join(", ") : selectedAnnouncement.occupation}
+                      </div>
                     )}
-                    {selectedAnnouncement.religion && (
-                      <div style={{ fontSize: "13px", color: "#374151" }}><strong>Religion:</strong> {selectedAnnouncement.religion}</div>
+                    {selectedAnnouncement.religion && (Array.isArray(selectedAnnouncement.religion) ? selectedAnnouncement.religion.length > 0 : selectedAnnouncement.religion) && (
+                      <div style={{ fontSize: "13px", color: "#374151" }}>
+                        <strong>Religion:</strong> {Array.isArray(selectedAnnouncement.religion) ? selectedAnnouncement.religion.join(", ") : selectedAnnouncement.religion}
+                      </div>
                     )}
-                    {selectedAnnouncement.civil_status && (
-                      <div style={{ fontSize: "13px", color: "#374151" }}><strong>Civil Status:</strong> {selectedAnnouncement.civil_status}</div>
+                    {selectedAnnouncement.civil_status && (Array.isArray(selectedAnnouncement.civil_status) ? selectedAnnouncement.civil_status.length > 0 : selectedAnnouncement.civil_status) && (
+                      <div style={{ fontSize: "13px", color: "#374151" }}>
+                        <strong>Civil Status:</strong> {Array.isArray(selectedAnnouncement.civil_status) ? selectedAnnouncement.civil_status.join(", ") : selectedAnnouncement.civil_status}
+                      </div>
                     )}
                     {selectedAnnouncement.sex && (
-                      <div style={{ fontSize: "13px", color: "#374151" }}><strong>Sex:</strong> {selectedAnnouncement.sex === "M" ? "Male" : "Female"}</div>
+                      <div style={{ fontSize: "13px", color: "#374151" }}><strong>Sex:</strong> {selectedAnnouncement.sex === "M" ? "Male" : selectedAnnouncement.sex === "F" ? "Female" : selectedAnnouncement.sex}</div>
                     )}
                   </div>
                 </div>

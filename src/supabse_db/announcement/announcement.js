@@ -1,6 +1,49 @@
 import supabase from "../supabase_client";
 import household_supabase from "../household_supabase_client";
 
+// Cache for announcements with TTL
+let announcementCache = { data: null, timestamp: 0, ttl: 5 * 60 * 1000 }; // 5 min cache
+
+const isCacheValid = () => {
+  return announcementCache.data && Date.now() - announcementCache.timestamp < announcementCache.ttl;
+};
+
+// Helper to check if demographic filters are set
+const hasAdvancedFilters = (announcement) => {
+  return Boolean(
+    announcement.age_group ||
+    announcement.voter_status ||
+    announcement.occupation ||
+    announcement.religion ||
+    announcement.civil_status ||
+    announcement.sex
+  );
+};
+
+// Helper to check if user matches advanced filters
+const userMatchesFilters = (userProfile, announcement) => {
+  if (!hasAdvancedFilters(announcement)) return true; // No filters = everyone allowed
+
+  const filters = {
+    age_group: announcement.age_group,
+    voter_status: announcement.voter_status,
+    occupation: announcement.occupation,
+    religion: announcement.religion,
+    civil_status: announcement.civil_status,
+    sex: announcement.sex,
+  };
+
+  // Check if user matches all applicable filters
+  if (filters.age_group && !filters.age_group.includes(userProfile.age_group)) return false;
+  if (filters.voter_status && !filters.voter_status.includes(userProfile.voter_status)) return false;
+  if (filters.occupation && !filters.occupation.includes(userProfile.occupation)) return false;
+  if (filters.religion && !filters.religion.includes(userProfile.religion)) return false;
+  if (filters.civil_status && !filters.civil_status.includes(userProfile.civil_status)) return false;
+  if (filters.sex && filters.sex !== userProfile.sex) return false;
+
+  return true;
+};
+
 export const postAnnouncement = async (
   category,
   priority,
@@ -14,39 +57,52 @@ export const postAnnouncement = async (
     return { success: false, message: "Not authenticated" };
   }
 
+  // Log the data being sent for debugging
+  const insertPayload = {
+    category: category,
+    priority: priority,
+    title: title,
+    content: content,
+    event_start: eventData.event_start ?? null,
+    event_end: eventData.event_end ?? null,
+    audience: eventData.audience ?? null,
+    max_participants: eventData.max_participants ?? null,
+    age_group: Array.isArray(eventData.age_group) && eventData.age_group.length > 0 ? eventData.age_group : null,
+    voter_status: Array.isArray(eventData.voter_status) && eventData.voter_status.length > 0 ? eventData.voter_status : null,
+    occupation: Array.isArray(eventData.occupation) && eventData.occupation.length > 0 ? eventData.occupation : null,
+    religion: Array.isArray(eventData.religion) && eventData.religion.length > 0 ? eventData.religion : null,
+    civil_status: Array.isArray(eventData.civil_status) && eventData.civil_status.length > 0 ? eventData.civil_status : null,
+    sex: eventData.sex ?? null,
+  };
+  
+  console.log("Insert payload:", insertPayload);
+  console.log("Occupation array:", insertPayload.occupation);
+
   const { data, error } = await supabase
     .from("announcement_tbl")
-    .insert({
-      category: category,
-      priority: priority,
-      title: title,
-      content: content,
-      event_start: eventData.event_start ?? null,
-      event_end: eventData.event_end ?? null,
-      audience: eventData.audience ?? null,
-      max_participants: eventData.max_participants ?? null,
-      age_group: eventData.age_group ?? null,
-      voter_status: eventData.voter_status ?? null,
-      occupation: eventData.occupation ?? null,
-      religion: eventData.religion ?? null,
-      civil_status: eventData.civil_status ?? null,
-      sex: eventData.sex ?? null,
-    })
+    .insert(insertPayload)
     .select()
     .single();
 
   if (error) {
     console.error("Error inserting announcement:", error);
+    console.error("Payload that failed:", insertPayload);
     return { success: false, message: error.message };
   }
 
   console.log("Announcement inserted successfully");
+  invalidateAnnouncementCache();
   return { success: true, data };
 };
 
 export const getAnnouncements = async () => {
+  // Use cache if valid
+  if (isCacheValid()) {
+    return { success: true, data: announcementCache.data || [] };
+  }
+
   const { data, error } = await supabase
-    .from("vw_events_with_participant_count")
+    .from("announcement_tbl")
     .select("*")
     .order("created_at", { ascending: false });
 
@@ -55,7 +111,19 @@ export const getAnnouncements = async () => {
     return { success: false, message: error.message };
   }
 
+  // Update cache
+  announcementCache = {
+    data: data || [],
+    timestamp: Date.now(),
+    ttl: announcementCache.ttl
+  };
+
   return { success: true, data: data || [] };
+};
+
+// Invalidate cache when announcement is posted/updated/deleted
+const invalidateAnnouncementCache = () => {
+  announcementCache = { data: null, timestamp: 0, ttl: announcementCache.ttl };
 };
 
 export const getAnnouncementById = async (id) => {
@@ -147,6 +215,24 @@ export const updateAnnouncement = async (
   if (Object.prototype.hasOwnProperty.call(eventData, "max_participants")) {
     updatePayload.max_participants = eventData.max_participants;
   }
+  if (Object.prototype.hasOwnProperty.call(eventData, "age_group")) {
+    updatePayload.age_group = Array.isArray(eventData.age_group) && eventData.age_group.length > 0 ? eventData.age_group : null;
+  }
+  if (Object.prototype.hasOwnProperty.call(eventData, "voter_status")) {
+    updatePayload.voter_status = Array.isArray(eventData.voter_status) && eventData.voter_status.length > 0 ? eventData.voter_status : null;
+  }
+  if (Object.prototype.hasOwnProperty.call(eventData, "occupation")) {
+    updatePayload.occupation = Array.isArray(eventData.occupation) && eventData.occupation.length > 0 ? eventData.occupation : null;
+  }
+  if (Object.prototype.hasOwnProperty.call(eventData, "religion")) {
+    updatePayload.religion = Array.isArray(eventData.religion) && eventData.religion.length > 0 ? eventData.religion : null;
+  }
+  if (Object.prototype.hasOwnProperty.call(eventData, "civil_status")) {
+    updatePayload.civil_status = Array.isArray(eventData.civil_status) && eventData.civil_status.length > 0 ? eventData.civil_status : null;
+  }
+  if (Object.prototype.hasOwnProperty.call(eventData, "sex")) {
+    updatePayload.sex = eventData.sex;
+  }
 
   const { error } = await supabase
     .from("announcement_tbl")
@@ -158,6 +244,7 @@ export const updateAnnouncement = async (
     return { success: false, message: error.message };
   }
 
+  invalidateAnnouncementCache();
   return { success: true, message: "Announcement updated successfully" };
 };
 
@@ -212,10 +299,11 @@ export const deleteAnnouncement = async (id) => {
     return { success: false, message: error.message };
   }
 
+  invalidateAnnouncementCache();
   return { success: true, message: "Announcement deleted successfully" };
 };
 
-export const signupForEvent = async (announcementId) => {
+export const signupForEvent = async (announcementId, userProfile = null) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
 
   if (authError || !userData || !userData.user) {
@@ -224,10 +312,10 @@ export const signupForEvent = async (announcementId) => {
 
   const userId = userData.user.id;
 
-  // fetch the announcement to check audience and max participants
+  // fetch the announcement to check audience, max participants, and advanced filters
   const { data: announcement, error: announcementError } = await supabase
     .from("announcement_tbl")
-    .select("id, audience, max_participants")
+    .select("id, audience, max_participants, age_group, voter_status, occupation, religion, civil_status, sex")
     .eq("id", announcementId)
     .single();
 
@@ -268,6 +356,38 @@ export const signupForEvent = async (announcementId) => {
       success: false,
       message: `This event is for '${announcement.audience}' only. Your role: '${userRole}'.`,
     };
+  }
+
+  // Check advanced filters if they exist and user is a resident
+  if (userRole === "residents" && hasAdvancedFilters(announcement)) {
+    if (!userProfile) {
+      console.warn("User profile not provided for filter check, allowing signup");
+    } else if (!userMatchesFilters(userProfile, announcement)) {
+      const missingFilters = [];
+      if (announcement.age_group && !announcement.age_group.includes(userProfile.age_group)) {
+        missingFilters.push(`Age group: ${userProfile.age_group} (Required: ${announcement.age_group.join(", ")})`);
+      }
+      if (announcement.voter_status && !announcement.voter_status.includes(userProfile.voter_status)) {
+        missingFilters.push(`Voter status: ${userProfile.voter_status} (Required: ${announcement.voter_status.join(", ")})`);
+      }
+      if (announcement.occupation && !announcement.occupation.includes(userProfile.occupation)) {
+        missingFilters.push(`Occupation: ${userProfile.occupation} (Required: ${announcement.occupation.join(", ")})`);
+      }
+      if (announcement.religion && !announcement.religion.includes(userProfile.religion)) {
+        missingFilters.push(`Religion: ${userProfile.religion} (Required: ${announcement.religion.join(", ")})`);
+      }
+      if (announcement.civil_status && !announcement.civil_status.includes(userProfile.civil_status)) {
+        missingFilters.push(`Civil status: ${userProfile.civil_status} (Required: ${announcement.civil_status.join(", ")})`);
+      }
+      if (announcement.sex && announcement.sex !== userProfile.sex) {
+        missingFilters.push(`Sex: ${userProfile.sex} (Required: ${announcement.sex})`);
+      }
+
+      return {
+        success: false,
+        message: `You don't meet the requirements for this event:\n${missingFilters.join("\n")}`,
+      };
+    }
   }
 
   // check if user already signed up using a HEAD request to get exact count
@@ -504,3 +624,7 @@ export const getAnnouncementParticipants = async (announcementId) => {
 
   return { success: true, data: merged };
 };
+
+// Export helper functions for filter validation
+export { hasAdvancedFilters, userMatchesFilters, invalidateAnnouncementCache };
+

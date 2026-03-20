@@ -9,6 +9,7 @@ import {
   Clock,
   Tag,
   AlertCircle,
+  Edit,
 } from "lucide-react";
 import "../../styles/BarangayAdmin.css";
 import {
@@ -16,6 +17,7 @@ import {
   postAnnouncement,
   deleteAnnouncement,
   getAnnouncementParticipants,
+  updateAnnouncement,
 } from "../../supabse_db/announcement/announcement";
 import {
   uploadAnnouncementImage,
@@ -39,19 +41,33 @@ export default function AdminAnnouncements() {
     event_end: "",
     audience: "residents",
     max_participants: "",
-    age_group: "",
-    voter_status: "",
-    occupation: "",
-    religion: "",
-    civil_status: "",
+    age_group: [],
+    voter_status: [],
+    occupation: [],
+    religion: [],
+    civil_status: [],
     sex: "",
   });
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [participantsLoading, setParticipantsLoading] = useState(false);
+  const [ageGroupDropdown, setAgeGroupDropdown] = useState(false);
+  const [voterStatusDropdown, setVoterStatusDropdown] = useState(false);
+  const [occupationDropdown, setOccupationDropdown] = useState(false);
+  const [religionDropdown, setReligionDropdown] = useState(false);
+  const [civilStatusDropdown, setCivilStatusDropdown] = useState(false);
+  const [editingAnnouncement, setEditingAnnouncement] = useState(null);
+  const [isEditMode, setIsEditMode] = useState(false);
   const modalRef = useRef(null);
   const fileInputRef = useRef(null);
+
+  // Enum value mappings from database (occupation_types_v2)
+  const occupationOptions = [
+    { display: "Unemployed", value: "Unemployed" },
+    { display: "Employed", value: "Employed" },
+    { display: "Retired", value: "Retired" }
+  ];
 
   console.log("AdminAnnouncements render, showModal=", showModal);
 
@@ -113,6 +129,54 @@ export default function AdminAnnouncements() {
   const closeModal = () => {
     console.log("Closing modal...");
     setShowModal(false);
+    setIsEditMode(false);
+    setEditingAnnouncement(null);
+  };
+
+  const openEditModal = (ann) => {
+    setEditingAnnouncement(ann);
+    setIsEditMode(true);
+    setFormData({
+      category: ann.category || "general",
+      priority: ann.priority || "normal",
+      title: ann.title || "",
+      content: ann.content || "",
+      imageFile: null,
+      event_start: ann.event_start ? ann.event_start.slice(0, 16) : "",
+      event_end: ann.event_end ? ann.event_end.slice(0, 16) : "",
+      audience: ann.audience || "residents",
+      max_participants: ann.max_participants || "",
+      age_group: ann.age_group || [],
+      voter_status: ann.voter_status || [],
+      occupation: ann.occupation || [],
+      religion: ann.religion || [],
+      civil_status: ann.civil_status || [],
+      sex: ann.sex || "",
+    });
+    setShowModal(true);
+  };
+
+  const closeEditModal = () => {
+    setShowModal(false);
+    setIsEditMode(false);
+    setEditingAnnouncement(null);
+    setFormData({
+      category: "general",
+      priority: "normal",
+      title: "",
+      content: "",
+      imageFile: null,
+      event_start: "",
+      event_end: "",
+      audience: "residents",
+      max_participants: "",
+      age_group: [],
+      voter_status: [],
+      occupation: [],
+      religion: [],
+      civil_status: [],
+      sex: "",
+    });
   };
 
   const openAnnDetails = (ann) => setSelectedAnnouncement(ann);
@@ -225,11 +289,11 @@ export default function AdminAnnouncements() {
           max_participants: formData.max_participants
             ? Number(formData.max_participants)
             : null,
-          age_group: formData.age_group || null,
-          voter_status: formData.voter_status || null,
-          occupation: formData.occupation || null,
-          religion: formData.religion || null,
-          civil_status: formData.civil_status || null,
+          age_group: formData.age_group.length > 0 ? formData.age_group : null,
+          voter_status: formData.voter_status.length > 0 ? formData.voter_status : null,
+          occupation: formData.occupation.length > 0 ? formData.occupation : null,
+          religion: formData.religion.length > 0 ? formData.religion : null,
+          civil_status: formData.civil_status.length > 0 ? formData.civil_status : null,
           sex: formData.sex || null,
         }
       : {
@@ -248,32 +312,36 @@ export default function AdminAnnouncements() {
     try {
       setPosting(true);
       console.log("Posting announcement:", formData);
-      console.log(
-        "Category value being sent:",
-        formData.category,
-        "Type:",
-        typeof formData.category,
-      );
-      console.log(
-        "Priority value being sent:",
-        formData.priority,
-        "Type:",
-        typeof formData.priority,
-      );
-      const result = await postAnnouncement(
-        formData.category,
-        formData.priority,
-        formData.title,
-        formData.content,
-        eventData,
-      );
+      
+      let result;
+      if (isEditMode && editingAnnouncement) {
+        // Update existing announcement
+        console.log("Updating announcement:", editingAnnouncement.id);
+        result = await updateAnnouncement(
+          editingAnnouncement.id,
+          formData.category,
+          formData.priority,
+          formData.title,
+          formData.content,
+          eventData,
+        );
+      } else {
+        // Create new announcement
+        result = await postAnnouncement(
+          formData.category,
+          formData.priority,
+          formData.title,
+          formData.content,
+          eventData,
+        );
+      }
 
       if (result.success) {
-        console.log("Announcement posted successfully:", result.data);
+        console.log("Announcement saved successfully:", result.data);
 
-        // Upload image if provided
-        if (formData.imageFile) {
-          const announcementID = result.data?.id;
+        // Upload image if provided and it's a file (not just a reference)
+        if (formData.imageFile && formData.imageFile instanceof File) {
+          const announcementID = isEditMode ? editingAnnouncement.id : result.data?.id;
           if (announcementID) {
             const uploadResult = await uploadAnnouncementImage(
               formData.imageFile,
@@ -310,11 +378,11 @@ export default function AdminAnnouncements() {
           event_end: "",
           audience: "residents",
           max_participants: "",
-          age_group: "",
-          voter_status: "",
-          occupation: "",
-          religion: "",
-          civil_status: "",
+          age_group: [],
+          voter_status: [],
+          occupation: [],
+          religion: [],
+          civil_status: [],
           sex: "",
         });
         setShowAdvanced(false);
@@ -436,6 +504,13 @@ export default function AdminAnnouncements() {
                         onClick={() => openAnnDetails(it)}
                       >
                         <Eye size={16} />
+                      </button>
+                      <button
+                        className="ann-view-btn"
+                        title="Edit"
+                        onClick={() => openEditModal(it)}
+                      >
+                        <Edit size={16} />
                       </button>
                       <button
                         className="ann-trash"
@@ -755,7 +830,7 @@ export default function AdminAnnouncements() {
               }}
             >
               <h4 style={{ margin: 0, fontSize: "20px", color: "#065f46" }}>
-                Create Announcement
+                {isEditMode ? "Edit Announcement" : "Create Announcement"}
               </h4>
               <button
                 onClick={closeModal}
@@ -806,11 +881,11 @@ export default function AdminAnnouncements() {
                               event_end: "",
                               audience: "residents",
                               max_participants: "",
-                              age_group: "",
-                              voter_status: "",
-                              occupation: "",
-                              religion: "",
-                              civil_status: "",
+                              age_group: [],
+                              voter_status: [],
+                              occupation: [],
+                              religion: [],
+                              civil_status: [],
                               sex: "",
                             }
                           : {}),
@@ -1121,47 +1196,122 @@ export default function AdminAnnouncements() {
                               fontSize: "14px",
                             }}
                           >
-                            Age Group
+                            Age Group (Select Multiple)
                           </label>
-                          <select
-                            value={formData.age_group}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                age_group: e.target.value,
-                              })
-                            }
-                            style={{
-                              width: "100%",
-                              padding: "10px",
-                              border: "1px solid #ddd",
-                              borderRadius: "6px",
-                              fontFamily: "inherit",
-                            }}
-                          >
-                            <option value="">All Ages</option>
-                            <option value="0-4">0-4</option>
-                            <option value="5-9">5-9</option>
-                            <option value="10-14">10-14</option>
-                            <option value="15-19">15-19</option>
-                            <option value="20-24">20-24</option>
-                            <option value="25-29">25-29</option>
-                            <option value="30-34">30-34</option>
-                            <option value="35-39">35-39</option>
-                            <option value="40-44">40-44</option>
-                            <option value="45-49">45-49</option>
-                            <option value="50-54">50-54</option>
-                            <option value="55-59">55-59</option>
-                            <option value="60-64">60-64</option>
-                            <option value="65-69">65-69</option>
-                            <option value="70-74">70-74</option>
-                            <option value="75-79">75-79</option>
-                            <option value="80-84">80-84</option>
-                            <option value="85-89">85-89</option>
-                            <option value="90-94">90-94</option>
-                            <option value="95-99">95-99</option>
-                            <option value="100+">100+</option>
-                          </select>
+                          <div style={{ position: "relative" }}>
+                            <button
+                              type="button"
+                              onClick={() => setAgeGroupDropdown(!ageGroupDropdown)}
+                              style={{
+                                width: "100%",
+                                padding: "10px",
+                                border: "1px solid #ddd",
+                                borderRadius: "6px",
+                                textAlign: "left",
+                                backgroundColor: "#f9fafb",
+                                cursor: "pointer",
+                                fontFamily: "inherit",
+                              }}
+                            >
+                              {formData.age_group.length > 0
+                                ? `${formData.age_group.length} selected`
+                                : "Select age groups..."}
+                            </button>
+                            {ageGroupDropdown && (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  top: "100%",
+                                  left: 0,
+                                  right: 0,
+                                  backgroundColor: "#fff",
+                                  border: "1px solid #ddd",
+                                  borderTop: "none",
+                                  borderRadius: "0 0 6px 6px",
+                                  maxHeight: "150px",
+                                  overflowY: "auto",
+                                  zIndex: 10,
+                                }}
+                              >
+                                {[
+                                  "0-4", "5-9", "10-14", "15-19", "20-24", "25-29", "30-34", "35-39",
+                                  "40-44", "45-49", "50-54", "55-59", "60-64", "65-69", "70-74", 
+                                  "75-79", "80-84", "85-89", "90-94", "95-99", "100+"
+                                ].map((age) => (
+                                  <label
+                                    key={age}
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      padding: "8px 10px",
+                                      cursor: "pointer",
+                                      borderBottom: "1px solid #eee",
+                                    }}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={formData.age_group.includes(age)}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setFormData({
+                                            ...formData,
+                                            age_group: [...formData.age_group, age],
+                                          });
+                                        } else {
+                                          setFormData({
+                                            ...formData,
+                                            age_group: formData.age_group.filter((a) => a !== age),
+                                          });
+                                        }
+                                      }}
+                                      style={{ marginRight: "8px", cursor: "pointer" }}
+                                    />
+                                    {age}
+                                  </label>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          {formData.age_group.length > 0 && (
+                            <div style={{ marginTop: "10px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                              {formData.age_group.map((age) => (
+                                <div
+                                  key={age}
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    backgroundColor: "#e8f0ff",
+                                    border: "1px solid #b3d9ff",
+                                    borderRadius: "4px",
+                                    padding: "6px 10px",
+                                    fontSize: "13px",
+                                  }}
+                                >
+                                  <span style={{ marginRight: "6px" }}>{age}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setFormData({
+                                        ...formData,
+                                        age_group: formData.age_group.filter((a) => a !== age),
+                                      });
+                                    }}
+                                    style={{
+                                      background: "none",
+                                      border: "none",
+                                      color: "#d32f2f",
+                                      cursor: "pointer",
+                                      fontSize: "16px",
+                                      padding: "0",
+                                      lineHeight: "1",
+                                    }}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         <div>
@@ -1173,29 +1323,118 @@ export default function AdminAnnouncements() {
                               fontSize: "14px",
                             }}
                           >
-                            Voter Status
+                            Voter Status (Select Multiple)
                           </label>
-                          <select
-                            value={formData.voter_status}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                voter_status: e.target.value,
-                              })
-                            }
-                            style={{
-                              width: "100%",
-                              padding: "10px",
-                              border: "1px solid #ddd",
-                              borderRadius: "6px",
-                              fontFamily: "inherit",
-                            }}
-                          >
-                            <option value="">All Voters</option>
-                            <option value="Registered">Registered</option>
-                            <option value="Not Registered">Not Registered</option>
-                            <option value="Transferred">Transferred</option>
-                          </select>
+                          <div style={{ position: "relative" }}>
+                            <button
+                              type="button"
+                              onClick={() => setVoterStatusDropdown(!voterStatusDropdown)}
+                              style={{
+                                width: "100%",
+                                padding: "10px",
+                                border: "1px solid #ddd",
+                                borderRadius: "6px",
+                                textAlign: "left",
+                                backgroundColor: "#f9fafb",
+                                cursor: "pointer",
+                                fontFamily: "inherit",
+                              }}
+                            >
+                              {formData.voter_status.length > 0
+                                ? `${formData.voter_status.length} selected`
+                                : "Select voter status..."}
+                            </button>
+                            {voterStatusDropdown && (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  top: "100%",
+                                  left: 0,
+                                  right: 0,
+                                  backgroundColor: "#fff",
+                                  border: "1px solid #ddd",
+                                  borderTop: "none",
+                                  borderRadius: "0 0 6px 6px",
+                                  zIndex: 10,
+                                }}
+                              >
+                                {["registered", "not-registered", "transferred"].map((status) => (
+                                  <label
+                                    key={status}
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      padding: "8px 10px",
+                                      cursor: "pointer",
+                                      borderBottom: "1px solid #eee",
+                                    }}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={formData.voter_status.includes(status)}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setFormData({
+                                            ...formData,
+                                            voter_status: [...formData.voter_status, status],
+                                          });
+                                        } else {
+                                          setFormData({
+                                            ...formData,
+                                            voter_status: formData.voter_status.filter((v) => v !== status),
+                                          });
+                                        }
+                                      }}
+                                      style={{ marginRight: "8px", cursor: "pointer" }}
+                                    />
+                                    {status === "not-registered" ? "Not Registered" : status.charAt(0).toUpperCase() + status.slice(1)}
+                                  </label>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          {formData.voter_status.length > 0 && (
+                            <div style={{ marginTop: "10px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                              {formData.voter_status.map((status) => (
+                                <div
+                                  key={status}
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    backgroundColor: "#e8f0ff",
+                                    border: "1px solid #b3d9ff",
+                                    borderRadius: "4px",
+                                    padding: "6px 10px",
+                                    fontSize: "13px",
+                                  }}
+                                >
+                                  <span style={{ marginRight: "6px" }}>
+                                    {status === "not-registered" ? "Not Registered" : status.charAt(0).toUpperCase() + status.slice(1)}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setFormData({
+                                        ...formData,
+                                        voter_status: formData.voter_status.filter((v) => v !== status),
+                                      });
+                                    }}
+                                    style={{
+                                      background: "none",
+                                      border: "none",
+                                      color: "#d32f2f",
+                                      cursor: "pointer",
+                                      fontSize: "16px",
+                                      padding: "0",
+                                      lineHeight: "1",
+                                    }}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         <div>
@@ -1207,35 +1446,121 @@ export default function AdminAnnouncements() {
                               fontSize: "14px",
                             }}
                           >
-                            Occupation
+                            Occupation (Select Multiple)
                           </label>
-                          <select
-                            value={formData.occupation}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                occupation: e.target.value,
-                              })
-                            }
-                            style={{
-                              width: "100%",
-                              padding: "10px",
-                              border: "1px solid #ddd",
-                              borderRadius: "6px",
-                              fontFamily: "inherit",
-                            }}
-                          >
-                            <option value="">All Occupations</option>
-                            <option value="Unemployed">Unemployed</option>
-                            <option value="Student">Student</option>
-                            <option value="Gov Employee">Government Employee</option>
-                            <option value="Private Employee">Private Employee</option>
-                            <option value="Self Employed">Self-Employed</option>
-                            <option value="Farmer">Farmer / Agricultural Worker</option>
-                            <option value="Housewife">Housewife / Homemaker</option>
-                            <option value="Retired">Retired / Senior Citizen</option>
-                            <option value="Other">Other</option>
-                          </select>
+                          <div style={{ position: "relative" }}>
+                            <button
+                              type="button"
+                              onClick={() => setOccupationDropdown(!occupationDropdown)}
+                              style={{
+                                width: "100%",
+                                padding: "10px",
+                                border: "1px solid #ddd",
+                                borderRadius: "6px",
+                                textAlign: "left",
+                                backgroundColor: "#f9fafb",
+                                cursor: "pointer",
+                                fontFamily: "inherit",
+                              }}
+                            >
+                              {formData.occupation.length > 0
+                                ? `${formData.occupation.length} selected`
+                                : "Select occupations..."}
+                            </button>
+                            {occupationDropdown && (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  top: "100%",
+                                  left: 0,
+                                  right: 0,
+                                  backgroundColor: "#fff",
+                                  border: "1px solid #ddd",
+                                  borderTop: "none",
+                                  borderRadius: "0 0 6px 6px",
+                                  maxHeight: "150px",
+                                  overflowY: "auto",
+                                  zIndex: 10,
+                                }}
+                              >
+                                {occupationOptions.map((occ) => (
+                                  <label
+                                    key={occ.value}
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      padding: "8px 10px",
+                                      cursor: "pointer",
+                                      borderBottom: "1px solid #eee",
+                                    }}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={formData.occupation.includes(occ.value)}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setFormData({
+                                            ...formData,
+                                            occupation: [...formData.occupation, occ.value],
+                                          });
+                                        } else {
+                                          setFormData({
+                                            ...formData,
+                                            occupation: formData.occupation.filter((o) => o !== occ.value),
+                                          });
+                                        }
+                                      }}
+                                      style={{ marginRight: "8px", cursor: "pointer" }}
+                                    />
+                                    {occ.display}
+                                  </label>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          {formData.occupation.length > 0 && (
+                            <div style={{ marginTop: "10px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                              {formData.occupation.map((occ) => {
+                                const option = occupationOptions.find(o => o.value === occ);
+                                return (
+                                  <div
+                                    key={occ}
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      backgroundColor: "#e8f0ff",
+                                      border: "1px solid #b3d9ff",
+                                      borderRadius: "4px",
+                                      padding: "6px 10px",
+                                      fontSize: "13px",
+                                    }}
+                                  >
+                                    <span style={{ marginRight: "6px" }}>{option?.display || occ}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setFormData({
+                                          ...formData,
+                                          occupation: formData.occupation.filter((o) => o !== occ),
+                                        });
+                                      }}
+                                      style={{
+                                        background: "none",
+                                        border: "none",
+                                        color: "#d32f2f",
+                                        cursor: "pointer",
+                                        fontSize: "16px",
+                                        padding: "0",
+                                        lineHeight: "1",
+                                      }}
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
 
                         <div>
@@ -1247,36 +1572,120 @@ export default function AdminAnnouncements() {
                               fontSize: "14px",
                             }}
                           >
-                            Religion
+                            Religion (Select Multiple)
                           </label>
-                          <select
-                            value={formData.religion}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                religion: e.target.value,
-                              })
-                            }
-                            style={{
-                              width: "100%",
-                              padding: "10px",
-                              border: "1px solid #ddd",
-                              borderRadius: "6px",
-                              fontFamily: "inherit",
-                            }}
-                          >
-                            <option value="">All Religions</option>
-                            <option value="Roman Catholic">Roman Catholic</option>
-                            <option value="Christian">Christian</option>
-                            <option value="Muslim">Islam / Muslim</option>
-                            <option value="INC">Iglesia Ni Cristo</option>
-                            <option value="Jehovahs Witness">Jehovah's Witness</option>
-                            <option value="Buddhism">Buddhism</option>
-                            <option value="Hinduism">Hinduism</option>
-                            <option value="Judaism">Judaism</option>
-                            <option value="Others">Others</option>
-                            <option value="None">None</option>
-                          </select>
+                          <div style={{ position: "relative" }}>
+                            <button
+                              type="button"
+                              onClick={() => setReligionDropdown(!religionDropdown)}
+                              style={{
+                                width: "100%",
+                                padding: "10px",
+                                border: "1px solid #ddd",
+                                borderRadius: "6px",
+                                textAlign: "left",
+                                backgroundColor: "#f9fafb",
+                                cursor: "pointer",
+                                fontFamily: "inherit",
+                              }}
+                            >
+                              {formData.religion.length > 0
+                                ? `${formData.religion.length} selected`
+                                : "Select religions..."}
+                            </button>
+                            {religionDropdown && (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  top: "100%",
+                                  left: 0,
+                                  right: 0,
+                                  backgroundColor: "#fff",
+                                  border: "1px solid #ddd",
+                                  borderTop: "none",
+                                  borderRadius: "0 0 6px 6px",
+                                  maxHeight: "150px",
+                                  overflowY: "auto",
+                                  zIndex: 10,
+                                }}
+                              >
+                                {[
+                                  "Catholic", "Christian", "Born Again"
+                                ].map((rel) => (
+                                  <label
+                                    key={rel}
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      padding: "8px 10px",
+                                      cursor: "pointer",
+                                      borderBottom: "1px solid #eee",
+                                    }}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={formData.religion.includes(rel)}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setFormData({
+                                            ...formData,
+                                            religion: [...formData.religion, rel],
+                                          });
+                                        } else {
+                                          setFormData({
+                                            ...formData,
+                                            religion: formData.religion.filter((r) => r !== rel),
+                                          });
+                                        }
+                                      }}
+                                      style={{ marginRight: "8px", cursor: "pointer" }}
+                                    />
+                                    {rel}
+                                  </label>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          {formData.religion.length > 0 && (
+                            <div style={{ marginTop: "10px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                              {formData.religion.map((rel) => (
+                                <div
+                                  key={rel}
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    backgroundColor: "#e8f0ff",
+                                    border: "1px solid #b3d9ff",
+                                    borderRadius: "4px",
+                                    padding: "6px 10px",
+                                    fontSize: "13px",
+                                  }}
+                                >
+                                  <span style={{ marginRight: "6px" }}>{rel}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setFormData({
+                                        ...formData,
+                                        religion: formData.religion.filter((r) => r !== rel),
+                                      });
+                                    }}
+                                    style={{
+                                      background: "none",
+                                      border: "none",
+                                      color: "#d32f2f",
+                                      cursor: "pointer",
+                                      fontSize: "16px",
+                                      padding: "0",
+                                      lineHeight: "1",
+                                    }}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         <div>
@@ -1288,31 +1697,118 @@ export default function AdminAnnouncements() {
                               fontSize: "14px",
                             }}
                           >
-                            Civil Status
+                            Civil Status (Select Multiple)
                           </label>
-                          <select
-                            value={formData.civil_status}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                civil_status: e.target.value,
-                              })
-                            }
-                            style={{
-                              width: "100%",
-                              padding: "10px",
-                              border: "1px solid #ddd",
-                              borderRadius: "6px",
-                              fontFamily: "inherit",
-                            }}
-                          >
-                            <option value="">All Status</option>
-                            <option value="Single">Single</option>
-                            <option value="Married">Married</option>
-                            <option value="Widowed">Widowed</option>
-                            <option value="Separated">Separated</option>
-                            <option value="Divorced">Divorced</option>
-                          </select>
+                          <div style={{ position: "relative" }}>
+                            <button
+                              type="button"
+                              onClick={() => setCivilStatusDropdown(!civilStatusDropdown)}
+                              style={{
+                                width: "100%",
+                                padding: "10px",
+                                border: "1px solid #ddd",
+                                borderRadius: "6px",
+                                textAlign: "left",
+                                backgroundColor: "#f9fafb",
+                                cursor: "pointer",
+                                fontFamily: "inherit",
+                              }}
+                            >
+                              {formData.civil_status.length > 0
+                                ? `${formData.civil_status.length} selected`
+                                : "Select civil status..."}
+                            </button>
+                            {civilStatusDropdown && (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  top: "100%",
+                                  left: 0,
+                                  right: 0,
+                                  backgroundColor: "#fff",
+                                  border: "1px solid #ddd",
+                                  borderTop: "none",
+                                  borderRadius: "0 0 6px 6px",
+                                  zIndex: 10,
+                                }}
+                              >
+                                {["single", "married", "widowed", "seperated", "divorced"].map((status) => (
+                                  <label
+                                    key={status}
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      padding: "8px 10px",
+                                      cursor: "pointer",
+                                      borderBottom: "1px solid #eee",
+                                    }}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={formData.civil_status.includes(status)}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setFormData({
+                                            ...formData,
+                                            civil_status: [...formData.civil_status, status],
+                                          });
+                                        } else {
+                                          setFormData({
+                                            ...formData,
+                                            civil_status: formData.civil_status.filter((c) => c !== status),
+                                          });
+                                        }
+                                      }}
+                                      style={{ marginRight: "8px", cursor: "pointer" }}
+                                    />
+                                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                                  </label>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          {formData.civil_status.length > 0 && (
+                            <div style={{ marginTop: "10px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                              {formData.civil_status.map((status) => (
+                                <div
+                                  key={status}
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    backgroundColor: "#e8f0ff",
+                                    border: "1px solid #b3d9ff",
+                                    borderRadius: "4px",
+                                    padding: "6px 10px",
+                                    fontSize: "13px",
+                                  }}
+                                >
+                                  <span style={{ marginRight: "6px" }}>
+                                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setFormData({
+                                        ...formData,
+                                        civil_status: formData.civil_status.filter((c) => c !== status),
+                                      });
+                                    }}
+                                    style={{
+                                      background: "none",
+                                      border: "none",
+                                      color: "#d32f2f",
+                                      cursor: "pointer",
+                                      fontSize: "16px",
+                                      padding: "0",
+                                      lineHeight: "1",
+                                    }}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         <div>
@@ -1476,7 +1972,7 @@ export default function AdminAnnouncements() {
                   fontWeight: "500",
                 }}
               >
-                {posting ? "Posting..." : "Post Announcement"}
+                {posting ? (isEditMode ? "Updating..." : "Posting...") : (isEditMode ? "Update Announcement" : "Post Announcement")}
               </button>
             </div>
           </div>
