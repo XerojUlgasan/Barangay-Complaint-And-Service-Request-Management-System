@@ -211,6 +211,9 @@ const MyRequests = () => {
     if (n === "inprogress") return "badge progress";
     if (n === "pending") return "badge pending";
     if (n === "rejected") return "badge rejected";
+    if (n === "forcompliance") return "badge forcompliance";
+    if (n === "forvalidation") return "badge forvalidation";
+    if (n === "complied") return "badge complied";
     return "badge";
   };
 
@@ -224,6 +227,9 @@ const MyRequests = () => {
     if (n === "completed") return "#059669";
     if (n === "inprogress") return "#2563eb";
     if (n === "rejected") return "#dc2626";
+    if (n === "forcompliance") return "#f59e0b";
+    if (n === "forvalidation") return "#0369a1";
+    if (n === "complied") return "#1e40af";
     return "#f59e0b";
   };
 
@@ -690,6 +696,9 @@ const MyRequests = () => {
                 <option>All Status</option>
                 <option>Pending</option>
                 <option>In Progress</option>
+                <option>For Compliance</option>
+                <option>For Validation</option>
+                <option>Complied</option>
                 <option>Completed</option>
                 <option>Rejected</option>
               </select>

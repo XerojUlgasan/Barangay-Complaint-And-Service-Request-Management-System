@@ -80,6 +80,10 @@ const Dashboard = () => {
     normalize(r.request_status) === normalize("inprogress")
   ).length;
   
+  const complianceCount = requests.filter((r) => 
+    normalize(r.request_status) === normalize("forcompliance")
+  ).length;
+  
   const completedCount = requests.filter((r) => 
     normalize(r.request_status) === normalize("completed")
   ).length;
@@ -342,6 +346,23 @@ const Dashboard = () => {
                 <h2>{loading ? "..." : inProgressCount}</h2>
               </div>
               <div className="status-icon blue-icon">!</div>
+            </div>
+            <div className="status">
+              <div className="status-left">
+                <p>Compliance</p>
+                <h2>{loading ? "..." : complianceCount}</h2>
+              </div>
+              <div className="status-icon yellow">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M9 12h6M9 16h6M9 8h6" />
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                </svg>
+              </div>
             </div>
             <div className="status">
               <div className="status-left">

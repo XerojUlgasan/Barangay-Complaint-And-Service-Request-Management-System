@@ -452,7 +452,7 @@
 /* ── STATUS CARDS ── */
 .user-landing-page .status-cards {
     display: grid; 
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 22px; 
     margin: 0 40px 28px 40px;
 }
@@ -546,8 +546,6 @@
     justify-content: space-between; 
     align-items: center; 
     margin-bottom: 20px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid #f3f4f6;
 }
 
 .user-landing-page .recent-header h3 { 
@@ -579,10 +577,6 @@
     transition: all 0.15s ease;
     border-radius: 8px;
     margin: 0 -8px;
-}
-
-.user-landing-page .request-item:first-of-type { 
-    border-top: none; 
 }
 
 .user-landing-page .request-item:hover { 
@@ -666,8 +660,9 @@
 .user-landing-page .badge.progress   { background: #dbeafe; color: #2563eb; }
 .user-landing-page .badge.completed  { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); color: #047857; font-weight: 700; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.15); }
 .user-landing-page .badge.rejected   { background: #fee2e2; color: #dc2626; }
+.user-landing-page .badge.forcompliance { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
 .user-landing-page .badge.forvalidation { background: #e0f2fe; color: #0369a1; }
-.user-landing-page .badge.noncompliant  { background: #fce7f3; color: #9d174d; }
+.user-landing-page .badge.complied { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
 
 /* ── SUBMIT REQUEST FORM ── */
 .user-landing-page .submit-request-container { 
@@ -985,7 +980,7 @@
     .user-landing-page .circle { width: 42px; height: 42px; font-size: 18px; margin-left: 8px; }
     
     .user-landing-page .status-cards { 
-        grid-template-columns: repeat(3, 1fr); 
+        grid-template-columns: repeat(2, 2fr); 
         gap: 8px; 
         margin: 0 16px 16px 16px;
     }
@@ -1047,7 +1042,7 @@
     .user-landing-page .circle { width: 38px; height: 38px; font-size: 16px; }
     
     .user-landing-page .status-cards { 
-        grid-template-columns: repeat(3, 1fr); 
+        grid-template-columns: repeat(2, 1fr); 
         gap: 6px; 
         margin: 0 12px 14px 12px;
     }
@@ -1344,13 +1339,13 @@
 }
 
 .user-landing-page .ann-image { 
-  width: 220px;
+  width: 180px;
   flex-shrink: 0;
 }
 
 .user-landing-page .ann-image img { 
   width: 100%;
-  height: 120px;
+  height: 140px;
   object-fit: cover;
   display: block;
   border-radius: 8px;
@@ -1358,7 +1353,7 @@
 
 .user-landing-page .ann-image-placeholder { 
   width: 100%;
-  height: 120px;
+  height: 140px;
   display: flex; 
   align-items: center; 
   justify-content: center; 
@@ -1593,15 +1588,15 @@
 .history-timeline { display: flex; flex-direction: column; gap: 0; }
 .timeline-item { display: flex; gap: 16px; position: relative; padding-bottom: 24px; }
 .timeline-item:last-child { padding-bottom: 0; }
-.timeline-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; position: relative; z-index: 1; box-shadow: 0 0 0 3px #fff, 0 0 0 4px currentColor; }
-.timeline-line { position: absolute; left: 5px; top: 16px; bottom: 0; width: 2px; background: #e5e7eb; }
+.timeline-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; position: relative; z-index: 1; box-shadow: 0 0 0 4px #fff, 0 0 0 6px currentColor; }
+.timeline-line { position: absolute; left: 6px; top: 18px; bottom: 0; width: 2px; background: #e5e7eb; }
 .timeline-content { flex: 1; padding-bottom: 4px; }
-.timeline-status { font-size: 13px; font-weight: 700; color: #1f2937; margin-bottom: 4px; }
+.timeline-status { font-size: 14px; font-weight: 700; color: #1f2937; margin-bottom: 6px; text-transform: capitalize; }
 .timeline-priority { font-size: 11px; color: #f59e0b; font-weight: 600; margin-bottom: 4px; text-transform: uppercase; }
-.timeline-remarks { font-size: 12px; color: #4b5563; font-style: italic; margin-bottom: 6px; line-height: 1.5; }
+.timeline-remarks { font-size: 13px; color: #4b5563; font-style: italic; margin-bottom: 8px; line-height: 1.6; background: #f9fafb; padding: 8px 12px; border-radius: 6px; border-left: 3px solid #d1d5db; }
 .timeline-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.timeline-official { font-size: 11px; color: #059669; font-weight: 600; }
-.timeline-date { font-size: 11px; color: #9ca3af; }
+.timeline-official { font-size: 12px; color: #059669; font-weight: 600; }
+.timeline-date { font-size: 12px; color: #9ca3af; }
 
 @media (max-width: 480px) {
   .timeline-item { gap: 12px; padding-bottom: 18px; }
@@ -2118,7 +2113,6 @@
   border: 2px dashed #d1d5db;
   border-radius: 10px;
   transition: border-color 0.15s ease, background 0.15s ease;
-  overflow: hidden;
 }
 
 .compliance-file-input-wrapper:hover {
@@ -2173,12 +2167,14 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 6px 12px;
-  background: #f59e0b;
-  color: #ffffff;
+  padding: 8px 12px;
+  background: #f0fdf4;
+  color: #059669;
   font-size: 12px;
   font-weight: 600;
-  border-radius: 0 0 8px 8px;
+  border-radius: 6px;
+  margin-top: 8px;
+  border: 1px solid #a7f3d0;
 }
 
 /* ── FILE PREVIEWS ── */

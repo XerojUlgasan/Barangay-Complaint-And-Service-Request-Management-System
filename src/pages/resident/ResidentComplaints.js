@@ -388,7 +388,7 @@ const MyComplaints = () => {
     if (n === "pending") return "badge pending";
     if (n === "rejected" || n === "dismissed") return "badge rejected";
     if (n === "forvalidation") return "badge forvalidation";
-    if (n === "noncompliant") return "badge noncompliant";
+    if (n === "noncompliant") return "badge forcompliance";
     return "badge";
   };
 
@@ -402,6 +402,8 @@ const MyComplaints = () => {
     if (n === "resolved" || n === "completed") return "#059669";
     if (n === "inprogress") return "#2563eb";
     if (n === "rejected" || n === "dismissed") return "#dc2626";
+    if (n === "forvalidation") return "#0369a1";
+    if (n === "noncompliant") return "#f59e0b";
     return "#f59e0b";
   };
 
