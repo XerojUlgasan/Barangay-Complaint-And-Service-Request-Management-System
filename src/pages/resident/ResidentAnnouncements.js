@@ -20,6 +20,7 @@ const Announcements = () => {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSignupModal, setShowSignupModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
   const [signupLoading, setSignupLoading] = useState(false);
   const [signupMessage, setSignupMessage] = useState(null);
@@ -310,7 +311,17 @@ const Announcements = () => {
                                   </span>
                                 )}
 
-                              {userSignups && userSignups[ann.id] ? (
+                              <button
+                                className="ann-signup-btn"
+                                onClick={() => {
+                                  setSelectedAnnouncement(ann);
+                                  setShowDetailsModal(true);
+                                }}
+                              >
+                                View Details
+                              </button>
+
+                              {userSignups && userSignups[ann.id] && (
                                 <button
                                   className="ann-signup-btn cancel"
                                   onClick={() => {
@@ -321,18 +332,6 @@ const Announcements = () => {
                                   }}
                                 >
                                   Cancel Signup
-                                </button>
-                              ) : (
-                                <button
-                                  className="ann-signup-btn"
-                                  onClick={() => {
-                                    setSelectedAnnouncement(ann);
-                                    setSignupMessage(null);
-                                    setSignupAction("signup");
-                                    setShowSignupModal(true);
-                                  }}
-                                >
-                                  Sign Up
                                 </button>
                               )}
                             </>
@@ -357,9 +356,9 @@ const Announcements = () => {
               onClick={(e) => e.stopPropagation()}
               style={{ maxWidth: 480 }}
             >
-              <h3 className="logout-modal-title">Confirm Signup</h3>
+              <h3 className="logout-modal-title">Confirm {signupAction === "signup" ? "Signup" : "Cancellation"}</h3>
               <p>
-                Are you sure you want to sign up for{" "}
+                Are you sure you want to {signupAction === "signup" ? "sign up for" : "cancel your signup for"}{" "}
                 <b>{selectedAnnouncement.title}</b>?
               </p>
               {signupMessage && (
@@ -387,7 +386,6 @@ const Announcements = () => {
                         );
                         setSignupMessage(res);
                         if (res && res.success) {
-                          // update local state: mark as signed up and increment count
                           setUserSignups((s) => ({
                             ...s,
                             [selectedAnnouncement.id]: true,
@@ -397,7 +395,6 @@ const Announcements = () => {
                             [selectedAnnouncement.id]:
                               (c[selectedAnnouncement.id] || 0) + 1,
                           }));
-                          // close modal after short delay
                           setTimeout(() => {
                             setShowSignupModal(false);
                           }, 1000);
@@ -406,7 +403,6 @@ const Announcements = () => {
                         const res = await cancelSignup(selectedAnnouncement.id);
                         setSignupMessage(res);
                         if (res && res.success) {
-                          // update local state: remove signup and decrement count
                           setUserSignups((s) => {
                             const n = { ...s };
                             delete n[selectedAnnouncement.id];
@@ -444,6 +440,135 @@ const Announcements = () => {
                       ? "Yes, Sign Up"
                       : "Yes, Cancel"}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* EVENT DETAILS MODAL */}
+        {showDetailsModal && selectedAnnouncement && (
+          <div
+            className="logout-modal-overlay"
+            onClick={() => setShowDetailsModal(false)}
+          >
+            <div
+              className="history-modal"
+              onClick={(e) => e.stopPropagation()}
+              style={{ maxWidth: 520 }}
+            >
+              <div className="history-modal-header">
+                <div>
+                  <h3 className="history-modal-title">{selectedAnnouncement.title}</h3>
+                  <p className="history-modal-sub">Event Details & Requirements</p>
+                </div>
+                <button
+                  className="history-modal-close"
+                  onClick={() => setShowDetailsModal(false)}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    width="20"
+                    height="20"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+              <div className="history-modal-body">
+                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  <div>
+                    <div style={{ fontSize: "13px", fontWeight: "600", color: "#6b7280", marginBottom: "6px" }}>Description</div>
+                    <p style={{ fontSize: "14px", color: "#374151", lineHeight: "1.6", margin: 0 }}>{selectedAnnouncement.content}</p>
+                  </div>
+
+                  {selectedAnnouncement.event_start && (
+                    <div>
+                      <div style={{ fontSize: "13px", fontWeight: "600", color: "#6b7280", marginBottom: "6px" }}>Event Schedule</div>
+                      <div style={{ fontSize: "14px", color: "#374151" }}>
+                        <div><strong>Start:</strong> {new Date(selectedAnnouncement.event_start).toLocaleString()}</div>
+                        {selectedAnnouncement.event_end && (
+                          <div><strong>End:</strong> {new Date(selectedAnnouncement.event_end).toLocaleString()}</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedAnnouncement.max_participants && (
+                    <div>
+                      <div style={{ fontSize: "13px", fontWeight: "600", color: "#6b7280", marginBottom: "6px" }}>Participants</div>
+                      <div style={{ fontSize: "14px", color: "#374151" }}>
+                        {((participantCounts && participantCounts[selectedAnnouncement.id]) || 0)} / {selectedAnnouncement.max_participants} slots filled
+                      </div>
+                    </div>
+                  )}
+
+                  {(selectedAnnouncement.age_group || selectedAnnouncement.voter_status || selectedAnnouncement.occupation || selectedAnnouncement.religion || selectedAnnouncement.civil_status || selectedAnnouncement.sex) && (
+                    <div>
+                      <div style={{ fontSize: "13px", fontWeight: "600", color: "#6b7280", marginBottom: "8px" }}>Requirements</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px", padding: "12px", background: "#f9fafb", borderRadius: "8px", border: "1px solid #e5e7eb" }}>
+                        {selectedAnnouncement.age_group && (
+                          <div style={{ fontSize: "13px", color: "#374151" }}><strong>Age Group:</strong> {selectedAnnouncement.age_group}</div>
+                        )}
+                        {selectedAnnouncement.voter_status && (
+                          <div style={{ fontSize: "13px", color: "#374151" }}><strong>Voter Status:</strong> {selectedAnnouncement.voter_status}</div>
+                        )}
+                        {selectedAnnouncement.occupation && (
+                          <div style={{ fontSize: "13px", color: "#374151" }}><strong>Occupation:</strong> {selectedAnnouncement.occupation}</div>
+                        )}
+                        {selectedAnnouncement.religion && (
+                          <div style={{ fontSize: "13px", color: "#374151" }}><strong>Religion:</strong> {selectedAnnouncement.religion}</div>
+                        )}
+                        {selectedAnnouncement.civil_status && (
+                          <div style={{ fontSize: "13px", color: "#374151" }}><strong>Civil Status:</strong> {selectedAnnouncement.civil_status}</div>
+                        )}
+                        {selectedAnnouncement.sex && (
+                          <div style={{ fontSize: "13px", color: "#374151" }}><strong>Sex:</strong> {selectedAnnouncement.sex === "M" ? "Male" : "Female"}</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
+                    {userSignups && userSignups[selectedAnnouncement.id] ? (
+                      <button
+                        className="ann-signup-btn cancel"
+                        style={{ flex: 1, padding: "12px" }}
+                        onClick={() => {
+                          setShowDetailsModal(false);
+                          setSignupMessage(null);
+                          setSignupAction("cancel");
+                          setShowSignupModal(true);
+                        }}
+                      >
+                        Cancel Signup
+                      </button>
+                    ) : (
+                      <button
+                        className="ann-signup-btn"
+                        style={{ flex: 1, padding: "12px" }}
+                        onClick={() => {
+                          setShowDetailsModal(false);
+                          setSignupMessage(null);
+                          setSignupAction("signup");
+                          setShowSignupModal(true);
+                        }}
+                      >
+                        Sign Up for Event
+                      </button>
+                    )}
+                    <button
+                      className="logout-modal-no"
+                      style={{ flex: 1, padding: "12px" }}
+                      onClick={() => setShowDetailsModal(false)}
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

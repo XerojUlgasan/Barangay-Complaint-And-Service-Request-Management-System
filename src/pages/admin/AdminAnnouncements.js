@@ -39,7 +39,14 @@ export default function AdminAnnouncements() {
     event_end: "",
     audience: "residents",
     max_participants: "",
+    age_group: "",
+    voter_status: "",
+    occupation: "",
+    religion: "",
+    civil_status: "",
+    sex: "",
   });
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [participantsLoading, setParticipantsLoading] = useState(false);
@@ -218,12 +225,24 @@ export default function AdminAnnouncements() {
           max_participants: formData.max_participants
             ? Number(formData.max_participants)
             : null,
+          age_group: formData.age_group || null,
+          voter_status: formData.voter_status || null,
+          occupation: formData.occupation || null,
+          religion: formData.religion || null,
+          civil_status: formData.civil_status || null,
+          sex: formData.sex || null,
         }
       : {
           event_start: null,
           event_end: null,
           audience: null,
           max_participants: null,
+          age_group: null,
+          voter_status: null,
+          occupation: null,
+          religion: null,
+          civil_status: null,
+          sex: null,
         };
 
     try {
@@ -291,7 +310,14 @@ export default function AdminAnnouncements() {
           event_end: "",
           audience: "residents",
           max_participants: "",
+          age_group: "",
+          voter_status: "",
+          occupation: "",
+          religion: "",
+          civil_status: "",
+          sex: "",
         });
+        setShowAdvanced(false);
         closeModal();
         // Refresh announcements list
         const refreshResult = await getAnnouncements();
@@ -780,9 +806,18 @@ export default function AdminAnnouncements() {
                               event_end: "",
                               audience: "residents",
                               max_participants: "",
+                              age_group: "",
+                              voter_status: "",
+                              occupation: "",
+                              religion: "",
+                              civil_status: "",
+                              sex: "",
                             }
                           : {}),
                       });
+                      if (nextCategory !== "event") {
+                        setShowAdvanced(false);
+                      }
                     }}
                     style={{
                       width: "100%",
@@ -1029,6 +1064,290 @@ export default function AdminAnnouncements() {
                     </div>
                   </div>
                 </>
+              )}
+
+              {formData.category === "event" && (
+                <div style={{ marginTop: "16px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvanced(!showAdvanced)}
+                    style={{
+                      width: "100%",
+                      padding: "10px",
+                      border: "1px solid #d1d5db",
+                      borderRadius: "6px",
+                      background: showAdvanced ? "#f0fdf4" : "#f9fafb",
+                      color: showAdvanced ? "#047857" : "#6b7280",
+                      fontFamily: "inherit",
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                      transition: "all 0.2s ease",
+                    }}
+                  >
+                    {showAdvanced ? "▼" : "▶"} Advanced Filtering Options
+                  </button>
+
+                  {showAdvanced && (
+                    <div
+                      style={{
+                        marginTop: "16px",
+                        padding: "16px",
+                        background: "#f9fafb",
+                        borderRadius: "8px",
+                        border: "1px solid #e5e7eb",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "16px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr",
+                          gap: "16px",
+                        }}
+                      >
+                        <div>
+                          <label
+                            style={{
+                              display: "block",
+                              marginBottom: "6px",
+                              fontWeight: "500",
+                              fontSize: "14px",
+                            }}
+                          >
+                            Age Group
+                          </label>
+                          <select
+                            value={formData.age_group}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                age_group: e.target.value,
+                              })
+                            }
+                            style={{
+                              width: "100%",
+                              padding: "10px",
+                              border: "1px solid #ddd",
+                              borderRadius: "6px",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            <option value="">All Ages</option>
+                            <option value="0-4">0-4</option>
+                            <option value="5-9">5-9</option>
+                            <option value="10-14">10-14</option>
+                            <option value="15-19">15-19</option>
+                            <option value="20-24">20-24</option>
+                            <option value="25-29">25-29</option>
+                            <option value="30-34">30-34</option>
+                            <option value="35-39">35-39</option>
+                            <option value="40-44">40-44</option>
+                            <option value="45-49">45-49</option>
+                            <option value="50-54">50-54</option>
+                            <option value="55-59">55-59</option>
+                            <option value="60-64">60-64</option>
+                            <option value="65-69">65-69</option>
+                            <option value="70-74">70-74</option>
+                            <option value="75-79">75-79</option>
+                            <option value="80-84">80-84</option>
+                            <option value="85-89">85-89</option>
+                            <option value="90-94">90-94</option>
+                            <option value="95-99">95-99</option>
+                            <option value="100+">100+</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label
+                            style={{
+                              display: "block",
+                              marginBottom: "6px",
+                              fontWeight: "500",
+                              fontSize: "14px",
+                            }}
+                          >
+                            Voter Status
+                          </label>
+                          <select
+                            value={formData.voter_status}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                voter_status: e.target.value,
+                              })
+                            }
+                            style={{
+                              width: "100%",
+                              padding: "10px",
+                              border: "1px solid #ddd",
+                              borderRadius: "6px",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            <option value="">All Voters</option>
+                            <option value="Registered">Registered</option>
+                            <option value="Not Registered">Not Registered</option>
+                            <option value="Transferred">Transferred</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label
+                            style={{
+                              display: "block",
+                              marginBottom: "6px",
+                              fontWeight: "500",
+                              fontSize: "14px",
+                            }}
+                          >
+                            Occupation
+                          </label>
+                          <select
+                            value={formData.occupation}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                occupation: e.target.value,
+                              })
+                            }
+                            style={{
+                              width: "100%",
+                              padding: "10px",
+                              border: "1px solid #ddd",
+                              borderRadius: "6px",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            <option value="">All Occupations</option>
+                            <option value="Unemployed">Unemployed</option>
+                            <option value="Student">Student</option>
+                            <option value="Gov Employee">Government Employee</option>
+                            <option value="Private Employee">Private Employee</option>
+                            <option value="Self Employed">Self-Employed</option>
+                            <option value="Farmer">Farmer / Agricultural Worker</option>
+                            <option value="Housewife">Housewife / Homemaker</option>
+                            <option value="Retired">Retired / Senior Citizen</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label
+                            style={{
+                              display: "block",
+                              marginBottom: "6px",
+                              fontWeight: "500",
+                              fontSize: "14px",
+                            }}
+                          >
+                            Religion
+                          </label>
+                          <select
+                            value={formData.religion}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                religion: e.target.value,
+                              })
+                            }
+                            style={{
+                              width: "100%",
+                              padding: "10px",
+                              border: "1px solid #ddd",
+                              borderRadius: "6px",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            <option value="">All Religions</option>
+                            <option value="Roman Catholic">Roman Catholic</option>
+                            <option value="Christian">Christian</option>
+                            <option value="Muslim">Islam / Muslim</option>
+                            <option value="INC">Iglesia Ni Cristo</option>
+                            <option value="Jehovahs Witness">Jehovah's Witness</option>
+                            <option value="Buddhism">Buddhism</option>
+                            <option value="Hinduism">Hinduism</option>
+                            <option value="Judaism">Judaism</option>
+                            <option value="Others">Others</option>
+                            <option value="None">None</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label
+                            style={{
+                              display: "block",
+                              marginBottom: "6px",
+                              fontWeight: "500",
+                              fontSize: "14px",
+                            }}
+                          >
+                            Civil Status
+                          </label>
+                          <select
+                            value={formData.civil_status}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                civil_status: e.target.value,
+                              })
+                            }
+                            style={{
+                              width: "100%",
+                              padding: "10px",
+                              border: "1px solid #ddd",
+                              borderRadius: "6px",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            <option value="">All Status</option>
+                            <option value="Single">Single</option>
+                            <option value="Married">Married</option>
+                            <option value="Widowed">Widowed</option>
+                            <option value="Separated">Separated</option>
+                            <option value="Divorced">Divorced</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label
+                            style={{
+                              display: "block",
+                              marginBottom: "6px",
+                              fontWeight: "500",
+                              fontSize: "14px",
+                            }}
+                          >
+                            Sex
+                          </label>
+                          <select
+                            value={formData.sex}
+                            onChange={(e) =>
+                              setFormData({ ...formData, sex: e.target.value })
+                            }
+                            style={{
+                              width: "100%",
+                              padding: "10px",
+                              border: "1px solid #ddd",
+                              borderRadius: "6px",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            <option value="">All</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Image Upload */}

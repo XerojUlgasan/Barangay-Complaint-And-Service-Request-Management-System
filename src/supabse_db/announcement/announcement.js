@@ -25,6 +25,12 @@ export const postAnnouncement = async (
       event_end: eventData.event_end ?? null,
       audience: eventData.audience ?? null,
       max_participants: eventData.max_participants ?? null,
+      age_group: eventData.age_group ?? null,
+      voter_status: eventData.voter_status ?? null,
+      occupation: eventData.occupation ?? null,
+      religion: eventData.religion ?? null,
+      civil_status: eventData.civil_status ?? null,
+      sex: eventData.sex ?? null,
     })
     .select()
     .single();

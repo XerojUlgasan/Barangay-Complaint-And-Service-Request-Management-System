@@ -14,6 +14,7 @@ const OfficialAnnouncements = () => {
   const [announcementImages, setAnnouncementImages] = useState({});
   const [loading, setLoading] = useState(true);
   const [showSignupModal, setShowSignupModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
   const [signupLoading, setSignupLoading] = useState(false);
   const [signupMessage, setSignupMessage] = useState(null);
@@ -155,15 +156,15 @@ const OfficialAnnouncements = () => {
       ) : announcements.length === 0 ? (
         <p style={{ color: "#888", padding: "0 2rem" }}>No announcements yet.</p>
       ) : (
-        <div className="ann-grid-official">
+        <div className="ann-grid">
           {announcements.map((ann) => (
-            <div className="ann-card-official" key={ann.id}>
-              {/* IMAGE */}
-              <div className="ann-image-official">
+            <div className="ann-card" key={ann.id}>
+              {/* LEFT: IMAGE */}
+              <div className="ann-image">
                 {announcementImages[ann.id] ? (
                   <img src={announcementImages[ann.id]} alt={ann.title} />
                 ) : (
-                  <div className="ann-image-placeholder-official">
+                  <div className="ann-image-placeholder">
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
@@ -180,72 +181,79 @@ const OfficialAnnouncements = () => {
                 )}
               </div>
 
-              {/* BODY */}
-              <div className="ann-body-official">
-                {/* Meta row: icon + category pill + priority badge */}
-                <div className="ann-meta-top-official">
-                  <div className="ann-meta-left-official">
-                    <span className="ann-category-icon-official">
-                      {getCategoryIcon(ann.category)}
-                    </span>
-                    {ann.category && (
-                      <span className="ann-category-official">{ann.category}</span>
-                    )}
+              {/* RIGHT: CONTENT */}
+              <div className="ann-body">
+                {/* TOP ROW */}
+                <div className="ann-meta-top">
+                  <div className="ann-category-icon">
+                    {getCategoryIcon(ann.category)}
                   </div>
-                  {ann.priority &&
-                    ann.priority.toLowerCase() !== "normal" &&
-                    ann.priority.toLowerCase() !== "low" && (
-                      <span className={getPriorityClass(ann.priority)}>
-                        {ann.priority.toUpperCase()}
-                      </span>
-                    )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+                    <div className="ann-title">{ann.title}</div>
+                    {ann.priority &&
+                      ann.priority.toLowerCase() !== "normal" &&
+                      ann.priority.toLowerCase() !== "low" && (
+                        <div className={getPriorityClass(ann.priority)}>
+                          {ann.priority.toUpperCase()}
+                        </div>
+                      )}
+                  </div>
                 </div>
 
-                <h3 className="ann-title-official">{ann.title}</h3>
-                <p className="ann-description-official">{ann.content}</p>
+                {/* METADATA */}
+                <div className="ann-meta-left">
+                  Posted by {ann.author || "Barangay"} •{" "}
+                  {formatDate(ann.created_at)}
+                </div>
 
-                <div className="ann-footer-official">
-                  <span className="ann-author-official">
-                    {ann.author || "Admin"}
-                  </span>
-                  <span className="ann-date-official">
-                    {formatDate(ann.created_at)}
-                  </span>
-                  {ann.category && ann.category.toLowerCase() === "event" && (
-                    <>
-                      {typeof ann.max_participants !== "undefined" && ann.max_participants !== null && (
-                        <span className="ann-slots-official">
-                          {((participantCounts && participantCounts[ann.id]) || 0) + " / " + ann.max_participants}
-                        </span>
-                      )}
+                {/* DESCRIPTION */}
+                <div className="ann-description">{ann.content}</div>
 
-                      {userSignups && userSignups[ann.id] ? (
+                {/* FOOTER */}
+                <div className="ann-footer">
+                  <div className="ann-category">
+                    {ann.category?.toUpperCase() || "ANNOUNCEMENT"}
+                  </div>
+
+                  {ann.category &&
+                    ann.category.toLowerCase() === "event" && (
+                      <>
+                        {typeof ann.max_participants !== "undefined" &&
+                          ann.max_participants !== null && (
+                            <span className="ann-slots">
+                              {((participantCounts &&
+                                participantCounts[ann.id]) ||
+                                0) +
+                                " / " +
+                                ann.max_participants}
+                            </span>
+                          )}
+
                         <button
-                          className="ann-signup-btn-official cancel"
+                          className="ann-signup-btn"
                           onClick={() => {
                             setSelectedAnnouncement(ann);
-                            setSignupMessage(null);
-                            setSignupAction("cancel");
-                            setShowSignupModal(true);
+                            setShowDetailsModal(true);
                           }}
                         >
-                          Cancel Signup
+                          View Details
                         </button>
-                      ) : (
-                        <button
-                          className="ann-signup-btn-official"
-                          onClick={() => {
-                            setSelectedAnnouncement(ann);
-                            setSignupMessage(null);
-                            setSignupAction("signup");
-                            setShowSignupModal(true);
-                          }}
-                        >
-                          Sign Up
-                        </button>
-                      )}
-                    </>
-                  )}
+
+                        {userSignups && userSignups[ann.id] && (
+                          <button
+                            className="ann-signup-btn cancel"
+                            onClick={() => {
+                              setSelectedAnnouncement(ann);
+                              setSignupMessage(null);
+                              setSignupAction("cancel");
+                              setShowSignupModal(true);
+                            }}
+                          >
+                            Cancel Signup
+                          </button>
+                        )}
+                      </>
+                    )}
                 </div>
               </div>
             </div>
@@ -263,9 +271,9 @@ const OfficialAnnouncements = () => {
             className="modal-content-official"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="modal-title-official">Confirm Signup</h3>
+            <h3 className="modal-title-official">Confirm {signupAction === "signup" ? "Signup" : "Cancellation"}</h3>
             <p className="modal-message-official">
-              Are you sure you want to sign up for <b>{selectedAnnouncement.title}</b>?
+              Are you sure you want to {signupAction === "signup" ? "sign up for" : "cancel your signup for"} <b>{selectedAnnouncement.title}</b>?
             </p>
             {signupMessage && (
               <p style={{ color: signupMessage.success ? "green" : "red", marginTop: "12px" }}>
@@ -290,10 +298,8 @@ const OfficialAnnouncements = () => {
                       const res = await signupForEvent(selectedAnnouncement.id);
                       setSignupMessage(res);
                       if (res && res.success) {
-                        // update local state: mark as signed up and increment count
                         setUserSignups((s) => ({ ...s, [selectedAnnouncement.id]: true }));
                         setParticipantCounts((c) => ({ ...c, [selectedAnnouncement.id]: (c[selectedAnnouncement.id] || 0) + 1 }));
-                        // close modal after short delay
                         setTimeout(() => {
                           setShowSignupModal(false);
                         }, 1000);
@@ -302,7 +308,6 @@ const OfficialAnnouncements = () => {
                       const res = await cancelSignup(selectedAnnouncement.id);
                       setSignupMessage(res);
                       if (res && res.success) {
-                        // update local state: remove signup and decrement count
                         setUserSignups((s) => {
                           const n = { ...s };
                           delete n[selectedAnnouncement.id];
@@ -325,6 +330,136 @@ const OfficialAnnouncements = () => {
               >
                 {signupLoading ? (signupAction === "signup" ? "Signing up..." : "Cancelling...") : signupAction === "signup" ? "Yes, Sign Up" : "Yes, Cancel"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EVENT DETAILS MODAL */}
+      {showDetailsModal && selectedAnnouncement && (
+        <div
+          className="modal-overlay-official"
+          onClick={() => setShowDetailsModal(false)}
+        >
+          <div
+            className="modal-content-official"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 520, maxHeight: "80vh", overflow: "auto" }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
+              <div>
+                <h3 className="modal-title-official">{selectedAnnouncement.title}</h3>
+                <p style={{ fontSize: "13px", color: "#6b7280", margin: "4px 0 0" }}>Event Details & Requirements</p>
+              </div>
+              <button
+                onClick={() => setShowDetailsModal(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "4px",
+                  color: "#9ca3af",
+                  borderRadius: "6px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <div>
+                <div style={{ fontSize: "13px", fontWeight: "600", color: "#6b7280", marginBottom: "6px" }}>Description</div>
+                <p style={{ fontSize: "14px", color: "#374151", lineHeight: "1.6", margin: 0 }}>{selectedAnnouncement.content}</p>
+              </div>
+
+              {selectedAnnouncement.event_start && (
+                <div>
+                  <div style={{ fontSize: "13px", fontWeight: "600", color: "#6b7280", marginBottom: "6px" }}>Event Schedule</div>
+                  <div style={{ fontSize: "14px", color: "#374151" }}>
+                    <div><strong>Start:</strong> {new Date(selectedAnnouncement.event_start).toLocaleString()}</div>
+                    {selectedAnnouncement.event_end && (
+                      <div><strong>End:</strong> {new Date(selectedAnnouncement.event_end).toLocaleString()}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {selectedAnnouncement.max_participants && (
+                <div>
+                  <div style={{ fontSize: "13px", fontWeight: "600", color: "#6b7280", marginBottom: "6px" }}>Participants</div>
+                  <div style={{ fontSize: "14px", color: "#374151" }}>
+                    {((participantCounts && participantCounts[selectedAnnouncement.id]) || 0)} / {selectedAnnouncement.max_participants} slots filled
+                  </div>
+                </div>
+              )}
+
+              {(selectedAnnouncement.age_group || selectedAnnouncement.voter_status || selectedAnnouncement.occupation || selectedAnnouncement.religion || selectedAnnouncement.civil_status || selectedAnnouncement.sex) && (
+                <div>
+                  <div style={{ fontSize: "13px", fontWeight: "600", color: "#6b7280", marginBottom: "8px" }}>Requirements</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px", padding: "12px", background: "#f9fafb", borderRadius: "8px", border: "1px solid #e5e7eb" }}>
+                    {selectedAnnouncement.age_group && (
+                      <div style={{ fontSize: "13px", color: "#374151" }}><strong>Age Group:</strong> {selectedAnnouncement.age_group}</div>
+                    )}
+                    {selectedAnnouncement.voter_status && (
+                      <div style={{ fontSize: "13px", color: "#374151" }}><strong>Voter Status:</strong> {selectedAnnouncement.voter_status}</div>
+                    )}
+                    {selectedAnnouncement.occupation && (
+                      <div style={{ fontSize: "13px", color: "#374151" }}><strong>Occupation:</strong> {selectedAnnouncement.occupation}</div>
+                    )}
+                    {selectedAnnouncement.religion && (
+                      <div style={{ fontSize: "13px", color: "#374151" }}><strong>Religion:</strong> {selectedAnnouncement.religion}</div>
+                    )}
+                    {selectedAnnouncement.civil_status && (
+                      <div style={{ fontSize: "13px", color: "#374151" }}><strong>Civil Status:</strong> {selectedAnnouncement.civil_status}</div>
+                    )}
+                    {selectedAnnouncement.sex && (
+                      <div style={{ fontSize: "13px", color: "#374151" }}><strong>Sex:</strong> {selectedAnnouncement.sex === "M" ? "Male" : "Female"}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
+                {userSignups && userSignups[selectedAnnouncement.id] ? (
+                  <button
+                    className="ann-signup-btn cancel"
+                    style={{ flex: 1, padding: "12px" }}
+                    onClick={() => {
+                      setShowDetailsModal(false);
+                      setSignupMessage(null);
+                      setSignupAction("cancel");
+                      setShowSignupModal(true);
+                    }}
+                  >
+                    Cancel Signup
+                  </button>
+                ) : (
+                  <button
+                    className="ann-signup-btn"
+                    style={{ flex: 1, padding: "12px" }}
+                    onClick={() => {
+                      setShowDetailsModal(false);
+                      setSignupMessage(null);
+                      setSignupAction("signup");
+                      setShowSignupModal(true);
+                    }}
+                  >
+                    Sign Up for Event
+                  </button>
+                )}
+                <button
+                  className="modal-btn-official cancel"
+                  style={{ flex: 1, padding: "12px" }}
+                  onClick={() => setShowDetailsModal(false)}
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
