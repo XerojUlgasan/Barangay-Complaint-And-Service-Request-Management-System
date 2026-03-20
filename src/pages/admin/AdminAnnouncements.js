@@ -18,6 +18,7 @@ import {
   deleteAnnouncement,
   getAnnouncementParticipants,
   updateAnnouncement,
+  getPurokChoices,
 } from "../../supabse_db/announcement/announcement";
 import {
   uploadAnnouncementImage,
@@ -31,6 +32,7 @@ export default function AdminAnnouncements() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [posting, setPosting] = useState(false);
+  const [dateErrors, setDateErrors] = useState({ start: "", end: "" });
   const [formData, setFormData] = useState({
     category: "general",
     priority: "normal",
@@ -41,17 +43,21 @@ export default function AdminAnnouncements() {
     event_end: "",
     audience: "residents",
     max_participants: "",
+    purok: [],
     age_group: [],
     voter_status: [],
     occupation: [],
     religion: [],
     civil_status: [],
     sex: "",
+    send_sms: false,
   });
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [participantsLoading, setParticipantsLoading] = useState(false);
+  const [purokOptions, setPurokOptions] = useState([]);
+  const [purokDropdown, setPurokDropdown] = useState(false);
   const [ageGroupDropdown, setAgeGroupDropdown] = useState(false);
   const [voterStatusDropdown, setVoterStatusDropdown] = useState(false);
   const [occupationDropdown, setOccupationDropdown] = useState(false);
@@ -66,8 +72,67 @@ export default function AdminAnnouncements() {
   const occupationOptions = [
     { display: "Unemployed", value: "Unemployed" },
     { display: "Employed", value: "Employed" },
-    { display: "Retired", value: "Retired" }
+    { display: "Retired", value: "Retired" },
   ];
+
+  const mapSexToUi = (value) => {
+    if (value === "M" || value === "Male") return "Male";
+    if (value === "F" || value === "Female") return "Female";
+    return "";
+  };
+
+  const mapSexToDb = (value) => {
+    if (value === "Male" || value === "M") return "M";
+    if (value === "Female" || value === "F") return "F";
+    return null;
+  };
+
+  const formatDateTimeLocal = (date) => {
+    const pad = (num) => String(num).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+      date.getDate(),
+    )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
+
+  const getMinAllowedDateTime = () => {
+    const minDate = new Date();
+    minDate.setHours(0, 0, 0, 0);
+    minDate.setDate(minDate.getDate() + 1);
+    return minDate;
+  };
+
+  const validateEventDates = (startValue, endValue) => {
+    const errors = { start: "", end: "" };
+    const minAllowedDate = getMinAllowedDateTime();
+    const startDate = startValue ? new Date(startValue) : null;
+    const endDate = endValue ? new Date(endValue) : null;
+
+    if (startDate && startDate < minAllowedDate) {
+      errors.start = "Start date must be tomorrow or later.";
+    }
+
+    if (endDate && endDate < minAllowedDate) {
+      errors.end = "End date must be tomorrow or later.";
+    }
+
+    if (startDate && endDate && endDate <= startDate) {
+      errors.end = "End date must be after start date.";
+    }
+
+    setDateErrors(errors);
+    return !errors.start && !errors.end;
+  };
+
+  const minStartDateTime = formatDateTimeLocal(getMinAllowedDateTime());
+  const minEndDateTime = formData.event_start
+    ? (() => {
+        const endMin = new Date(formData.event_start);
+        endMin.setMinutes(endMin.getMinutes() + 1);
+        return formatDateTimeLocal(
+          endMin < getMinAllowedDateTime() ? getMinAllowedDateTime() : endMin,
+        );
+      })()
+    : minStartDateTime;
 
   console.log("AdminAnnouncements render, showModal=", showModal);
 
@@ -106,6 +171,19 @@ export default function AdminAnnouncements() {
   }, []);
 
   useEffect(() => {
+    const fetchPurokChoices = async () => {
+      const result = await getPurokChoices();
+      if (result.success && Array.isArray(result.data)) {
+        setPurokOptions(result.data);
+      } else {
+        console.error("Failed to fetch purok choices:", result.message);
+      }
+    };
+
+    fetchPurokChoices();
+  }, []);
+
+  useEffect(() => {
     const onKey = (e) => {
       if (e.key === "Escape") setShowModal(false);
     };
@@ -121,6 +199,15 @@ export default function AdminAnnouncements() {
     };
   }, [showModal]);
 
+  useEffect(() => {
+    if (formData.category !== "event") {
+      setDateErrors({ start: "", end: "" });
+      return;
+    }
+
+    validateEventDates(formData.event_start, formData.event_end);
+  }, [formData.category, formData.event_start, formData.event_end]);
+
   const openModal = () => {
     console.log("Opening modal...");
     setShowModal(true);
@@ -131,6 +218,7 @@ export default function AdminAnnouncements() {
     setShowModal(false);
     setIsEditMode(false);
     setEditingAnnouncement(null);
+    setDateErrors({ start: "", end: "" });
   };
 
   const openEditModal = (ann) => {
@@ -146,12 +234,14 @@ export default function AdminAnnouncements() {
       event_end: ann.event_end ? ann.event_end.slice(0, 16) : "",
       audience: ann.audience || "residents",
       max_participants: ann.max_participants || "",
+      purok: ann.purok || [],
       age_group: ann.age_group || [],
       voter_status: ann.voter_status || [],
       occupation: ann.occupation || [],
       religion: ann.religion || [],
       civil_status: ann.civil_status || [],
-      sex: ann.sex || "",
+      sex: mapSexToUi(ann.sex),
+      send_sms: Boolean(ann.send_sms),
     });
     setShowModal(true);
   };
@@ -170,12 +260,14 @@ export default function AdminAnnouncements() {
       event_end: "",
       audience: "residents",
       max_participants: "",
+      purok: [],
       age_group: [],
       voter_status: [],
       occupation: [],
       religion: [],
       civil_status: [],
       sex: "",
+      send_sms: false,
     });
   };
 
@@ -274,6 +366,14 @@ export default function AdminAnnouncements() {
 
     if (
       isEventCategory &&
+      !validateEventDates(formData.event_start, formData.event_end)
+    ) {
+      alert("Please fix event date validation errors.");
+      return;
+    }
+
+    if (
+      isEventCategory &&
       formData.max_participants &&
       Number(formData.max_participants) <= 0
     ) {
@@ -289,30 +389,37 @@ export default function AdminAnnouncements() {
           max_participants: formData.max_participants
             ? Number(formData.max_participants)
             : null,
+          purok: formData.purok.length > 0 ? formData.purok : null,
           age_group: formData.age_group.length > 0 ? formData.age_group : null,
-          voter_status: formData.voter_status.length > 0 ? formData.voter_status : null,
-          occupation: formData.occupation.length > 0 ? formData.occupation : null,
+          voter_status:
+            formData.voter_status.length > 0 ? formData.voter_status : null,
+          occupation:
+            formData.occupation.length > 0 ? formData.occupation : null,
           religion: formData.religion.length > 0 ? formData.religion : null,
-          civil_status: formData.civil_status.length > 0 ? formData.civil_status : null,
-          sex: formData.sex || null,
+          civil_status:
+            formData.civil_status.length > 0 ? formData.civil_status : null,
+          sex: mapSexToDb(formData.sex),
+          send_sms: Boolean(formData.send_sms),
         }
       : {
           event_start: null,
           event_end: null,
           audience: null,
           max_participants: null,
+          purok: null,
           age_group: null,
           voter_status: null,
           occupation: null,
           religion: null,
           civil_status: null,
           sex: null,
+          send_sms: false,
         };
 
     try {
       setPosting(true);
       console.log("Posting announcement:", formData);
-      
+
       let result;
       if (isEditMode && editingAnnouncement) {
         // Update existing announcement
@@ -341,7 +448,9 @@ export default function AdminAnnouncements() {
 
         // Upload image if provided and it's a file (not just a reference)
         if (formData.imageFile && formData.imageFile instanceof File) {
-          const announcementID = isEditMode ? editingAnnouncement.id : result.data?.id;
+          const announcementID = isEditMode
+            ? editingAnnouncement.id
+            : result.data?.id;
           if (announcementID) {
             const uploadResult = await uploadAnnouncementImage(
               formData.imageFile,
@@ -378,12 +487,14 @@ export default function AdminAnnouncements() {
           event_end: "",
           audience: "residents",
           max_participants: "",
+          purok: [],
           age_group: [],
           voter_status: [],
           occupation: [],
           religion: [],
           civil_status: [],
           sex: "",
+          send_sms: false,
         });
         setShowAdvanced(false);
         closeModal();
@@ -812,9 +923,9 @@ export default function AdminAnnouncements() {
               backgroundColor: "#fff",
               borderRadius: "12px",
               padding: "24px",
-              maxWidth: "600px",
-              width: "90%",
-              maxHeight: "90vh",
+              maxWidth: "1100px",
+              width: "96%",
+              maxHeight: "94vh",
               overflow: "auto",
               boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
               zIndex: 10000,
@@ -881,12 +992,14 @@ export default function AdminAnnouncements() {
                               event_end: "",
                               audience: "residents",
                               max_participants: "",
+                              purok: [],
                               age_group: [],
                               voter_status: [],
                               occupation: [],
                               religion: [],
                               civil_status: [],
                               sex: "",
+                              send_sms: false,
                             }
                           : {}),
                       });
@@ -1021,6 +1134,7 @@ export default function AdminAnnouncements() {
                       </label>
                       <input
                         type="datetime-local"
+                        min={minStartDateTime}
                         value={formData.event_start}
                         onChange={(e) =>
                           setFormData({
@@ -1037,6 +1151,17 @@ export default function AdminAnnouncements() {
                           boxSizing: "border-box",
                         }}
                       />
+                      {dateErrors.start && (
+                        <div
+                          style={{
+                            marginTop: "6px",
+                            fontSize: "12px",
+                            color: "#dc2626",
+                          }}
+                        >
+                          {dateErrors.start}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label
@@ -1051,6 +1176,7 @@ export default function AdminAnnouncements() {
                       </label>
                       <input
                         type="datetime-local"
+                        min={minEndDateTime}
                         value={formData.event_end}
                         onChange={(e) =>
                           setFormData({
@@ -1067,6 +1193,17 @@ export default function AdminAnnouncements() {
                           boxSizing: "border-box",
                         }}
                       />
+                      {dateErrors.end && (
+                        <div
+                          style={{
+                            marginTop: "6px",
+                            fontSize: "12px",
+                            color: "#dc2626",
+                          }}
+                        >
+                          {dateErrors.end}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1171,22 +1308,166 @@ export default function AdminAnnouncements() {
                     <div
                       style={{
                         marginTop: "16px",
-                        padding: "16px",
+                        padding: "20px",
                         background: "#f9fafb",
                         borderRadius: "8px",
                         border: "1px solid #e5e7eb",
                         display: "flex",
                         flexDirection: "column",
-                        gap: "16px",
+                        gap: "20px",
                       }}
                     >
                       <div
                         style={{
                           display: "grid",
-                          gridTemplateColumns: "1fr 1fr",
-                          gap: "16px",
+                          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                          gap: "18px",
                         }}
                       >
+                        <div>
+                          <label
+                            style={{
+                              display: "block",
+                              marginBottom: "6px",
+                              fontWeight: "500",
+                              fontSize: "14px",
+                            }}
+                          >
+                            Purok (Select Multiple)
+                          </label>
+                          <div style={{ position: "relative" }}>
+                            <button
+                              type="button"
+                              onClick={() => setPurokDropdown(!purokDropdown)}
+                              style={{
+                                width: "100%",
+                                padding: "10px",
+                                border: "1px solid #ddd",
+                                borderRadius: "6px",
+                                textAlign: "left",
+                                backgroundColor: "#f9fafb",
+                                cursor: "pointer",
+                                fontFamily: "inherit",
+                              }}
+                            >
+                              {formData.purok.length > 0
+                                ? `${formData.purok.length} selected`
+                                : "Select purok..."}
+                            </button>
+                            {purokDropdown && (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  top: "100%",
+                                  left: 0,
+                                  right: 0,
+                                  backgroundColor: "#fff",
+                                  border: "1px solid #ddd",
+                                  borderTop: "none",
+                                  borderRadius: "0 0 6px 6px",
+                                  maxHeight: "150px",
+                                  overflowY: "auto",
+                                  zIndex: 10,
+                                }}
+                              >
+                                {purokOptions.map((purokName) => (
+                                  <label
+                                    key={purokName}
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      padding: "8px 10px",
+                                      cursor: "pointer",
+                                      borderBottom: "1px solid #eee",
+                                    }}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={formData.purok.includes(
+                                        purokName,
+                                      )}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setFormData({
+                                            ...formData,
+                                            purok: [
+                                              ...formData.purok,
+                                              purokName,
+                                            ],
+                                          });
+                                        } else {
+                                          setFormData({
+                                            ...formData,
+                                            purok: formData.purok.filter(
+                                              (p) => p !== purokName,
+                                            ),
+                                          });
+                                        }
+                                      }}
+                                      style={{
+                                        marginRight: "8px",
+                                        cursor: "pointer",
+                                      }}
+                                    />
+                                    {purokName}
+                                  </label>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          {formData.purok.length > 0 && (
+                            <div
+                              style={{
+                                marginTop: "10px",
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: "6px",
+                              }}
+                            >
+                              {formData.purok.map((purokName) => (
+                                <div
+                                  key={purokName}
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    backgroundColor: "#e8f0ff",
+                                    border: "1px solid #b3d9ff",
+                                    borderRadius: "4px",
+                                    padding: "6px 10px",
+                                    fontSize: "13px",
+                                  }}
+                                >
+                                  <span style={{ marginRight: "6px" }}>
+                                    {purokName}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setFormData({
+                                        ...formData,
+                                        purok: formData.purok.filter(
+                                          (p) => p !== purokName,
+                                        ),
+                                      });
+                                    }}
+                                    style={{
+                                      background: "none",
+                                      border: "none",
+                                      color: "#d32f2f",
+                                      cursor: "pointer",
+                                      fontSize: "16px",
+                                      padding: "0",
+                                      lineHeight: "1",
+                                    }}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
                         <div>
                           <label
                             style={{
@@ -1201,7 +1482,9 @@ export default function AdminAnnouncements() {
                           <div style={{ position: "relative" }}>
                             <button
                               type="button"
-                              onClick={() => setAgeGroupDropdown(!ageGroupDropdown)}
+                              onClick={() =>
+                                setAgeGroupDropdown(!ageGroupDropdown)
+                              }
                               style={{
                                 width: "100%",
                                 padding: "10px",
@@ -1234,9 +1517,27 @@ export default function AdminAnnouncements() {
                                 }}
                               >
                                 {[
-                                  "0-4", "5-9", "10-14", "15-19", "20-24", "25-29", "30-34", "35-39",
-                                  "40-44", "45-49", "50-54", "55-59", "60-64", "65-69", "70-74", 
-                                  "75-79", "80-84", "85-89", "90-94", "95-99", "100+"
+                                  "0-4",
+                                  "5-9",
+                                  "10-14",
+                                  "15-19",
+                                  "20-24",
+                                  "25-29",
+                                  "30-34",
+                                  "35-39",
+                                  "40-44",
+                                  "45-49",
+                                  "50-54",
+                                  "55-59",
+                                  "60-64",
+                                  "65-69",
+                                  "70-74",
+                                  "75-79",
+                                  "80-84",
+                                  "85-89",
+                                  "90-94",
+                                  "95-99",
+                                  "100+",
                                 ].map((age) => (
                                   <label
                                     key={age}
@@ -1255,16 +1556,25 @@ export default function AdminAnnouncements() {
                                         if (e.target.checked) {
                                           setFormData({
                                             ...formData,
-                                            age_group: [...formData.age_group, age],
+                                            age_group: [
+                                              ...formData.age_group,
+                                              age,
+                                            ],
                                           });
                                         } else {
                                           setFormData({
                                             ...formData,
-                                            age_group: formData.age_group.filter((a) => a !== age),
+                                            age_group:
+                                              formData.age_group.filter(
+                                                (a) => a !== age,
+                                              ),
                                           });
                                         }
                                       }}
-                                      style={{ marginRight: "8px", cursor: "pointer" }}
+                                      style={{
+                                        marginRight: "8px",
+                                        cursor: "pointer",
+                                      }}
                                     />
                                     {age}
                                   </label>
@@ -1273,7 +1583,14 @@ export default function AdminAnnouncements() {
                             )}
                           </div>
                           {formData.age_group.length > 0 && (
-                            <div style={{ marginTop: "10px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                            <div
+                              style={{
+                                marginTop: "10px",
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: "6px",
+                              }}
+                            >
                               {formData.age_group.map((age) => (
                                 <div
                                   key={age}
@@ -1287,13 +1604,17 @@ export default function AdminAnnouncements() {
                                     fontSize: "13px",
                                   }}
                                 >
-                                  <span style={{ marginRight: "6px" }}>{age}</span>
+                                  <span style={{ marginRight: "6px" }}>
+                                    {age}
+                                  </span>
                                   <button
                                     type="button"
                                     onClick={() => {
                                       setFormData({
                                         ...formData,
-                                        age_group: formData.age_group.filter((a) => a !== age),
+                                        age_group: formData.age_group.filter(
+                                          (a) => a !== age,
+                                        ),
                                       });
                                     }}
                                     style={{
@@ -1328,7 +1649,9 @@ export default function AdminAnnouncements() {
                           <div style={{ position: "relative" }}>
                             <button
                               type="button"
-                              onClick={() => setVoterStatusDropdown(!voterStatusDropdown)}
+                              onClick={() =>
+                                setVoterStatusDropdown(!voterStatusDropdown)
+                              }
                               style={{
                                 width: "100%",
                                 padding: "10px",
@@ -1358,7 +1681,11 @@ export default function AdminAnnouncements() {
                                   zIndex: 10,
                                 }}
                               >
-                                {["registered", "not-registered", "transferred"].map((status) => (
+                                {[
+                                  "registered",
+                                  "not-registered",
+                                  "transferred",
+                                ].map((status) => (
                                   <label
                                     key={status}
                                     style={{
@@ -1371,30 +1698,51 @@ export default function AdminAnnouncements() {
                                   >
                                     <input
                                       type="checkbox"
-                                      checked={formData.voter_status.includes(status)}
+                                      checked={formData.voter_status.includes(
+                                        status,
+                                      )}
                                       onChange={(e) => {
                                         if (e.target.checked) {
                                           setFormData({
                                             ...formData,
-                                            voter_status: [...formData.voter_status, status],
+                                            voter_status: [
+                                              ...formData.voter_status,
+                                              status,
+                                            ],
                                           });
                                         } else {
                                           setFormData({
                                             ...formData,
-                                            voter_status: formData.voter_status.filter((v) => v !== status),
+                                            voter_status:
+                                              formData.voter_status.filter(
+                                                (v) => v !== status,
+                                              ),
                                           });
                                         }
                                       }}
-                                      style={{ marginRight: "8px", cursor: "pointer" }}
+                                      style={{
+                                        marginRight: "8px",
+                                        cursor: "pointer",
+                                      }}
                                     />
-                                    {status === "not-registered" ? "Not Registered" : status.charAt(0).toUpperCase() + status.slice(1)}
+                                    {status === "not-registered"
+                                      ? "Not Registered"
+                                      : status.charAt(0).toUpperCase() +
+                                        status.slice(1)}
                                   </label>
                                 ))}
                               </div>
                             )}
                           </div>
                           {formData.voter_status.length > 0 && (
-                            <div style={{ marginTop: "10px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                            <div
+                              style={{
+                                marginTop: "10px",
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: "6px",
+                              }}
+                            >
                               {formData.voter_status.map((status) => (
                                 <div
                                   key={status}
@@ -1409,14 +1757,20 @@ export default function AdminAnnouncements() {
                                   }}
                                 >
                                   <span style={{ marginRight: "6px" }}>
-                                    {status === "not-registered" ? "Not Registered" : status.charAt(0).toUpperCase() + status.slice(1)}
+                                    {status === "not-registered"
+                                      ? "Not Registered"
+                                      : status.charAt(0).toUpperCase() +
+                                        status.slice(1)}
                                   </span>
                                   <button
                                     type="button"
                                     onClick={() => {
                                       setFormData({
                                         ...formData,
-                                        voter_status: formData.voter_status.filter((v) => v !== status),
+                                        voter_status:
+                                          formData.voter_status.filter(
+                                            (v) => v !== status,
+                                          ),
                                       });
                                     }}
                                     style={{
@@ -1451,7 +1805,9 @@ export default function AdminAnnouncements() {
                           <div style={{ position: "relative" }}>
                             <button
                               type="button"
-                              onClick={() => setOccupationDropdown(!occupationDropdown)}
+                              onClick={() =>
+                                setOccupationDropdown(!occupationDropdown)
+                              }
                               style={{
                                 width: "100%",
                                 padding: "10px",
@@ -1496,21 +1852,32 @@ export default function AdminAnnouncements() {
                                   >
                                     <input
                                       type="checkbox"
-                                      checked={formData.occupation.includes(occ.value)}
+                                      checked={formData.occupation.includes(
+                                        occ.value,
+                                      )}
                                       onChange={(e) => {
                                         if (e.target.checked) {
                                           setFormData({
                                             ...formData,
-                                            occupation: [...formData.occupation, occ.value],
+                                            occupation: [
+                                              ...formData.occupation,
+                                              occ.value,
+                                            ],
                                           });
                                         } else {
                                           setFormData({
                                             ...formData,
-                                            occupation: formData.occupation.filter((o) => o !== occ.value),
+                                            occupation:
+                                              formData.occupation.filter(
+                                                (o) => o !== occ.value,
+                                              ),
                                           });
                                         }
                                       }}
-                                      style={{ marginRight: "8px", cursor: "pointer" }}
+                                      style={{
+                                        marginRight: "8px",
+                                        cursor: "pointer",
+                                      }}
                                     />
                                     {occ.display}
                                   </label>
@@ -1519,9 +1886,18 @@ export default function AdminAnnouncements() {
                             )}
                           </div>
                           {formData.occupation.length > 0 && (
-                            <div style={{ marginTop: "10px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                            <div
+                              style={{
+                                marginTop: "10px",
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: "6px",
+                              }}
+                            >
                               {formData.occupation.map((occ) => {
-                                const option = occupationOptions.find(o => o.value === occ);
+                                const option = occupationOptions.find(
+                                  (o) => o.value === occ,
+                                );
                                 return (
                                   <div
                                     key={occ}
@@ -1535,13 +1911,18 @@ export default function AdminAnnouncements() {
                                       fontSize: "13px",
                                     }}
                                   >
-                                    <span style={{ marginRight: "6px" }}>{option?.display || occ}</span>
+                                    <span style={{ marginRight: "6px" }}>
+                                      {option?.display || occ}
+                                    </span>
                                     <button
                                       type="button"
                                       onClick={() => {
                                         setFormData({
                                           ...formData,
-                                          occupation: formData.occupation.filter((o) => o !== occ),
+                                          occupation:
+                                            formData.occupation.filter(
+                                              (o) => o !== occ,
+                                            ),
                                         });
                                       }}
                                       style={{
@@ -1577,7 +1958,9 @@ export default function AdminAnnouncements() {
                           <div style={{ position: "relative" }}>
                             <button
                               type="button"
-                              onClick={() => setReligionDropdown(!religionDropdown)}
+                              onClick={() =>
+                                setReligionDropdown(!religionDropdown)
+                              }
                               style={{
                                 width: "100%",
                                 padding: "10px",
@@ -1609,45 +1992,63 @@ export default function AdminAnnouncements() {
                                   zIndex: 10,
                                 }}
                               >
-                                {[
-                                  "Catholic", "Christian", "Born Again"
-                                ].map((rel) => (
-                                  <label
-                                    key={rel}
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      padding: "8px 10px",
-                                      cursor: "pointer",
-                                      borderBottom: "1px solid #eee",
-                                    }}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={formData.religion.includes(rel)}
-                                      onChange={(e) => {
-                                        if (e.target.checked) {
-                                          setFormData({
-                                            ...formData,
-                                            religion: [...formData.religion, rel],
-                                          });
-                                        } else {
-                                          setFormData({
-                                            ...formData,
-                                            religion: formData.religion.filter((r) => r !== rel),
-                                          });
-                                        }
+                                {["Catholic", "Christian", "Born Again"].map(
+                                  (rel) => (
+                                    <label
+                                      key={rel}
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        padding: "8px 10px",
+                                        cursor: "pointer",
+                                        borderBottom: "1px solid #eee",
                                       }}
-                                      style={{ marginRight: "8px", cursor: "pointer" }}
-                                    />
-                                    {rel}
-                                  </label>
-                                ))}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={formData.religion.includes(
+                                          rel,
+                                        )}
+                                        onChange={(e) => {
+                                          if (e.target.checked) {
+                                            setFormData({
+                                              ...formData,
+                                              religion: [
+                                                ...formData.religion,
+                                                rel,
+                                              ],
+                                            });
+                                          } else {
+                                            setFormData({
+                                              ...formData,
+                                              religion:
+                                                formData.religion.filter(
+                                                  (r) => r !== rel,
+                                                ),
+                                            });
+                                          }
+                                        }}
+                                        style={{
+                                          marginRight: "8px",
+                                          cursor: "pointer",
+                                        }}
+                                      />
+                                      {rel}
+                                    </label>
+                                  ),
+                                )}
                               </div>
                             )}
                           </div>
                           {formData.religion.length > 0 && (
-                            <div style={{ marginTop: "10px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                            <div
+                              style={{
+                                marginTop: "10px",
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: "6px",
+                              }}
+                            >
                               {formData.religion.map((rel) => (
                                 <div
                                   key={rel}
@@ -1661,13 +2062,17 @@ export default function AdminAnnouncements() {
                                     fontSize: "13px",
                                   }}
                                 >
-                                  <span style={{ marginRight: "6px" }}>{rel}</span>
+                                  <span style={{ marginRight: "6px" }}>
+                                    {rel}
+                                  </span>
                                   <button
                                     type="button"
                                     onClick={() => {
                                       setFormData({
                                         ...formData,
-                                        religion: formData.religion.filter((r) => r !== rel),
+                                        religion: formData.religion.filter(
+                                          (r) => r !== rel,
+                                        ),
                                       });
                                     }}
                                     style={{
@@ -1702,7 +2107,9 @@ export default function AdminAnnouncements() {
                           <div style={{ position: "relative" }}>
                             <button
                               type="button"
-                              onClick={() => setCivilStatusDropdown(!civilStatusDropdown)}
+                              onClick={() =>
+                                setCivilStatusDropdown(!civilStatusDropdown)
+                              }
                               style={{
                                 width: "100%",
                                 padding: "10px",
@@ -1732,7 +2139,13 @@ export default function AdminAnnouncements() {
                                   zIndex: 10,
                                 }}
                               >
-                                {["single", "married", "widowed", "seperated", "divorced"].map((status) => (
+                                {[
+                                  "single",
+                                  "married",
+                                  "widowed",
+                                  "seperated",
+                                  "divorced",
+                                ].map((status) => (
                                   <label
                                     key={status}
                                     style={{
@@ -1745,30 +2158,49 @@ export default function AdminAnnouncements() {
                                   >
                                     <input
                                       type="checkbox"
-                                      checked={formData.civil_status.includes(status)}
+                                      checked={formData.civil_status.includes(
+                                        status,
+                                      )}
                                       onChange={(e) => {
                                         if (e.target.checked) {
                                           setFormData({
                                             ...formData,
-                                            civil_status: [...formData.civil_status, status],
+                                            civil_status: [
+                                              ...formData.civil_status,
+                                              status,
+                                            ],
                                           });
                                         } else {
                                           setFormData({
                                             ...formData,
-                                            civil_status: formData.civil_status.filter((c) => c !== status),
+                                            civil_status:
+                                              formData.civil_status.filter(
+                                                (c) => c !== status,
+                                              ),
                                           });
                                         }
                                       }}
-                                      style={{ marginRight: "8px", cursor: "pointer" }}
+                                      style={{
+                                        marginRight: "8px",
+                                        cursor: "pointer",
+                                      }}
                                     />
-                                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                                    {status.charAt(0).toUpperCase() +
+                                      status.slice(1)}
                                   </label>
                                 ))}
                               </div>
                             )}
                           </div>
                           {formData.civil_status.length > 0 && (
-                            <div style={{ marginTop: "10px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                            <div
+                              style={{
+                                marginTop: "10px",
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: "6px",
+                              }}
+                            >
                               {formData.civil_status.map((status) => (
                                 <div
                                   key={status}
@@ -1783,14 +2215,18 @@ export default function AdminAnnouncements() {
                                   }}
                                 >
                                   <span style={{ marginRight: "6px" }}>
-                                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                                    {status.charAt(0).toUpperCase() +
+                                      status.slice(1)}
                                   </span>
                                   <button
                                     type="button"
                                     onClick={() => {
                                       setFormData({
                                         ...formData,
-                                        civil_status: formData.civil_status.filter((c) => c !== status),
+                                        civil_status:
+                                          formData.civil_status.filter(
+                                            (c) => c !== status,
+                                          ),
                                       });
                                     }}
                                     style={{
@@ -1839,6 +2275,78 @@ export default function AdminAnnouncements() {
                             <option value="Male">Male</option>
                             <option value="Female">Female</option>
                           </select>
+                        </div>
+
+                        <div>
+                          <label
+                            style={{
+                              display: "block",
+                              marginBottom: "6px",
+                              fontWeight: "500",
+                              fontSize: "14px",
+                            }}
+                          >
+                            Send SMS to Qualified Residents
+                          </label>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={formData.send_sms}
+                            onClick={() =>
+                              setFormData({
+                                ...formData,
+                                send_sms: !formData.send_sms,
+                              })
+                            }
+                            style={{
+                              width: "100%",
+                              padding: "10px 12px",
+                              border: "1px solid #ddd",
+                              borderRadius: "6px",
+                              backgroundColor: formData.send_sms
+                                ? "#ecfdf5"
+                                : "#f9fafb",
+                              color: formData.send_sms ? "#047857" : "#374151",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              cursor: "pointer",
+                              fontFamily: "inherit",
+                              fontSize: "14px",
+                              fontWeight: "500",
+                            }}
+                          >
+                            <span>
+                              {formData.send_sms ? "Enabled" : "Disabled"}
+                            </span>
+                            <span
+                              style={{
+                                width: "44px",
+                                height: "24px",
+                                borderRadius: "999px",
+                                backgroundColor: formData.send_sms
+                                  ? "#10b981"
+                                  : "#d1d5db",
+                                padding: "2px",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: formData.send_sms
+                                  ? "flex-end"
+                                  : "flex-start",
+                                transition: "all 0.2s ease",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  width: "20px",
+                                  height: "20px",
+                                  borderRadius: "50%",
+                                  backgroundColor: "#fff",
+                                  boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
+                                }}
+                              />
+                            </span>
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -1961,7 +2469,11 @@ export default function AdminAnnouncements() {
               </button>
               <button
                 onClick={handlePostAnnouncement}
-                disabled={posting}
+                disabled={
+                  posting ||
+                  (formData.category === "event" &&
+                    (Boolean(dateErrors.start) || Boolean(dateErrors.end)))
+                }
                 style={{
                   padding: "10px 20px",
                   backgroundColor: posting ? "#ccc" : "#16a34a",
@@ -1972,7 +2484,13 @@ export default function AdminAnnouncements() {
                   fontWeight: "500",
                 }}
               >
-                {posting ? (isEditMode ? "Updating..." : "Posting...") : (isEditMode ? "Update Announcement" : "Post Announcement")}
+                {posting
+                  ? isEditMode
+                    ? "Updating..."
+                    : "Posting..."
+                  : isEditMode
+                    ? "Update Announcement"
+                    : "Post Announcement"}
               </button>
             </div>
           </div>

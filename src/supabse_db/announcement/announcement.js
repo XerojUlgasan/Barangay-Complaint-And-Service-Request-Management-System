@@ -5,18 +5,22 @@ import household_supabase from "../household_supabase_client";
 let announcementCache = { data: null, timestamp: 0, ttl: 5 * 60 * 1000 }; // 5 min cache
 
 const isCacheValid = () => {
-  return announcementCache.data && Date.now() - announcementCache.timestamp < announcementCache.ttl;
+  return (
+    announcementCache.data &&
+    Date.now() - announcementCache.timestamp < announcementCache.ttl
+  );
 };
 
 // Helper to check if demographic filters are set
 const hasAdvancedFilters = (announcement) => {
   return Boolean(
+    announcement.purok ||
     announcement.age_group ||
     announcement.voter_status ||
     announcement.occupation ||
     announcement.religion ||
     announcement.civil_status ||
-    announcement.sex
+    announcement.sex,
   );
 };
 
@@ -25,6 +29,7 @@ const userMatchesFilters = (userProfile, announcement) => {
   if (!hasAdvancedFilters(announcement)) return true; // No filters = everyone allowed
 
   const filters = {
+    purok: announcement.purok,
     age_group: announcement.age_group,
     voter_status: announcement.voter_status,
     occupation: announcement.occupation,
@@ -34,14 +39,52 @@ const userMatchesFilters = (userProfile, announcement) => {
   };
 
   // Check if user matches all applicable filters
-  if (filters.age_group && !filters.age_group.includes(userProfile.age_group)) return false;
-  if (filters.voter_status && !filters.voter_status.includes(userProfile.voter_status)) return false;
-  if (filters.occupation && !filters.occupation.includes(userProfile.occupation)) return false;
-  if (filters.religion && !filters.religion.includes(userProfile.religion)) return false;
-  if (filters.civil_status && !filters.civil_status.includes(userProfile.civil_status)) return false;
+  if (filters.purok && !filters.purok.includes(userProfile.purok)) return false;
+  if (filters.age_group && !filters.age_group.includes(userProfile.age_group))
+    return false;
+  if (
+    filters.voter_status &&
+    !filters.voter_status.includes(userProfile.voter_status)
+  )
+    return false;
+  if (
+    filters.occupation &&
+    !filters.occupation.includes(userProfile.occupation)
+  )
+    return false;
+  if (filters.religion && !filters.religion.includes(userProfile.religion))
+    return false;
+  if (
+    filters.civil_status &&
+    !filters.civil_status.includes(userProfile.civil_status)
+  )
+    return false;
   if (filters.sex && filters.sex !== userProfile.sex) return false;
 
   return true;
+};
+
+const normalizeSexForDb = (value) => {
+  if (value === "M" || value === "Male") return "M";
+  if (value === "F" || value === "Female") return "F";
+  return null;
+};
+
+export const getPurokChoices = async () => {
+  const { data, error } = await household_supabase
+    .from("puroks")
+    .select("name")
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching purok choices:", error);
+    return { success: false, message: error.message, data: [] };
+  }
+
+  return {
+    success: true,
+    data: (data || []).map((row) => row.name).filter(Boolean),
+  };
 };
 
 export const postAnnouncement = async (
@@ -67,14 +110,34 @@ export const postAnnouncement = async (
     event_end: eventData.event_end ?? null,
     audience: eventData.audience ?? null,
     max_participants: eventData.max_participants ?? null,
-    age_group: Array.isArray(eventData.age_group) && eventData.age_group.length > 0 ? eventData.age_group : null,
-    voter_status: Array.isArray(eventData.voter_status) && eventData.voter_status.length > 0 ? eventData.voter_status : null,
-    occupation: Array.isArray(eventData.occupation) && eventData.occupation.length > 0 ? eventData.occupation : null,
-    religion: Array.isArray(eventData.religion) && eventData.religion.length > 0 ? eventData.religion : null,
-    civil_status: Array.isArray(eventData.civil_status) && eventData.civil_status.length > 0 ? eventData.civil_status : null,
-    sex: eventData.sex ?? null,
+    purok:
+      Array.isArray(eventData.purok) && eventData.purok.length > 0
+        ? eventData.purok
+        : null,
+    age_group:
+      Array.isArray(eventData.age_group) && eventData.age_group.length > 0
+        ? eventData.age_group
+        : null,
+    voter_status:
+      Array.isArray(eventData.voter_status) && eventData.voter_status.length > 0
+        ? eventData.voter_status
+        : null,
+    occupation:
+      Array.isArray(eventData.occupation) && eventData.occupation.length > 0
+        ? eventData.occupation
+        : null,
+    religion:
+      Array.isArray(eventData.religion) && eventData.religion.length > 0
+        ? eventData.religion
+        : null,
+    civil_status:
+      Array.isArray(eventData.civil_status) && eventData.civil_status.length > 0
+        ? eventData.civil_status
+        : null,
+    sex: normalizeSexForDb(eventData.sex),
+    send_sms: eventData.send_sms ?? false,
   };
-  
+
   console.log("Insert payload:", insertPayload);
   console.log("Occupation array:", insertPayload.occupation);
 
@@ -115,7 +178,7 @@ export const getAnnouncements = async () => {
   announcementCache = {
     data: data || [],
     timestamp: Date.now(),
-    ttl: announcementCache.ttl
+    ttl: announcementCache.ttl,
   };
 
   return { success: true, data: data || [] };
@@ -215,23 +278,47 @@ export const updateAnnouncement = async (
   if (Object.prototype.hasOwnProperty.call(eventData, "max_participants")) {
     updatePayload.max_participants = eventData.max_participants;
   }
+  if (Object.prototype.hasOwnProperty.call(eventData, "purok")) {
+    updatePayload.purok =
+      Array.isArray(eventData.purok) && eventData.purok.length > 0
+        ? eventData.purok
+        : null;
+  }
   if (Object.prototype.hasOwnProperty.call(eventData, "age_group")) {
-    updatePayload.age_group = Array.isArray(eventData.age_group) && eventData.age_group.length > 0 ? eventData.age_group : null;
+    updatePayload.age_group =
+      Array.isArray(eventData.age_group) && eventData.age_group.length > 0
+        ? eventData.age_group
+        : null;
   }
   if (Object.prototype.hasOwnProperty.call(eventData, "voter_status")) {
-    updatePayload.voter_status = Array.isArray(eventData.voter_status) && eventData.voter_status.length > 0 ? eventData.voter_status : null;
+    updatePayload.voter_status =
+      Array.isArray(eventData.voter_status) && eventData.voter_status.length > 0
+        ? eventData.voter_status
+        : null;
   }
   if (Object.prototype.hasOwnProperty.call(eventData, "occupation")) {
-    updatePayload.occupation = Array.isArray(eventData.occupation) && eventData.occupation.length > 0 ? eventData.occupation : null;
+    updatePayload.occupation =
+      Array.isArray(eventData.occupation) && eventData.occupation.length > 0
+        ? eventData.occupation
+        : null;
   }
   if (Object.prototype.hasOwnProperty.call(eventData, "religion")) {
-    updatePayload.religion = Array.isArray(eventData.religion) && eventData.religion.length > 0 ? eventData.religion : null;
+    updatePayload.religion =
+      Array.isArray(eventData.religion) && eventData.religion.length > 0
+        ? eventData.religion
+        : null;
   }
   if (Object.prototype.hasOwnProperty.call(eventData, "civil_status")) {
-    updatePayload.civil_status = Array.isArray(eventData.civil_status) && eventData.civil_status.length > 0 ? eventData.civil_status : null;
+    updatePayload.civil_status =
+      Array.isArray(eventData.civil_status) && eventData.civil_status.length > 0
+        ? eventData.civil_status
+        : null;
   }
   if (Object.prototype.hasOwnProperty.call(eventData, "sex")) {
-    updatePayload.sex = eventData.sex;
+    updatePayload.sex = normalizeSexForDb(eventData.sex);
+  }
+  if (Object.prototype.hasOwnProperty.call(eventData, "send_sms")) {
+    updatePayload.send_sms = Boolean(eventData.send_sms);
   }
 
   const { error } = await supabase
@@ -315,7 +402,9 @@ export const signupForEvent = async (announcementId, userProfile = null) => {
   // fetch the announcement to check audience, max participants, and advanced filters
   const { data: announcement, error: announcementError } = await supabase
     .from("announcement_tbl")
-    .select("id, audience, max_participants, age_group, voter_status, occupation, religion, civil_status, sex")
+    .select(
+      "id, audience, max_participants, purok, age_group, voter_status, occupation, religion, civil_status, sex",
+    )
     .eq("id", announcementId)
     .single();
 
@@ -361,26 +450,63 @@ export const signupForEvent = async (announcementId, userProfile = null) => {
   // Check advanced filters if they exist and user is a resident
   if (userRole === "residents" && hasAdvancedFilters(announcement)) {
     if (!userProfile) {
-      console.warn("User profile not provided for filter check, allowing signup");
+      console.warn(
+        "User profile not provided for filter check, allowing signup",
+      );
     } else if (!userMatchesFilters(userProfile, announcement)) {
       const missingFilters = [];
-      if (announcement.age_group && !announcement.age_group.includes(userProfile.age_group)) {
-        missingFilters.push(`Age group: ${userProfile.age_group} (Required: ${announcement.age_group.join(", ")})`);
+      if (
+        announcement.purok &&
+        !announcement.purok.includes(userProfile.purok)
+      ) {
+        missingFilters.push(
+          `Purok: ${userProfile.purok || "Unknown"} (Required: ${announcement.purok.join(", ")})`,
+        );
       }
-      if (announcement.voter_status && !announcement.voter_status.includes(userProfile.voter_status)) {
-        missingFilters.push(`Voter status: ${userProfile.voter_status} (Required: ${announcement.voter_status.join(", ")})`);
+      if (
+        announcement.age_group &&
+        !announcement.age_group.includes(userProfile.age_group)
+      ) {
+        missingFilters.push(
+          `Age group: ${userProfile.age_group} (Required: ${announcement.age_group.join(", ")})`,
+        );
       }
-      if (announcement.occupation && !announcement.occupation.includes(userProfile.occupation)) {
-        missingFilters.push(`Occupation: ${userProfile.occupation} (Required: ${announcement.occupation.join(", ")})`);
+      if (
+        announcement.voter_status &&
+        !announcement.voter_status.includes(userProfile.voter_status)
+      ) {
+        missingFilters.push(
+          `Voter status: ${userProfile.voter_status} (Required: ${announcement.voter_status.join(", ")})`,
+        );
       }
-      if (announcement.religion && !announcement.religion.includes(userProfile.religion)) {
-        missingFilters.push(`Religion: ${userProfile.religion} (Required: ${announcement.religion.join(", ")})`);
+      if (
+        announcement.occupation &&
+        !announcement.occupation.includes(userProfile.occupation)
+      ) {
+        missingFilters.push(
+          `Occupation: ${userProfile.occupation} (Required: ${announcement.occupation.join(", ")})`,
+        );
       }
-      if (announcement.civil_status && !announcement.civil_status.includes(userProfile.civil_status)) {
-        missingFilters.push(`Civil status: ${userProfile.civil_status} (Required: ${announcement.civil_status.join(", ")})`);
+      if (
+        announcement.religion &&
+        !announcement.religion.includes(userProfile.religion)
+      ) {
+        missingFilters.push(
+          `Religion: ${userProfile.religion} (Required: ${announcement.religion.join(", ")})`,
+        );
+      }
+      if (
+        announcement.civil_status &&
+        !announcement.civil_status.includes(userProfile.civil_status)
+      ) {
+        missingFilters.push(
+          `Civil status: ${userProfile.civil_status} (Required: ${announcement.civil_status.join(", ")})`,
+        );
       }
       if (announcement.sex && announcement.sex !== userProfile.sex) {
-        missingFilters.push(`Sex: ${userProfile.sex} (Required: ${announcement.sex})`);
+        missingFilters.push(
+          `Sex: ${userProfile.sex} (Required: ${announcement.sex})`,
+        );
       }
 
       return {
@@ -627,4 +753,3 @@ export const getAnnouncementParticipants = async (announcementId) => {
 
 // Export helper functions for filter validation
 export { hasAdvancedFilters, userMatchesFilters, invalidateAnnouncementCache };
-
