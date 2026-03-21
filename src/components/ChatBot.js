@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import "../styles/ChatBot.css";
+import supabase, { API_CONFIG } from "../supabse_db/supabase_client";
 
 const ChatBot = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -12,120 +13,231 @@ const ChatBot = () => {
   ]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [conversationHistory, setConversationHistory] = useState([]);
+  const isSendingRef = useRef(false); // synchronous guard to prevent duplicate sends
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Minimal safe Markdown-like renderer
+  const escapeHtml = (unsafe) => {
+    return unsafe
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  };
+
+  const renderMarkdown = (text) => {
+    if (!text && text !== 0) return "";
+    // Ensure it's a string
+    let t = String(text);
+
+    // Escape HTML to prevent XSS
+    t = escapeHtml(t);
+
+    // Code spans: `code`
+    t = t.replace(/`([^`]+)`/g, "<code>$1</code>");
+
+    // Bold: **bold** or __bold__
+    t = t.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+    t = t.replace(/__(.*?)__/g, "<strong>$1</strong>");
+
+    // Italic: *italic* or _italic_
+    // Avoid conflict with bold by doing after bold replacement
+    t = t.replace(/\*(.*?)\*/g, "<em>$1</em>");
+    t = t.replace(/_(.*?)_/g, "<em>$1</em>");
+
+    // Links: [text](url)
+    t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, "<a href='$2' target='_blank' rel='noopener noreferrer'>$1</a>");
+
+    // New lines to <br>
+    t = t.replace(/\r?\n/g, "<br />");
+
+    return t;
+  };
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  const systemKnowledge = {
-    submissions: "You can submit two types of requests: Certificate Requests (Indigency, Clearance, etc.) and File Complaints. Click 'Submit New Request' on the dashboard to get started.",
-    certificate: "Certificate requests include Barangay Indigency Certificates, Clearance Certificates, and other official documents. These typically take 2-5 business days to process.",
-    complaint: "To file a complaint, describe the incident or issue you want to report. Include details about what happened, when it happened, and any relevant information. Our officials will review and respond to your complaint.",
-    status: "Your requests and complaints have different statuses: Pending (awaiting review), In Progress (being handled), Completed (finished), and Rejected (if declined). Check the dashboard to see your current requests.",
-    pending: "A 'Pending' status means your request has been submitted but hasn't been reviewed yet. Most requests are reviewed within 2-3 business days.",
-    progress: "An 'In Progress' status means the barangay officials are currently working on your request. You'll be notified once it's completed.",
-    completed: "A 'Completed' status means your request has been processed and is ready for pickup or delivery. Check the request details for more information.",
-    announcements: "Visit the Announcements page to see all official barangay announcements, news, and important updates about community events.",
-    account: "You can view your profile information from the sidebar. Make sure your contact details are up to date so we can reach you about your requests.",
-    requirements: "Requirements vary depending on the type of certificate or complaint. Check the specific request details or ask the barangay office for specific document requirements.",
-    timeline: "Most certificate requests take 2-5 business days. Complaints are reviewed within 3-7 business days. Some requests may take longer depending on complexity.",
-    contact: "For urgent issues, you can contact the barangay office directly. Visit the barangay hall during office hours for immediate assistance.",
-    help: "I can help you with: submitting requests, understanding request status, filing complaints, certificate requirements, announcements, and general system navigation. What would you like to know?",
-  };
-
-  const generateResponse = (userInput) => {
-    const input = userInput.toLowerCase().trim();
-
-    // Keywords matching
-    const keywords = {
-      submit: systemKnowledge.submissions,
-      request: systemKnowledge.submissions,
-      certificate: systemKnowledge.certificate,
-      complaint: systemKnowledge.complaint,
-      status: systemKnowledge.status,
-      pending: systemKnowledge.pending,
-      progress: systemKnowledge.progress,
-      "in progress": systemKnowledge.progress,
-      completed: systemKnowledge.completed,
-      announcement: systemKnowledge.announcements,
-      profile: systemKnowledge.account,
-      account: systemKnowledge.account,
-      requirement: systemKnowledge.requirements,
-      timeline: systemKnowledge.timeline,
-      "how long": systemKnowledge.timeline,
-      contact: systemKnowledge.contact,
-      help: systemKnowledge.help,
-      question: systemKnowledge.help,
-    };
-
-    // Find matching keyword
-    for (const [keyword, response] of Object.entries(keywords)) {
-      if (input.includes(keyword)) {
-        return response;
-      }
-    }
-
-    // Default responses for various inputs
-    if (
-      input.includes("hello") ||
-      input.includes("hi") ||
-      input.includes("hey")
-    ) {
-      return "Hello! I'm here to assist you with the Barangay System. Feel free to ask me anything about submitting requests, checking status, or using the system features!";
-    }
-
-    if (
-      input.includes("thank") ||
-      input.includes("thanks") ||
-      input.includes("thankyou")
-    ) {
-      return "You're welcome! Is there anything else I can help you with?";
-    }
-
-    if (input.includes("what can you do") || input.includes("what do you do")) {
-      return systemKnowledge.help;
-    }
-
-    if (input.length === 0) {
-      return "Please type a message to get started!";
-    }
-
-    // Fallback response
-    return "I'm here to help with the Barangay Complaint and Service Request Management System! I can assist with: submitting requests, understanding status, filing complaints, and system navigation. Feel free to ask any specific questions!";
-  };
+  // The server provides assistant replies; keep a minimal fallback message if server is unavailable
+  const fallbackResponse = () =>
+    "Assistant is unavailable at the moment. Please try again later.";
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
 
+    // Prevent duplicate sends immediately (synchronous guard)
+    if (isSendingRef.current) return;
     if (!inputValue.trim()) return;
 
-    // Add user message
+    // Add user message to UI
     const userMessage = {
       id: messages.length + 1,
       type: "user",
       text: inputValue,
     };
-
     setMessages((prev) => [...prev, userMessage]);
-    setInputValue("");
-    setIsLoading(true);
 
-    // Simulate API call delay
-    setTimeout(() => {
-      const botResponse = generateResponse(inputValue);
+    // Build history array of { role, content } for the server
+    const updatedHistory = [
+      ...conversationHistory,
+      { role: "user", content: inputValue },
+    ];
+    setConversationHistory(updatedHistory);
+
+  const userInput = inputValue;
+  setInputValue("");
+  // mark as sending synchronously so rapid clicks don't queue multiple requests
+  isSendingRef.current = true;
+  setIsLoading(true);
+
+    try {
+      // Try to get supabase session token to include for authenticated routes
+      let authHeaders = {};
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const session = sessionData?.session;
+        if (session?.access_token) {
+          authHeaders.Authorization = `Bearer ${session.access_token}`;
+        }
+      } catch (tokenErr) {
+        // ignore token retrieval errors; we'll call API without auth header
+        console.debug("No auth token available for chatbot request", tokenErr);
+      }
+
+      // Send message and history to server endpoint /resident/chatbot using a retry helper
+      const url = `${API_CONFIG.SERVER_API_URL}/resident/chatbot`;
+      const fetchOptions = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders,
+        },
+        body: JSON.stringify({ message: userInput, history: updatedHistory }),
+      };
+
+      // Helper: sleep
+      const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+
+      // Retry helper for 429 with exponential backoff + jitter. Honors Retry-After header if present.
+  const MAX_RETRIES = 2; // keep retries conservative to avoid extra load
+  const BASE_DELAY_MS = 1200; // base delay (ms)
+
+      const sendWithRetries = async (url, options) => {
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+          let resp;
+          try {
+            resp = await fetch(url, options);
+          } catch (networkErr) {
+            // network errors - if last attempt, rethrow
+            if (attempt === MAX_RETRIES) throw networkErr;
+            const backoff = BASE_DELAY_MS * Math.pow(2, attempt) + Math.floor(Math.random() * 300);
+            console.warn(`Network error, retrying in ${backoff}ms (attempt ${attempt + 1})`, networkErr);
+            await sleep(backoff);
+            continue;
+          }
+
+          if (resp.status !== 429) {
+            return resp;
+          }
+
+          // Handle 429: check Retry-After header or exponential backoff
+          if (attempt < MAX_RETRIES) {
+            const ra = resp.headers.get("Retry-After");
+            // exponential backoff with jitter
+            let delayMs = BASE_DELAY_MS * Math.pow(2, attempt) + Math.floor(Math.random() * 500);
+            if (ra) {
+              const raSec = parseInt(ra, 10);
+              if (!Number.isNaN(raSec)) delayMs = raSec * 1000;
+            }
+            console.warn(`Received 429 from server, retrying in ${delayMs}ms (attempt ${attempt + 1})`);
+            await sleep(delayMs);
+            continue;
+          }
+
+          // last attempt returned 429 - return it so caller can handle
+          return resp;
+        }
+      };
+
+      const response = await sendWithRetries(url, fetchOptions);
+      if (!response) throw new Error("No response from server");
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      // Try to parse JSON, but be resilient to different shapes
+      let apiResponse = "No response received";
+      try {
+        const data = await response.json();
+        console.debug("Chatbot server response JSON:", data);
+
+        if (typeof data === "string") {
+          apiResponse = data;
+        } else if (data === null || data === undefined) {
+          apiResponse = "No response received";
+        } else if (data.message) {
+          apiResponse = data.message;
+        } else if (data.response) {
+          apiResponse = data.response;
+        } else if (data.reply) {
+          apiResponse = data.reply;
+        } else if (data.result) {
+          apiResponse = data.result;
+        } else if (data.data && (data.data.message || data.data.reply || data.data.response)) {
+          apiResponse = data.data.message || data.data.reply || data.data.response;
+        } else {
+          // Fallback: stringify the whole object so user sees something useful
+          apiResponse = JSON.stringify(data);
+        }
+      } catch (jsonErr) {
+        // Response wasn't valid JSON or empty — try to read text
+        console.warn("Chatbot response not JSON, attempting to read text", jsonErr);
+        try {
+          const text = await response.text();
+          apiResponse = text || "No response received";
+          console.debug("Chatbot server response text:", text);
+        } catch (textErr) {
+          console.error("Failed to read chatbot response body:", textErr);
+          apiResponse = "No response received";
+        }
+      }
+
+      // Add assistant reply to history and UI
+      const assistantEntry = { role: "assistant", content: apiResponse };
+      setConversationHistory((prev) => [...prev, assistantEntry]);
+
       const botMessage = {
         id: messages.length + 2,
         type: "bot",
-        text: botResponse,
+        text: apiResponse,
       };
       setMessages((prev) => [...prev, botMessage]);
+    } catch (error) {
+      console.error("Error calling server API:", error);
+
+      // Fallback to a minimal message if API fails
+      const fallback = fallbackResponse();
+
+      const assistantEntry = { role: "assistant", content: fallback };
+      setConversationHistory((prev) => [...prev, assistantEntry]);
+
+      const botMessage = {
+        id: messages.length + 2,
+        type: "bot",
+        text: fallback,
+      };
+      setMessages((prev) => [...prev, botMessage]);
+    } finally {
+      // clear synchronous sending guard and loading state
+      isSendingRef.current = false;
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   return (
@@ -198,7 +310,10 @@ const ChatBot = () => {
                     className="chatbot-avatar"
                   />
                 )}
-                <div className="message-content">{msg.text}</div>
+                <div
+                  className="message-content"
+                  dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.text) }}
+                />
               </div>
             ))}
             {isLoading && (
