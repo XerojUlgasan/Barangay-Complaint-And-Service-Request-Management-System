@@ -2,6 +2,43 @@ import React, { useState, useRef, useEffect } from "react";
 import "../styles/ChatBot.css";
 import supabase, { API_CONFIG } from "../supabse_db/supabase_client";
 
+// Helper functions for localStorage management
+const getStorageKey = (uid) => `chatbot_history_${uid}`;
+
+const saveChatHistoryToStorage = (uid, messages, conversationHistory) => {
+  if (!uid) return;
+  try {
+    const data = {
+      messages,
+      conversationHistory,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem(getStorageKey(uid), JSON.stringify(data));
+  } catch (error) {
+    console.error("Error saving chat history to localStorage:", error);
+  }
+};
+
+const loadChatHistoryFromStorage = (uid) => {
+  if (!uid) return null;
+  try {
+    const stored = localStorage.getItem(getStorageKey(uid));
+    return stored ? JSON.parse(stored) : null;
+  } catch (error) {
+    console.error("Error loading chat history from localStorage:", error);
+    return null;
+  }
+};
+
+const clearChatHistoryFromStorage = (uid) => {
+  if (!uid) return;
+  try {
+    localStorage.removeItem(getStorageKey(uid));
+  } catch (error) {
+    console.error("Error clearing chat history from localStorage:", error);
+  }
+};
+
 // Minimal safe Markdown-like renderer (module-level to avoid re-creation on each render)
 const escapeHtml = (unsafe) => {
   return String(unsafe)
@@ -45,16 +82,158 @@ const ChatBot = () => {
   const [conversationHistory, setConversationHistory] = useState([]);
   const isSendingRef = useRef(false); // synchronous guard to prevent duplicate sends
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
+  const containerRef = useRef(null);
+  const [currentUid, setCurrentUid] = useState(null);
+  const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Use requestAnimationFrame to ensure DOM is updated
+    requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+    });
   };
 
   // renderMarkdown is defined at module scope for performance
 
+  // Load user UID and restore chat history from localStorage
+  useEffect(() => {
+    const loadUserAndHistory = async () => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const session = sessionData?.session;
+        const uid = session?.user?.id;
+
+        if (uid && uid !== currentUid) {
+          setCurrentUid(uid);
+
+          // Load saved history for this UID
+          const savedData = loadChatHistoryFromStorage(uid);
+          if (savedData && savedData.messages && savedData.messages.length > 0) {
+            setMessages(savedData.messages);
+            setConversationHistory(savedData.conversationHistory || []);
+          } else {
+            // No saved history, reset to default greeting
+            setMessages([
+              {
+                id: 1,
+                type: "bot",
+                text: "Hello! 👋 I'm here to help you with questions about the Barangay Complaint and Service Request Management System. What can I help you with today?",
+              },
+            ]);
+            setConversationHistory([]);
+          }
+          setIsHistoryLoaded(true);
+        } else if (!uid) {
+          // User logged out
+          setCurrentUid(null);
+          setMessages([
+            {
+              id: 1,
+              type: "bot",
+              text: "Hello! 👋 I'm here to help you with questions about the Barangay Complaint and Service Request Management System. What can I help you with today?",
+            },
+          ]);
+          setConversationHistory([]);
+          setIsHistoryLoaded(true);
+        }
+      } catch (error) {
+        console.error("Error loading user and chat history:", error);
+        setIsHistoryLoaded(true);
+      }
+    };
+
+    loadUserAndHistory();
+
+    // Subscribe to auth state changes
+    const { data: authSubscription } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === "SIGNED_OUT") {
+          setCurrentUid(null);
+          setMessages([
+            {
+              id: 1,
+              type: "bot",
+              text: "Hello! 👋 I'm here to help you with questions about the Barangay Complaint and Service Request Management System. What can I help you with today?",
+            },
+          ]);
+          setConversationHistory([]);
+        } else if (event === "SIGNED_IN" && session?.user?.id) {
+          const uid = session.user.id;
+          if (uid !== currentUid) {
+            setCurrentUid(uid);
+            const savedData = loadChatHistoryFromStorage(uid);
+            if (savedData && savedData.messages && savedData.messages.length > 0) {
+              setMessages(savedData.messages);
+              setConversationHistory(savedData.conversationHistory || []);
+            } else {
+              setMessages([
+                {
+                  id: 1,
+                  type: "bot",
+                  text: "Hello! 👋 I'm here to help you with questions about the Barangay Complaint and Service Request Management System. What can I help you with today?",
+                },
+              ]);
+              setConversationHistory([]);
+            }
+          }
+        }
+      }
+    );
+
+    return () => {
+      if (authSubscription?.subscription) {
+        authSubscription.subscription.unsubscribe();
+      }
+    };
+  }, []);
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Auto-scroll to bottom when messages load from storage
+  useEffect(() => {
+    if (isHistoryLoaded && messages.length > 1) {
+      scrollToBottom();
+    }
+  }, [isHistoryLoaded]);
+
+  // Also scroll when isOpen changes to show bottom of messages
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+    }
+  }, [isOpen]);
+
+  // Save chat history to localStorage whenever it changes
+  useEffect(() => {
+    if (currentUid && isHistoryLoaded && messages.length > 0) {
+      saveChatHistoryToStorage(currentUid, messages, conversationHistory);
+    }
+  }, [messages, conversationHistory, currentUid, isHistoryLoaded]);
+
+  // Handle click outside to close chatbot
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target) &&
+        isOpen
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }
+  }, [isOpen]);
 
   // The server provides assistant replies; keep a minimal fallback message if server is unavailable
   const fallbackResponse = () =>
@@ -232,8 +411,15 @@ const ChatBot = () => {
     }
   };
 
+  // Auto-focus input when loading completes
+  useEffect(() => {
+    if (!isLoading && isOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isLoading, isOpen]);
+
   return (
-    <div className="chatbot-container">
+    <div className="chatbot-container" ref={containerRef}>
       {/* Chat Button */}
       <button
         className="chatbot-toggle-btn"
@@ -324,6 +510,7 @@ const ChatBot = () => {
 
           <form className="chatbot-input-form" onSubmit={handleSendMessage}>
             <input
+              ref={inputRef}
               type="text"
               className="chatbot-input"
               placeholder="Ask me anything..."

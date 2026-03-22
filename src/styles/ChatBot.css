@@ -344,13 +344,14 @@
   }
 
   .chatbot-toggle-btn {
-    width: 44px;
-    height: 44px;
+    width: 64px;
+    height: 64px;
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
   }
 
   .chatbot-toggle-btn svg {
-    width: 20px;
-    height: 20px;
+    width: 28px;
+    height: 28px;
   }
 
   .chatbot-window {
