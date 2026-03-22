@@ -7,32 +7,6 @@ import { getRequestHistory } from "../supabse_db/request/request";
 import { getComplaintHistory } from "../supabse_db/complaint/complaint";
 import "../styles/RequestDetail.css";
 
-/**
- * RequestDetail Modal Component
- *
- * This component displays a modal dialog showing detailed information about a service request or complaint.
- * Features:
- * - Displays request information (citizen name, submission date, description)
- * - Displays attached images in a lightbox gallery
- * - Allows official to update request status with dropdown
- * - Provides textarea for internal notes and official responses
- * - Save and Update functionality
- * - Close modal on completion
- *
- * Props:
- * @param {object} request - Request object containing:
- *   - id: Request ID
- *   - title: Request title
- *   - status: Current status
- *   - submittedBy: Who submitted the request
- *   - submissionDate: When request was submitted
- *   - description: Request description
- *   - internalNotes: Current internal notes (if any)
- * @param {string} itemType - Type of item: 'request' or 'complaint'
- * @param {boolean} isOpen - Whether modal is visible
- * @param {function} onClose - Callback to close modal
- * @param {function} onSave - Callback when save button is clicked
- */
 const RequestDetail = ({
   request,
   itemType = "request",
@@ -40,35 +14,28 @@ const RequestDetail = ({
   onClose,
   onSave,
 }) => {
-  // State for form fields that can be edited
   const [formData, setFormData] = useState({
     status: "IN_PROGRESS",
     internalNotes: "",
   });
 
-  // State for images
   const [images, setImages] = useState([]);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [imagesLoading, setImagesLoading] = useState(false);
 
-  // State for history
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  // Update formData when request prop changes
   useEffect(() => {
     if (request) {
       setFormData({
         status: request.status || "IN_PROGRESS",
         internalNotes: request.internalNotes || "",
       });
-
-      // Fetch images when modal opens
       fetchImages();
     }
   }, [request, isOpen, itemType]);
 
-  // fetch history when request changes or modal opens
   useEffect(() => {
     if (request && isOpen) {
       loadHistory();
@@ -94,31 +61,23 @@ const RequestDetail = ({
     setHistoryLoading(false);
   };
 
-  // Fetch images from Supabase Storage
   const fetchImages = async () => {
     if (!request || !request.id) return;
-
     setImagesLoading(true);
     try {
       const result = await fetchImagesForItem(itemType, request.id);
       if (result.success) {
         setImages(result.images || []);
-        console.log(
-          `Fetched ${result.count} images for ${itemType} ${request.id}`,
-        );
       } else {
-        console.error("Error fetching images:", result.error);
         setImages([]);
       }
     } catch (error) {
-      console.error("Error fetching images:", error);
       setImages([]);
     } finally {
       setImagesLoading(false);
     }
   };
 
-  // Available status options for dropdown
   const statusOptions = [
     { value: "PENDING", label: "Pending" },
     { value: "IN_PROGRESS", label: "In Progress" },
@@ -129,58 +88,36 @@ const RequestDetail = ({
     { value: "FOR_VALIDATION", label: "For Validation" },
   ];
 
-  /**
-   * Update form field when user types
-   * @param {object} e - Event object from input/textarea
-   */
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+  // Status colors used for history badges
+  const statusColorMap = {
+    PENDING: "#F59E0B",
+    IN_PROGRESS: "#0EA5E9",
+    COMPLETED: "#10B981",
+    REJECTED: "#EF4444",
+    FOR_COMPLIANCE: "#8B5CF6",
+    NON_COMPLIANT: "#EC4899",
+    FOR_VALIDATION: "#06B6D4",
+    RESIDENT_COMPLIED: "#14B8A6",
   };
 
-  /**
-   * Handle save button click
-   *
-   * This function:
-   * 1. Calls the onSave callback with updated form data
-   * 2. Includes request ID for database update
-   * 3. Closes the modal after saving
-   *
-   * TODO: Implement API call to update request in Supabase
-   * const updateRequest = async (requestId, updates) => {
-   *   const { data, error } = await supabase
-   *     .from('requests')
-   *     .update({ status: updates.status, internal_notes: updates.internalNotes })
-   *     .eq('id', requestId);
-   * }
-   */
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
   const handleSave = () => {
     if (onSave) {
-      onSave({
-        requestId: request.id,
-        ...formData,
-      });
+      onSave({ requestId: request.id, ...formData });
     }
     onClose();
   };
 
-  // Handle overlay click - close modal when clicking outside
   const handleOverlayClick = (e) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
+    if (e.target === e.currentTarget) onClose();
   };
 
-  // Don't render if modal is not open
   if (!isOpen || !request) return null;
 
-  /**
-   * Get status badge color based on current status
-   * @returns {object} Object with color and label
-   */
   const getStatusBadge = () => {
     const statusMap = {
       PENDING: { color: "#F59E0B", label: "PENDING" },
@@ -191,67 +128,49 @@ const RequestDetail = ({
       NON_COMPLIANT: { color: "#EC4899", label: "NON COMPLIANT" },
       FOR_VALIDATION: { color: "#06B6D4", label: "FOR VALIDATION" },
     };
-    return (
-      statusMap[formData.status] || { color: "#6B7280", label: formData.status }
-    );
+    return statusMap[formData.status] || { color: "#6B7280", label: formData.status };
   };
 
   const statusBadge = getStatusBadge();
 
   const modalContent = (
     <>
-      {/* Modal Overlay - semi-transparent background */}
       <div className="modal-overlay" onClick={handleOverlayClick}></div>
 
-      {/* Modal Dialog - main content area */}
       <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
-        {/* Modal Header with status badge and ID */}
+        {/* Header */}
         <div className="modal-header">
           <div className="modal-header-content">
-            {/* Status badge */}
-            <span
-              className="status-badge"
-              style={{ backgroundColor: statusBadge.color }}
-            >
+            <span className="status-badge" style={{ backgroundColor: statusBadge.color }}>
               {statusBadge.label}
             </span>
-            {/* Request ID */}
             <span className="request-id">ID: #{request.id}</span>
           </div>
-          {/* Close button */}
           <button className="modal-close-btn" onClick={onClose}>
-            <X size={24} />
+            <X size={18} />
           </button>
         </div>
 
-        {/* Modal Body - scrollable content */}
+        {/* Body */}
         <div className="modal-body">
-          {/* Request Title */}
           <h2 className="request-title">{request.title}</h2>
 
-          {/* Request Details Grid */}
+          {/* Details Grid */}
           <div className="details-grid">
-            {/* Citizen Name Section */}
             <div className="detail-section">
               <label className="detail-label">CITIZEN NAME</label>
               <div className="detail-value">
-                {/* User avatar icon */}
                 <span className="avatar-icon">👤</span>
                 <span>{request.submittedBy}</span>
               </div>
             </div>
-
-            {/* Submission Date Section */}
             <div className="detail-section">
               <label className="detail-label">SUBMISSION DATE</label>
               <div className="detail-value">
-                {/* Calendar icon */}
                 <span className="date-icon">📅</span>
                 <span>{request.submissionDate}</span>
               </div>
             </div>
-
-            {/* Respondent(s) - only for complaints */}
             {itemType === "complaint" && (request.respondents || request.respondent_id) && (
               <div className="detail-section">
                 <label className="detail-label">RESPONDENT(S)</label>
@@ -269,14 +188,13 @@ const RequestDetail = ({
             )}
           </div>
 
-          {/* Request Description */}
+          {/* Description */}
           <div className="description-section">
             <label className="detail-label">DESCRIPTION</label>
-            {/* Description text in italic */}
             <p className="description-text">"{request.description}"</p>
           </div>
 
-          {/* Attached Images Section */}
+          {/* Images */}
           <div className="images-section">
             <div className="images-header">
               <ImageIcon size={20} />
@@ -305,14 +223,12 @@ const RequestDetail = ({
             )}
           </div>
 
-          {/* UPDATE PROGRESS Section - form for official to update status */}
+          {/* Update Progress */}
           <div className="update-progress-section">
             <div className="update-progress-header">
               <FileText size={20} />
               <h3>Update Progress</h3>
             </div>
-
-            {/* Status Update Dropdown */}
             <div className="form-group">
               <label className="form-label">Update Status</label>
               <select
@@ -328,12 +244,8 @@ const RequestDetail = ({
                 ))}
               </select>
             </div>
-
-            {/* Internal Notes / Official Response Textarea */}
             <div className="form-group">
-              <label className="form-label">
-                Internal Notes / Official Response
-              </label>
+              <label className="form-label">Internal Notes / Official Response</label>
               <textarea
                 name="internalNotes"
                 value={formData.internalNotes}
@@ -345,7 +257,7 @@ const RequestDetail = ({
             </div>
           </div>
 
-          {/* HISTORY SECTION - displays previous status updates */}
+          {/* History Timeline */}
           <div className="history-section">
             <div className="history-header">
               <h3>History</h3>
@@ -356,27 +268,33 @@ const RequestDetail = ({
               <ul className="history-list">
                 {history.map((h, idx) => {
                   const date = new Date(h.updated_at || h.created_at);
+                  const rawStatus = (h.request_status || "").toUpperCase().replace(/ /g, "_");
                   const statusLabel = h.request_status
                     ? h.request_status.replace(/_/g, " ").toUpperCase()
                     : "";
+                  const dotColor = statusColorMap[rawStatus] || "#6B7280";
+
                   return (
-                    <li key={idx} className="history-item">
+                    <li key={idx} className="history-item" style={{ "--dot-color": dotColor }}>
                       <div className="history-row">
+                        <div className="history-row-top">
+                          <span
+                            className="history-status"
+                            style={{ backgroundColor: dotColor }}
+                          >
+                            {statusLabel}
+                          </span>
+                          <span className="history-user">
+                            {h.updater_name || "System"}
+                          </span>
+                        </div>
                         <span className="history-date">
                           {date.toLocaleString()}
                         </span>
-                        <span className="history-status">
-                          {statusLabel}
-                        </span>
-                        <span className="history-user">
-                          {h.updater_name || "System"}
-                        </span>
+                        {h.remarks && (
+                          <div className="history-remarks">{h.remarks}</div>
+                        )}
                       </div>
-                      {h.remarks && (
-                        <div className="history-remarks">
-                          {h.remarks}
-                        </div>
-                      )}
                     </li>
                   );
                 })}
@@ -387,20 +305,15 @@ const RequestDetail = ({
           </div>
         </div>
 
-        {/* Modal Footer - action buttons */}
+        {/* Footer */}
         <div className="modal-footer">
-          {/* Close button */}
-          <button className="btn-close" onClick={onClose}>
-            Close
-          </button>
-          {/* Save and Update button - primary action */}
+          <button className="btn-close" onClick={onClose}>Close</button>
           <button className="btn-save" onClick={handleSave}>
             ✓ Save & Update Status
           </button>
         </div>
       </div>
 
-      {/* Image Lightbox */}
       <ImageLightbox
         images={images}
         isOpen={isLightboxOpen}

@@ -20,6 +20,23 @@ export default function OfficialRequests() {
     fetchAssignedRequests();
   }, []);
 
+  // Blur the page content behind the modal when it opens
+  useEffect(() => {
+    const pageContent = document.querySelector('.requests-container');
+    if (!pageContent) return;
+
+    if (isDetailModalOpen) {
+      pageContent.classList.add('modal-open-blur');
+    } else {
+      pageContent.classList.remove('modal-open-blur');
+    }
+
+    // Cleanup on unmount
+    return () => {
+      pageContent.classList.remove('modal-open-blur');
+    };
+  }, [isDetailModalOpen]);
+
   const fetchAssignedRequests = async () => {
     try {
       const result = await getAssignedRequests();
@@ -84,28 +101,28 @@ export default function OfficialRequests() {
 
   const getStatusColor = (status) => {
     const colorMap = {
-      pending: "#F59E0B", // Warm Amber/Gold
-      in_progress: "#0EA5E9", // Sky Blue
-      completed: "#10B981", // Emerald Green
-      rejected: "#EF4444", // Bright Red
-      resident_complied: "#14B8A6", // Teal
-      for_compliance: "#8B5CF6", // Vibrant Purple
-      non_compliant: "#EC4899", // Hot Pink
-      for_validation: "#06B6D4", // Cyan
+      pending: "#F59E0B",
+      in_progress: "#0EA5E9",
+      completed: "#10B981",
+      rejected: "#EF4444",
+      resident_complied: "#14B8A6",
+      for_compliance: "#8B5CF6",
+      non_compliant: "#EC4899",
+      for_validation: "#06B6D4",
     };
     return colorMap[status] || "#6B7280";
   };
 
   const getBorderColor = (status) => {
     const borderMap = {
-      pending: "#F59E0B", // Warm Amber/Gold
-      in_progress: "#0EA5E9", // Sky Blue
-      completed: "#10B981", // Emerald Green
-      rejected: "#DC2626", // Deep Red
-      resident_complied: "#0D9488", // Deep Teal
-      for_compliance: "#7C3AED", // Deep Purple
-      non_compliant: "#DB2777", // Deep Pink
-      for_validation: "#0891B2", // Deep Cyan
+      pending: "#F59E0B",
+      in_progress: "#0EA5E9",
+      completed: "#10B981",
+      rejected: "#DC2626",
+      resident_complied: "#0D9488",
+      for_compliance: "#7C3AED",
+      non_compliant: "#DB2777",
+      for_validation: "#0891B2",
     };
     return borderMap[status] || "#6B7280";
   };
@@ -169,7 +186,7 @@ export default function OfficialRequests() {
     if (request) {
       setSelectedRequest(request);
       setIsDetailModalOpen(true);
-      setIsFilterOpen(false); // Close filter dropdown when modal opens
+      setIsFilterOpen(false);
     }
   };
 
@@ -182,7 +199,6 @@ export default function OfficialRequests() {
     try {
       console.log("Saving request with data:", updatedData);
 
-      // Map frontend status (uppercase) to database status (lowercase)
       const statusMap = {
         PENDING: "pending",
         IN_PROGRESS: "in_progress",
@@ -202,7 +218,6 @@ export default function OfficialRequests() {
         dbStatus,
       );
 
-      // Save to database
       const result = await updateRequestStatus(
         updatedData.requestId,
         dbStatus,
@@ -211,13 +226,8 @@ export default function OfficialRequests() {
 
       if (result.success) {
         console.log("Request saved successfully! Refreshing list...");
-
-        // Refresh the requests list to get updated data from database
         await fetchAssignedRequests();
-
-        // Close modal after successful update
         handleCloseModal();
-
         console.log("Request updated successfully:", updatedData);
         alert("Request updated successfully!");
       } else {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { ChevronDown, X } from "lucide-react";
 import "../../styles/BarangayAdmin.css";
-import "../../styles/RequestDetail.css"; // reuse modal/history styles from official view
+import "../../styles/RequestDetail.css";
 import {
   getRequests,
   getRequestHistory,
@@ -27,6 +27,16 @@ const STATUS_LABELS = {
   for_validation: "For Validation",
 };
 
+const STATUS_COLOR_MAP = {
+  PENDING: "#F59E0B",
+  IN_PROGRESS: "#0EA5E9",
+  COMPLETED: "#10B981",
+  REJECTED: "#EF4444",
+  FOR_COMPLIANCE: "#8B5CF6",
+  NON_COMPLIANT: "#EC4899",
+  FOR_VALIDATION: "#06B6D4",
+};
+
 const normalizeStatus = (status) => {
   if (!status) return "Pending";
   const normalized = typeof status === "string" ? status.toLowerCase() : status;
@@ -36,8 +46,7 @@ const normalizeStatus = (status) => {
 const getStatusColor = (statusLabel) => STATUS_COLORS[statusLabel] || "#9ca3af";
 
 export default function AdminRequests() {
-  const [selectedRequestStatus, setSelectedRequestStatus] =
-    useState("All Status");
+  const [selectedRequestStatus, setSelectedRequestStatus] = useState("All Status");
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [requestDropdownOpen, setRequestDropdownOpen] = useState(false);
@@ -45,11 +54,9 @@ export default function AdminRequests() {
   const [loadingRequests, setLoadingRequests] = useState(true);
   const [errorRequests, setErrorRequests] = useState(null);
 
-  // history for selected request (shown in modal)
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  // Transform database request data to match UI format
   const transformRequestData = (dbRequest) => {
     return {
       id: dbRequest.id,
@@ -82,19 +89,13 @@ export default function AdminRequests() {
 
         if (result.success && Array.isArray(result.data)) {
           console.log("AdminRequests: Raw data from DB:", result.data);
-          // Transform the data to match UI expectations
           const transformedRequests = result.data.map((req) =>
             transformRequestData(req),
           );
           console.log("AdminRequests: Transformed data:", transformedRequests);
-
-          // If database returned results, use them; otherwise use sample data
           setRequests(transformedRequests);
         } else {
-          console.error(
-            "AdminRequests: Failed to fetch requests:",
-            result.message,
-          );
+          console.error("AdminRequests: Failed to fetch requests:", result.message);
           setErrorRequests(result.message || "Failed to fetch requests");
           setRequests([]);
         }
@@ -119,9 +120,7 @@ export default function AdminRequests() {
   // Close modal on escape key
   useEffect(() => {
     const handleEscape = (e) => {
-      if (e.key === "Escape") {
-        closeModal();
-      }
+      if (e.key === "Escape") closeModal();
     };
     if (isModalOpen) {
       document.addEventListener("keydown", handleEscape);
@@ -133,16 +132,17 @@ export default function AdminRequests() {
     };
   }, [isModalOpen]);
 
+  // blur handled via inline className on page-content wrapper
+
   const openModal = (request) => {
     setSelectedRequest(request);
     setIsModalOpen(true);
-    // fetch history immediately after opening
     fetchHistory(request.id);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
-    setHistory([]); // clear previous history
+    setHistory([]);
     setTimeout(() => setSelectedRequest(null), 300);
   };
 
@@ -163,6 +163,7 @@ export default function AdminRequests() {
     }
     setHistoryLoading(false);
   };
+
   const statusOptions = [
     "All Status",
     "Pending",
@@ -176,16 +177,13 @@ export default function AdminRequests() {
 
   return (
     <div className="admin-page">
+      {/* Blurrable page content wrapper */}
+      <div className={`ar-page-content${isModalOpen ? " modal-open-blur" : ""}`}>
       {/* Page Header */}
-      <div
-        className="page-actions"
-        style={{ alignItems: "flex-start", marginBottom: 12 }}
-      >
+      <div className="page-actions" style={{ alignItems: "flex-start", marginBottom: 12 }}>
         <div>
           <h3>System-wide Requests</h3>
-          <p className="muted">
-            Monitor all service requests across the barangay.
-          </p>
+          <p className="muted">Monitor all service requests across the barangay.</p>
         </div>
       </div>
 
@@ -200,33 +198,37 @@ export default function AdminRequests() {
             <ChevronDown size={18} style={{ marginLeft: "0.5rem" }} />
           </button>
           {requestDropdownOpen && (
-            <div className="status-filter-dropdown">
-              {statusOptions.map((option) => (
-                <div
-                  key={option}
-                  className="status-filter-item"
-                  onClick={() => {
-                    setSelectedRequestStatus(option);
-                    setRequestDropdownOpen(false);
-                  }}
-                >
-                  {option}
-                </div>
-              ))}
-            </div>
+            <>
+              <div
+                style={{ position: "fixed", inset: 0, zIndex: 999 }}
+                onClick={() => setRequestDropdownOpen(false)}
+              />
+              <div className="status-filter-dropdown" style={{ zIndex: 1000 }}>
+                {statusOptions.map((option) => (
+                  <div
+                    key={option}
+                    className="status-filter-item"
+                    onClick={() => {
+                      setSelectedRequestStatus(option);
+                      setRequestDropdownOpen(false);
+                    }}
+                  >
+                    {option}
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
 
         {errorRequests && (
-          <div
-            style={{
-              padding: "1rem",
-              marginBottom: "1rem",
-              backgroundColor: "#fee2e2",
-              borderRadius: "0.5rem",
-              color: "#991b1b",
-            }}
-          >
+          <div style={{
+            padding: "1rem",
+            marginBottom: "1rem",
+            backgroundColor: "#fee2e2",
+            borderRadius: "0.5rem",
+            color: "#991b1b",
+          }}>
             Error: {errorRequests}
           </div>
         )}
@@ -254,24 +256,22 @@ export default function AdminRequests() {
             <tbody>
               {filteredRequests.map((request) => (
                 <tr key={request.id}>
-                  <td className="req-id">{request.id}</td>
+                  <td><span className="req-id-chip">{request.id}</span></td>
                   <td className="req-details">
                     <div className="req-title">{request.title}</div>
                     <div className="req-subtitle">{request.subtitle}</div>
                   </td>
                   <td className="req-status">
                     <span
-                      className={`status-badge ${request.status.toLowerCase().replace(/ /g, "_")}`}
+                      className="ar-status-badge"
+                      style={{ backgroundColor: getStatusColor(request.status) }}
                     >
                       {request.status}
                     </span>
                   </td>
                   <td className="req-submitted">{request.submittedBy}</td>
                   <td className="req-action">
-                    <button
-                      className="view-details-btn"
-                      onClick={() => openModal(request)}
-                    >
+                    <button className="btn-save ar-table-action-btn" onClick={() => openModal(request)}>
                       View Details
                     </button>
                   </td>
@@ -282,73 +282,65 @@ export default function AdminRequests() {
         </div>
       </div>
 
+      </div>{/* end ar-page-content */}
+
       {/* Modal Overlay */}
-      {isModalOpen && <div className="modal-overlay" onClick={closeModal} />}
+      {isModalOpen && <div className="ar-modal-overlay" onClick={closeModal} />}
 
       {/* Modal */}
       {isModalOpen && selectedRequest && (
-        <div className="request-modal">
-          {/* Modal Header */}
-          <div className="request-modal-header">
-            <div className="modal-header-top">
-              <h3 className="modal-request-title">{selectedRequest.title}</h3>
-              <button className="modal-close-x" onClick={closeModal}>
-                <X size={24} />
+        <div className="ar-modal">
+          {/* Header */}
+          <div className="ar-modal-header">
+            <div className="ar-modal-header-top">
+              <h3 className="ar-modal-title">{selectedRequest.title}</h3>
+              <button className="ar-modal-close" onClick={closeModal}>
+                <X size={18} />
               </button>
             </div>
-            <div className="modal-header-badges">
+            <div className="ar-modal-badges">
               <span
-                className="status-badge-modal"
-                style={{
-                  backgroundColor: getStatusColor(selectedRequest.status),
-                  color: "#fff",
-                }}
+                className="ar-status-badge-modal"
+                style={{ backgroundColor: getStatusColor(selectedRequest.status) }}
               >
                 {selectedRequest.status.toUpperCase()}
               </span>
-              <span className="admin-tag-modal">System Admin View</span>
+              <span className="ar-admin-tag">System Admin View</span>
             </div>
           </div>
 
-          {/* Modal Content */}
-          <div className="modal-body">
-            {/* Metadata Grid */}
-            <div className="request-metadata-grid">
-              <div className="metadata-item">
-                <label className="metadata-label">Citizen</label>
-                <p className="metadata-value">{selectedRequest.submittedBy}</p>
+          {/* Body */}
+          <div className="ar-modal-body">
+            <div className="ar-metadata-grid">
+              <div className="ar-metadata-item">
+                <label className="ar-metadata-label">Citizen</label>
+                <p className="ar-metadata-value">{selectedRequest.submittedBy}</p>
               </div>
-              <div className="metadata-item">
-                <label className="metadata-label">Submitted</label>
-                <p className="metadata-value">{selectedRequest.date}</p>
+              <div className="ar-metadata-item">
+                <label className="ar-metadata-label">Submitted</label>
+                <p className="ar-metadata-value">{selectedRequest.date}</p>
               </div>
-              <div className="metadata-item">
-                <label className="metadata-label">Last Update</label>
-                <p className="metadata-value">{selectedRequest.lastUpdate}</p>
+              <div className="ar-metadata-item">
+                <label className="ar-metadata-label">Last Update</label>
+                <p className="ar-metadata-value">{selectedRequest.lastUpdate}</p>
               </div>
-              <div className="metadata-item">
-                <label className="metadata-label">Assigned Official</label>
-                <p className="metadata-value">
-                  {selectedRequest.assignedOfficial}
-                </p>
+              <div className="ar-metadata-item">
+                <label className="ar-metadata-label">Assigned Official</label>
+                <p className="ar-metadata-value ar-official-value">{selectedRequest.assignedOfficial}</p>
               </div>
             </div>
 
-            {/* Description Box */}
-            <div className="request-section">
-              <h4 className="section-title">Request Description</h4>
-              <div className="description-box">
-                {selectedRequest.description}
-              </div>
+            <div className="ar-section">
+              <h4 className="ar-section-title">Request Description</h4>
+              <div className="ar-description-box">{selectedRequest.description}</div>
             </div>
 
-            {/* Response Box */}
-            <div className="request-section">
-              <h4 className="section-title">Official Response / Notes</h4>
-              <div className="response-box">{selectedRequest.response}</div>
+            <div className="ar-section">
+              <h4 className="ar-section-title">Official Response / Notes</h4>
+              <div className="ar-response-box">{selectedRequest.response}</div>
             </div>
 
-            {/* History Section (mirrors official view) */}
+            {/* History — reuses RequestDetail.css timeline classes */}
             <div className="history-section">
               <div className="history-header">
                 <h3>History</h3>
@@ -359,23 +351,25 @@ export default function AdminRequests() {
                 <ul className="history-list">
                   {history.map((h, idx) => {
                     const date = new Date(h.updated_at || h.created_at);
+                    const rawStatus = (h.request_status || "").toUpperCase().replace(/ /g, "_");
                     const statusLabel = h.request_status
                       ? h.request_status.replace(/_/g, " ").toUpperCase()
                       : "";
+                    const dotColor = STATUS_COLOR_MAP[rawStatus] || "#6B7280";
                     return (
-                      <li key={idx} className="history-item">
+                      <li key={idx} className="history-item" style={{ "--dot-color": dotColor }}>
                         <div className="history-row">
-                          <span className="history-date">
-                            {date.toLocaleString()}
-                          </span>
-                          <span className="history-status">{statusLabel}</span>
-                          <span className="history-user">
-                            {h.updater_name || "System"}
-                          </span>
+                          <div className="history-row-top">
+                            <span className="history-status" style={{ backgroundColor: dotColor }}>
+                              {statusLabel}
+                            </span>
+                            <span className="history-user">{h.updater_name || "System"}</span>
+                          </div>
+                          <span className="history-date">{date.toLocaleString()}</span>
+                          {h.remarks && (
+                            <div className="history-remarks">{h.remarks}</div>
+                          )}
                         </div>
-                        {h.remarks && (
-                          <div className="history-remarks">{h.remarks}</div>
-                        )}
                       </li>
                     );
                   })}
@@ -386,11 +380,9 @@ export default function AdminRequests() {
             </div>
           </div>
 
-          {/* Modal Footer */}
-          <div className="modal-footer-request">
-            <button className="close-button" onClick={closeModal}>
-              Close Monitor
-            </button>
+          {/* Footer */}
+          <div className="ar-modal-footer">
+            <button className="ar-close-btn" onClick={closeModal}>Close Monitor</button>
           </div>
         </div>
       )}

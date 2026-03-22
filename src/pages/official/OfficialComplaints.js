@@ -19,6 +19,38 @@ export default function OfficialComplaints() {
     fetchAssignedComplaints();
   }, []);
 
+  // Blur the page content behind the modal when it opens
+  useEffect(() => {
+    const pageContent = document.querySelector('.requests-container');
+    if (!pageContent) return;
+
+    if (isDetailModalOpen) {
+      pageContent.classList.add('modal-open-blur');
+    } else {
+      pageContent.classList.remove('modal-open-blur');
+    }
+
+    return () => {
+      pageContent.classList.remove('modal-open-blur');
+    };
+  }, [isDetailModalOpen]);
+
+  // Blur the page content behind the modal when it opens
+  useEffect(() => {
+    const pageContent = document.querySelector('.requests-container');
+    if (!pageContent) return;
+
+    if (isDetailModalOpen) {
+      pageContent.classList.add('modal-open-blur');
+    } else {
+      pageContent.classList.remove('modal-open-blur');
+    }
+
+    return () => {
+      pageContent.classList.remove('modal-open-blur');
+    };
+  }, [isDetailModalOpen]);
+
   const fetchAssignedComplaints = async () => {
     try {
       const result = await getAssignedComplaints();
@@ -64,26 +96,26 @@ export default function OfficialComplaints() {
 
   const getStatusColorForUI = (status) => {
     const colorMap = {
-      pending: "#F59E0B", // Warm Amber/Gold
-      in_progress: "#0EA5E9", // Sky Blue
-      completed: "#10B981", // Emerald Green
-      rejected: "#EF4444", // Bright Red
-      for_compliance: "#8B5CF6", // Vibrant Purple
-      non_compliant: "#EC4899", // Hot Pink
-      for_validation: "#06B6D4", // Cyan
+      pending: "#F59E0B",
+      in_progress: "#0EA5E9",
+      completed: "#10B981",
+      rejected: "#EF4444",
+      for_compliance: "#8B5CF6",
+      non_compliant: "#EC4899",
+      for_validation: "#06B6D4",
     };
     return colorMap[status] || "#6B7280";
   };
 
   const getBorderColorForUI = (status) => {
     const borderMap = {
-      pending: "#F59E0B", // Warm Amber/Gold
-      in_progress: "#0EA5E9", // Sky Blue
-      completed: "#10B981", // Emerald Green
-      rejected: "#DC2626", // Deep Red
-      for_compliance: "#7C3AED", // Deep Purple
-      non_compliant: "#DB2777", // Deep Pink
-      for_validation: "#0891B2", // Deep Cyan
+      pending: "#F59E0B",
+      in_progress: "#0EA5E9",
+      completed: "#10B981",
+      rejected: "#DC2626",
+      for_compliance: "#7C3AED",
+      non_compliant: "#DB2777",
+      for_validation: "#0891B2",
     };
     return borderMap[status] || "#6B7280";
   };
@@ -120,12 +152,7 @@ export default function OfficialComplaints() {
     };
 
     const dbStatus = statusMap[filterStatus];
-    console.log(
-      "Filtering by status:",
-      filterStatus,
-      "-> DB status:",
-      dbStatus,
-    );
+    console.log("Filtering by status:", filterStatus, "-> DB status:", dbStatus);
     console.log(
       "All complaints with status values:",
       complaints.map((c) => ({ id: c.id, status: c.status })),
@@ -144,7 +171,7 @@ export default function OfficialComplaints() {
     if (complaint) {
       setSelectedComplaint(complaint);
       setIsDetailModalOpen(true);
-      setIsFilterOpen(false); // Close filter dropdown when modal opens
+      setIsFilterOpen(false);
     }
   };
 
@@ -155,7 +182,6 @@ export default function OfficialComplaints() {
 
   const handleSaveComplaint = async (updatedData) => {
     try {
-      // Map frontend status (uppercase) to database status (lowercase)
       const statusMap = {
         PENDING: "pending",
         IN_PROGRESS: "in_progress",
