@@ -9,6 +9,7 @@ import { uploadAnImage } from "../../supabse_db/uploadImages";
 import supabase from "../../supabse_db/supabase_client";
 import { useAuth } from "../../context/AuthContext";
 import ResidentSidebar from "../../components/ResidentSidebar";
+import ResidentSettings from "../../components/ResidentSettings";
 import "../../styles/UserPages.css";
 
 const MyRequests = () => {
@@ -758,6 +759,7 @@ const MyRequests = () => {
                 <strong>{userName || "Loading..."}</strong>
                 <span>Resident</span>
               </div>
+              <ResidentSettings />
               <button
                 onClick={() => setShowLogoutModal(true)}
                 className="back-button"

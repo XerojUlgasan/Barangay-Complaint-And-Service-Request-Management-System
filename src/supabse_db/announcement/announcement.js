@@ -15,7 +15,8 @@ const isCacheValid = () => {
 const hasAdvancedFilters = (announcement) => {
   return Boolean(
     announcement.purok ||
-    announcement.age_group ||
+    announcement.min_age !== null ||
+    announcement.max_age !== null ||
     announcement.voter_status ||
     announcement.occupation ||
     announcement.religion ||
@@ -24,13 +25,41 @@ const hasAdvancedFilters = (announcement) => {
   );
 };
 
+const parseOptionalNonNegativeInteger = (value) => {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed) || parsed < 0) return null;
+  return parsed;
+};
+
+const getUserAge = (userProfile = {}) => {
+  const directAge = parseOptionalNonNegativeInteger(userProfile.age);
+  if (directAge !== null) return directAge;
+
+  const birthdateValue = userProfile.birthdate || userProfile.date_of_birth;
+  if (!birthdateValue) return null;
+
+  const dob = new Date(birthdateValue);
+  if (Number.isNaN(dob.getTime())) return null;
+
+  const now = new Date();
+  let age = now.getFullYear() - dob.getFullYear();
+  const monthDiff = now.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < dob.getDate())) {
+    age -= 1;
+  }
+
+  return age >= 0 ? age : null;
+};
+
 // Helper to check if user matches advanced filters
 const userMatchesFilters = (userProfile, announcement) => {
   if (!hasAdvancedFilters(announcement)) return true; // No filters = everyone allowed
 
   const filters = {
     purok: announcement.purok,
-    age_group: announcement.age_group,
+    min_age: parseOptionalNonNegativeInteger(announcement.min_age),
+    max_age: parseOptionalNonNegativeInteger(announcement.max_age),
     voter_status: announcement.voter_status,
     occupation: announcement.occupation,
     religion: announcement.religion,
@@ -40,8 +69,12 @@ const userMatchesFilters = (userProfile, announcement) => {
 
   // Check if user matches all applicable filters
   if (filters.purok && !filters.purok.includes(userProfile.purok)) return false;
-  if (filters.age_group && !filters.age_group.includes(userProfile.age_group))
-    return false;
+  if (filters.min_age !== null || filters.max_age !== null) {
+    const userAge = getUserAge(userProfile);
+    if (userAge === null) return false;
+    if (filters.min_age !== null && userAge < filters.min_age) return false;
+    if (filters.max_age !== null && userAge > filters.max_age) return false;
+  }
   if (
     filters.voter_status &&
     !filters.voter_status.includes(userProfile.voter_status)
@@ -114,10 +147,8 @@ export const postAnnouncement = async (
       Array.isArray(eventData.purok) && eventData.purok.length > 0
         ? eventData.purok
         : null,
-    age_group:
-      Array.isArray(eventData.age_group) && eventData.age_group.length > 0
-        ? eventData.age_group
-        : null,
+    min_age: parseOptionalNonNegativeInteger(eventData.min_age),
+    max_age: parseOptionalNonNegativeInteger(eventData.max_age),
     voter_status:
       Array.isArray(eventData.voter_status) && eventData.voter_status.length > 0
         ? eventData.voter_status
@@ -284,11 +315,11 @@ export const updateAnnouncement = async (
         ? eventData.purok
         : null;
   }
-  if (Object.prototype.hasOwnProperty.call(eventData, "age_group")) {
-    updatePayload.age_group =
-      Array.isArray(eventData.age_group) && eventData.age_group.length > 0
-        ? eventData.age_group
-        : null;
+  if (Object.prototype.hasOwnProperty.call(eventData, "min_age")) {
+    updatePayload.min_age = parseOptionalNonNegativeInteger(eventData.min_age);
+  }
+  if (Object.prototype.hasOwnProperty.call(eventData, "max_age")) {
+    updatePayload.max_age = parseOptionalNonNegativeInteger(eventData.max_age);
   }
   if (Object.prototype.hasOwnProperty.call(eventData, "voter_status")) {
     updatePayload.voter_status =
@@ -403,7 +434,7 @@ export const signupForEvent = async (announcementId, userProfile = null) => {
   const { data: announcement, error: announcementError } = await supabase
     .from("announcement_tbl")
     .select(
-      "id, audience, max_participants, purok, age_group, voter_status, occupation, religion, civil_status, sex",
+      "id, audience, max_participants, purok, min_age, max_age, voter_status, occupation, religion, civil_status, sex",
     )
     .eq("id", announcementId)
     .single();
@@ -464,11 +495,24 @@ export const signupForEvent = async (announcementId, userProfile = null) => {
         );
       }
       if (
-        announcement.age_group &&
-        !announcement.age_group.includes(userProfile.age_group)
+        (announcement.min_age !== null || announcement.max_age !== null) &&
+        (() => {
+          const userAge = getUserAge(userProfile);
+          if (userAge === null) return true;
+          if (announcement.min_age !== null && userAge < announcement.min_age)
+            return true;
+          if (announcement.max_age !== null && userAge > announcement.max_age)
+            return true;
+          return false;
+        })()
       ) {
+        const userAge = getUserAge(userProfile);
+        const minAgeLabel =
+          announcement.min_age !== null ? announcement.min_age : "Any";
+        const maxAgeLabel =
+          announcement.max_age !== null ? announcement.max_age : "Any";
         missingFilters.push(
-          `Age group: ${userProfile.age_group} (Required: ${announcement.age_group.join(", ")})`,
+          `Age: ${userAge ?? "Unknown"} (Required: ${minAgeLabel}-${maxAgeLabel})`,
         );
       }
       if (

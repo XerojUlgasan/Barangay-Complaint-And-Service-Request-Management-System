@@ -4,8 +4,12 @@ import { logout } from "../../supabse_db/auth/auth";
 import { useAuth } from "../../context/AuthContext";
 import { getRequests } from "../../supabse_db/request/request";
 import { getComplaints } from "../../supabse_db/complaint/complaint";
-import { getResidentByAuthUid, formatResidentFullName } from "../../supabse_db/resident/resident";
+import {
+  getResidentByAuthUid,
+  formatResidentFullName,
+} from "../../supabse_db/resident/resident";
 import ResidentSidebar from "../../components/ResidentSidebar";
+import ResidentSettings from "../../components/ResidentSettings";
 import "../../styles/UserPages.css";
 
 const Dashboard = () => {
@@ -28,9 +32,9 @@ const Dashboard = () => {
         const [requestsRes, complaintsRes, residentRes] = await Promise.all([
           getRequests(),
           getComplaints(),
-          getResidentByAuthUid(authUser.id)
+          getResidentByAuthUid(authUser.id),
         ]);
-        
+
         if (requestsRes.success) {
           setRequests(requestsRes.data);
         }
@@ -61,20 +65,36 @@ const Dashboard = () => {
     }
   }, [navigate]);
 
-  const handleSubmitChoice = useCallback((type) => {
-    setShowSubmitModal(false);
-    navigate(type === "certificate" ? "/submit/certificate" : "/submit/complaint");
-  }, [navigate]);
+  const handleSubmitChoice = useCallback(
+    (type) => {
+      setShowSubmitModal(false);
+      navigate(
+        type === "certificate" ? "/submit/certificate" : "/submit/complaint",
+      );
+    },
+    [navigate],
+  );
 
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
-  const normalize = useCallback((str) => (str || "").toLowerCase().replace(/[\s_-]/g, ""), []);
+  const normalize = useCallback(
+    (str) => (str || "").toLowerCase().replace(/[\s_-]/g, ""),
+    [],
+  );
 
-  const { pendingCount, inProgressCount, complianceCount, completedCount, recentRequests } = useMemo(() => {
+  const {
+    pendingCount,
+    inProgressCount,
+    complianceCount,
+    completedCount,
+    recentRequests,
+  } = useMemo(() => {
     const counts = { pending: 0, inProgress: 0, compliance: 0, completed: 0 };
-    
+
     requests.forEach((r) => {
-      const status = (r.request_status || "").toLowerCase().replace(/[\s_-]/g, "");
+      const status = (r.request_status || "")
+        .toLowerCase()
+        .replace(/[\s_-]/g, "");
       if (status === "pending") counts.pending++;
       else if (status === "inprogress") counts.inProgress++;
       else if (status === "forcompliance") counts.compliance++;
@@ -86,7 +106,7 @@ const Dashboard = () => {
       inProgressCount: counts.inProgress,
       complianceCount: counts.compliance,
       completedCount: counts.completed,
-      recentRequests: requests.slice(0, 3)
+      recentRequests: requests.slice(0, 3),
     };
   }, [requests]);
 
@@ -279,6 +299,7 @@ const Dashboard = () => {
                 <strong>{authUser?.email || "Loading..."}</strong>
                 <span>Resident</span>
               </div>
+              <ResidentSettings />
               <button
                 onClick={() => setShowLogoutModal(true)}
                 className="back-button"

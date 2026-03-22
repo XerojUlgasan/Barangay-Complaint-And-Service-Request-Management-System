@@ -9,6 +9,7 @@ import { logout } from "../../supabse_db/auth/auth";
 import { fetchAnnouncementImages } from "../../supabse_db/uploadImages";
 import { useAuth } from "../../context/AuthContext";
 import ResidentSidebar from "../../components/ResidentSidebar";
+import ResidentSettings from "../../components/ResidentSettings";
 import "../../styles/UserPages.css";
 
 const Announcements = () => {
@@ -207,6 +208,7 @@ const Announcements = () => {
                 <strong>{userName || "Loading..."}</strong>
                 <span>Resident</span>
               </div>
+              <ResidentSettings />
               <button
                 onClick={() => setShowLogoutModal(true)}
                 className="back-button"
@@ -270,7 +272,14 @@ const Announcements = () => {
                         <div className="ann-category-icon">
                           {getCategoryIcon(ann.category)}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                            flex: 1,
+                          }}
+                        >
                           <div className="ann-title">{ann.title}</div>
                           {ann.priority &&
                             ann.priority.toLowerCase() !== "normal" &&
@@ -356,9 +365,14 @@ const Announcements = () => {
               onClick={(e) => e.stopPropagation()}
               style={{ maxWidth: 480 }}
             >
-              <h3 className="logout-modal-title">Confirm {signupAction === "signup" ? "Signup" : "Cancellation"}</h3>
+              <h3 className="logout-modal-title">
+                Confirm {signupAction === "signup" ? "Signup" : "Cancellation"}
+              </h3>
               <p>
-                Are you sure you want to {signupAction === "signup" ? "sign up for" : "cancel your signup for"}{" "}
+                Are you sure you want to{" "}
+                {signupAction === "signup"
+                  ? "sign up for"
+                  : "cancel your signup for"}{" "}
                 <b>{selectedAnnouncement.title}</b>?
               </p>
               {signupMessage && (
@@ -458,8 +472,12 @@ const Announcements = () => {
             >
               <div className="history-modal-header">
                 <div>
-                  <h3 className="history-modal-title">{selectedAnnouncement.title}</h3>
-                  <p className="history-modal-sub">Event Details & Requirements</p>
+                  <h3 className="history-modal-title">
+                    {selectedAnnouncement.title}
+                  </h3>
+                  <p className="history-modal-sub">
+                    Event Details & Requirements
+                  </p>
                 </div>
                 <button
                   className="history-modal-close"
@@ -479,19 +497,62 @@ const Announcements = () => {
                 </button>
               </div>
               <div className="history-modal-body">
-                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "16px",
+                  }}
+                >
                   <div>
-                    <div style={{ fontSize: "13px", fontWeight: "600", color: "#6b7280", marginBottom: "6px" }}>Description</div>
-                    <p style={{ fontSize: "14px", color: "#374151", lineHeight: "1.6", margin: 0 }}>{selectedAnnouncement.content}</p>
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#6b7280",
+                        marginBottom: "6px",
+                      }}
+                    >
+                      Description
+                    </div>
+                    <p
+                      style={{
+                        fontSize: "14px",
+                        color: "#374151",
+                        lineHeight: "1.6",
+                        margin: 0,
+                      }}
+                    >
+                      {selectedAnnouncement.content}
+                    </p>
                   </div>
 
                   {selectedAnnouncement.event_start && (
                     <div>
-                      <div style={{ fontSize: "13px", fontWeight: "600", color: "#6b7280", marginBottom: "6px" }}>Event Schedule</div>
+                      <div
+                        style={{
+                          fontSize: "13px",
+                          fontWeight: "600",
+                          color: "#6b7280",
+                          marginBottom: "6px",
+                        }}
+                      >
+                        Event Schedule
+                      </div>
                       <div style={{ fontSize: "14px", color: "#374151" }}>
-                        <div><strong>Start:</strong> {new Date(selectedAnnouncement.event_start).toLocaleString()}</div>
+                        <div>
+                          <strong>Start:</strong>{" "}
+                          {new Date(
+                            selectedAnnouncement.event_start,
+                          ).toLocaleString()}
+                        </div>
                         {selectedAnnouncement.event_end && (
-                          <div><strong>End:</strong> {new Date(selectedAnnouncement.event_end).toLocaleString()}</div>
+                          <div>
+                            <strong>End:</strong>{" "}
+                            {new Date(
+                              selectedAnnouncement.event_end,
+                            ).toLocaleString()}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -499,50 +560,125 @@ const Announcements = () => {
 
                   {selectedAnnouncement.max_participants && (
                     <div>
-                      <div style={{ fontSize: "13px", fontWeight: "600", color: "#6b7280", marginBottom: "6px" }}>Participants</div>
+                      <div
+                        style={{
+                          fontSize: "13px",
+                          fontWeight: "600",
+                          color: "#6b7280",
+                          marginBottom: "6px",
+                        }}
+                      >
+                        Participants
+                      </div>
                       <div style={{ fontSize: "14px", color: "#374151" }}>
-                        {((participantCounts && participantCounts[selectedAnnouncement.id]) || 0)} / {selectedAnnouncement.max_participants} slots filled
+                        {(participantCounts &&
+                          participantCounts[selectedAnnouncement.id]) ||
+                          0}{" "}
+                        / {selectedAnnouncement.max_participants} slots filled
                       </div>
                     </div>
                   )}
 
-                  {(selectedAnnouncement.age_group || selectedAnnouncement.voter_status || selectedAnnouncement.occupation || selectedAnnouncement.religion || selectedAnnouncement.civil_status || selectedAnnouncement.sex) && (
+                  {(selectedAnnouncement.age_group ||
+                    selectedAnnouncement.voter_status ||
+                    selectedAnnouncement.occupation ||
+                    selectedAnnouncement.religion ||
+                    selectedAnnouncement.civil_status ||
+                    selectedAnnouncement.sex) && (
                     <div>
-                      <div style={{ fontSize: "13px", fontWeight: "600", color: "#6b7280", marginBottom: "8px" }}>Requirements</div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "6px", padding: "12px", background: "#f9fafb", borderRadius: "8px", border: "1px solid #e5e7eb" }}>
-                        {selectedAnnouncement.age_group && (Array.isArray(selectedAnnouncement.age_group) ? selectedAnnouncement.age_group.length > 0 : selectedAnnouncement.age_group) && (
-                          <div style={{ fontSize: "13px", color: "#374151" }}>
-                            <strong>Age Group:</strong> {Array.isArray(selectedAnnouncement.age_group) ? selectedAnnouncement.age_group.join(", ") : selectedAnnouncement.age_group}
-                          </div>
-                        )}
-                        {selectedAnnouncement.voter_status && (Array.isArray(selectedAnnouncement.voter_status) ? selectedAnnouncement.voter_status.length > 0 : selectedAnnouncement.voter_status) && (
-                          <div style={{ fontSize: "13px", color: "#374151" }}>
-                            <strong>Voter Status:</strong> {Array.isArray(selectedAnnouncement.voter_status) ? selectedAnnouncement.voter_status.join(", ") : selectedAnnouncement.voter_status}
-                          </div>
-                        )}
-                        {selectedAnnouncement.occupation && (Array.isArray(selectedAnnouncement.occupation) ? selectedAnnouncement.occupation.length > 0 : selectedAnnouncement.occupation) && (
-                          <div style={{ fontSize: "13px", color: "#374151" }}>
-                            <strong>Occupation:</strong> {Array.isArray(selectedAnnouncement.occupation) ? selectedAnnouncement.occupation.join(", ") : selectedAnnouncement.occupation}
-                          </div>
-                        )}
-                        {selectedAnnouncement.religion && (Array.isArray(selectedAnnouncement.religion) ? selectedAnnouncement.religion.length > 0 : selectedAnnouncement.religion) && (
-                          <div style={{ fontSize: "13px", color: "#374151" }}>
-                            <strong>Religion:</strong> {Array.isArray(selectedAnnouncement.religion) ? selectedAnnouncement.religion.join(", ") : selectedAnnouncement.religion}
-                          </div>
-                        )}
-                        {selectedAnnouncement.civil_status && (Array.isArray(selectedAnnouncement.civil_status) ? selectedAnnouncement.civil_status.length > 0 : selectedAnnouncement.civil_status) && (
-                          <div style={{ fontSize: "13px", color: "#374151" }}>
-                            <strong>Civil Status:</strong> {Array.isArray(selectedAnnouncement.civil_status) ? selectedAnnouncement.civil_status.join(", ") : selectedAnnouncement.civil_status}
-                          </div>
-                        )}
+                      <div
+                        style={{
+                          fontSize: "13px",
+                          fontWeight: "600",
+                          color: "#6b7280",
+                          marginBottom: "8px",
+                        }}
+                      >
+                        Requirements
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "6px",
+                          padding: "12px",
+                          background: "#f9fafb",
+                          borderRadius: "8px",
+                          border: "1px solid #e5e7eb",
+                        }}
+                      >
+                        {selectedAnnouncement.age_group &&
+                          (Array.isArray(selectedAnnouncement.age_group)
+                            ? selectedAnnouncement.age_group.length > 0
+                            : selectedAnnouncement.age_group) && (
+                            <div style={{ fontSize: "13px", color: "#374151" }}>
+                              <strong>Age Group:</strong>{" "}
+                              {Array.isArray(selectedAnnouncement.age_group)
+                                ? selectedAnnouncement.age_group.join(", ")
+                                : selectedAnnouncement.age_group}
+                            </div>
+                          )}
+                        {selectedAnnouncement.voter_status &&
+                          (Array.isArray(selectedAnnouncement.voter_status)
+                            ? selectedAnnouncement.voter_status.length > 0
+                            : selectedAnnouncement.voter_status) && (
+                            <div style={{ fontSize: "13px", color: "#374151" }}>
+                              <strong>Voter Status:</strong>{" "}
+                              {Array.isArray(selectedAnnouncement.voter_status)
+                                ? selectedAnnouncement.voter_status.join(", ")
+                                : selectedAnnouncement.voter_status}
+                            </div>
+                          )}
+                        {selectedAnnouncement.occupation &&
+                          (Array.isArray(selectedAnnouncement.occupation)
+                            ? selectedAnnouncement.occupation.length > 0
+                            : selectedAnnouncement.occupation) && (
+                            <div style={{ fontSize: "13px", color: "#374151" }}>
+                              <strong>Occupation:</strong>{" "}
+                              {Array.isArray(selectedAnnouncement.occupation)
+                                ? selectedAnnouncement.occupation.join(", ")
+                                : selectedAnnouncement.occupation}
+                            </div>
+                          )}
+                        {selectedAnnouncement.religion &&
+                          (Array.isArray(selectedAnnouncement.religion)
+                            ? selectedAnnouncement.religion.length > 0
+                            : selectedAnnouncement.religion) && (
+                            <div style={{ fontSize: "13px", color: "#374151" }}>
+                              <strong>Religion:</strong>{" "}
+                              {Array.isArray(selectedAnnouncement.religion)
+                                ? selectedAnnouncement.religion.join(", ")
+                                : selectedAnnouncement.religion}
+                            </div>
+                          )}
+                        {selectedAnnouncement.civil_status &&
+                          (Array.isArray(selectedAnnouncement.civil_status)
+                            ? selectedAnnouncement.civil_status.length > 0
+                            : selectedAnnouncement.civil_status) && (
+                            <div style={{ fontSize: "13px", color: "#374151" }}>
+                              <strong>Civil Status:</strong>{" "}
+                              {Array.isArray(selectedAnnouncement.civil_status)
+                                ? selectedAnnouncement.civil_status.join(", ")
+                                : selectedAnnouncement.civil_status}
+                            </div>
+                          )}
                         {selectedAnnouncement.sex && (
-                          <div style={{ fontSize: "13px", color: "#374151" }}><strong>Sex:</strong> {selectedAnnouncement.sex === "M" ? "Male" : selectedAnnouncement.sex === "F" ? "Female" : selectedAnnouncement.sex}</div>
+                          <div style={{ fontSize: "13px", color: "#374151" }}>
+                            <strong>Sex:</strong>{" "}
+                            {selectedAnnouncement.sex === "M"
+                              ? "Male"
+                              : selectedAnnouncement.sex === "F"
+                                ? "Female"
+                                : selectedAnnouncement.sex}
+                          </div>
                         )}
                       </div>
                     </div>
                   )}
 
-                  <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
+                  <div
+                    style={{ display: "flex", gap: "10px", marginTop: "8px" }}
+                  >
                     {userSignups && userSignups[selectedAnnouncement.id] ? (
                       <button
                         className="ann-signup-btn cancel"

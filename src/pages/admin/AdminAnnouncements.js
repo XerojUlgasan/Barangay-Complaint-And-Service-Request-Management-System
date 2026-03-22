@@ -44,7 +44,8 @@ export default function AdminAnnouncements() {
     audience: "residents",
     max_participants: "",
     purok: [],
-    age_group: [],
+    min_age: "",
+    max_age: "",
     voter_status: [],
     occupation: [],
     religion: [],
@@ -58,7 +59,6 @@ export default function AdminAnnouncements() {
   const [participantsLoading, setParticipantsLoading] = useState(false);
   const [purokOptions, setPurokOptions] = useState([]);
   const [purokDropdown, setPurokDropdown] = useState(false);
-  const [ageGroupDropdown, setAgeGroupDropdown] = useState(false);
   const [voterStatusDropdown, setVoterStatusDropdown] = useState(false);
   const [occupationDropdown, setOccupationDropdown] = useState(false);
   const [religionDropdown, setReligionDropdown] = useState(false);
@@ -235,7 +235,8 @@ export default function AdminAnnouncements() {
       audience: ann.audience || "residents",
       max_participants: ann.max_participants || "",
       purok: ann.purok || [],
-      age_group: ann.age_group || [],
+      min_age: ann.min_age ?? "",
+      max_age: ann.max_age ?? "",
       voter_status: ann.voter_status || [],
       occupation: ann.occupation || [],
       religion: ann.religion || [],
@@ -261,7 +262,8 @@ export default function AdminAnnouncements() {
       audience: "residents",
       max_participants: "",
       purok: [],
-      age_group: [],
+      min_age: "",
+      max_age: "",
       voter_status: [],
       occupation: [],
       religion: [],
@@ -381,6 +383,36 @@ export default function AdminAnnouncements() {
       return;
     }
 
+    let minAge =
+      formData.min_age === "" ? null : Number.parseInt(formData.min_age, 10);
+    let maxAge =
+      formData.max_age === "" ? null : Number.parseInt(formData.max_age, 10);
+
+    if (isEventCategory) {
+      if ((minAge !== null && Number.isNaN(minAge)) || minAge < 0) {
+        alert("Minimum age must be a valid number (0 or greater)");
+        return;
+      }
+
+      if ((maxAge !== null && Number.isNaN(maxAge)) || maxAge < 0) {
+        alert("Maximum age must be a valid number (0 or greater)");
+        return;
+      }
+
+      if (minAge === null && maxAge !== null) {
+        minAge = 0;
+      }
+
+      if (minAge !== null && maxAge === null) {
+        maxAge = minAge;
+      }
+
+      if (minAge !== null && maxAge !== null && maxAge < minAge) {
+        alert("Maximum age cannot be lower than minimum age");
+        return;
+      }
+    }
+
     const eventData = isEventCategory
       ? {
           event_start: formData.event_start || null,
@@ -390,7 +422,8 @@ export default function AdminAnnouncements() {
             ? Number(formData.max_participants)
             : null,
           purok: formData.purok.length > 0 ? formData.purok : null,
-          age_group: formData.age_group.length > 0 ? formData.age_group : null,
+          min_age: minAge,
+          max_age: maxAge,
           voter_status:
             formData.voter_status.length > 0 ? formData.voter_status : null,
           occupation:
@@ -407,7 +440,8 @@ export default function AdminAnnouncements() {
           audience: null,
           max_participants: null,
           purok: null,
-          age_group: null,
+          min_age: null,
+          max_age: null,
           voter_status: null,
           occupation: null,
           religion: null,
@@ -488,7 +522,8 @@ export default function AdminAnnouncements() {
           audience: "residents",
           max_participants: "",
           purok: [],
-          age_group: [],
+          min_age: "",
+          max_age: "",
           voter_status: [],
           occupation: [],
           religion: [],
@@ -993,7 +1028,8 @@ export default function AdminAnnouncements() {
                               audience: "residents",
                               max_participants: "",
                               purok: [],
-                              age_group: [],
+                              min_age: "",
+                              max_age: "",
                               voter_status: [],
                               occupation: [],
                               religion: [],
@@ -1477,162 +1513,76 @@ export default function AdminAnnouncements() {
                               fontSize: "14px",
                             }}
                           >
-                            Age Group (Select Multiple)
+                            Age Range
                           </label>
-                          <div style={{ position: "relative" }}>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setAgeGroupDropdown(!ageGroupDropdown)
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "1fr 1fr",
+                              gap: "10px",
+                            }}
+                          >
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="Minimum age"
+                              value={formData.min_age}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  min_age: e.target.value,
+                                })
                               }
+                              onBlur={() => {
+                                if (
+                                  formData.min_age !== "" &&
+                                  formData.max_age === ""
+                                ) {
+                                  setFormData({
+                                    ...formData,
+                                    max_age: formData.min_age,
+                                  });
+                                }
+                              }}
                               style={{
                                 width: "100%",
                                 padding: "10px",
                                 border: "1px solid #ddd",
                                 borderRadius: "6px",
-                                textAlign: "left",
-                                backgroundColor: "#f9fafb",
-                                cursor: "pointer",
                                 fontFamily: "inherit",
                               }}
-                            >
-                              {formData.age_group.length > 0
-                                ? `${formData.age_group.length} selected`
-                                : "Select age groups..."}
-                            </button>
-                            {ageGroupDropdown && (
-                              <div
-                                style={{
-                                  position: "absolute",
-                                  top: "100%",
-                                  left: 0,
-                                  right: 0,
-                                  backgroundColor: "#fff",
-                                  border: "1px solid #ddd",
-                                  borderTop: "none",
-                                  borderRadius: "0 0 6px 6px",
-                                  maxHeight: "150px",
-                                  overflowY: "auto",
-                                  zIndex: 10,
-                                }}
-                              >
-                                {[
-                                  "0-4",
-                                  "5-9",
-                                  "10-14",
-                                  "15-19",
-                                  "20-24",
-                                  "25-29",
-                                  "30-34",
-                                  "35-39",
-                                  "40-44",
-                                  "45-49",
-                                  "50-54",
-                                  "55-59",
-                                  "60-64",
-                                  "65-69",
-                                  "70-74",
-                                  "75-79",
-                                  "80-84",
-                                  "85-89",
-                                  "90-94",
-                                  "95-99",
-                                  "100+",
-                                ].map((age) => (
-                                  <label
-                                    key={age}
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      padding: "8px 10px",
-                                      cursor: "pointer",
-                                      borderBottom: "1px solid #eee",
-                                    }}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={formData.age_group.includes(age)}
-                                      onChange={(e) => {
-                                        if (e.target.checked) {
-                                          setFormData({
-                                            ...formData,
-                                            age_group: [
-                                              ...formData.age_group,
-                                              age,
-                                            ],
-                                          });
-                                        } else {
-                                          setFormData({
-                                            ...formData,
-                                            age_group:
-                                              formData.age_group.filter(
-                                                (a) => a !== age,
-                                              ),
-                                          });
-                                        }
-                                      }}
-                                      style={{
-                                        marginRight: "8px",
-                                        cursor: "pointer",
-                                      }}
-                                    />
-                                    {age}
-                                  </label>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          {formData.age_group.length > 0 && (
-                            <div
-                              style={{
-                                marginTop: "10px",
-                                display: "flex",
-                                flexWrap: "wrap",
-                                gap: "6px",
+                            />
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="Maximum age"
+                              value={formData.max_age}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  max_age: e.target.value,
+                                })
+                              }
+                              onBlur={() => {
+                                if (
+                                  formData.max_age !== "" &&
+                                  formData.min_age === ""
+                                ) {
+                                  setFormData({
+                                    ...formData,
+                                    min_age: "0",
+                                  });
+                                }
                               }}
-                            >
-                              {formData.age_group.map((age) => (
-                                <div
-                                  key={age}
-                                  style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    backgroundColor: "#e8f0ff",
-                                    border: "1px solid #b3d9ff",
-                                    borderRadius: "4px",
-                                    padding: "6px 10px",
-                                    fontSize: "13px",
-                                  }}
-                                >
-                                  <span style={{ marginRight: "6px" }}>
-                                    {age}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setFormData({
-                                        ...formData,
-                                        age_group: formData.age_group.filter(
-                                          (a) => a !== age,
-                                        ),
-                                      });
-                                    }}
-                                    style={{
-                                      background: "none",
-                                      border: "none",
-                                      color: "#d32f2f",
-                                      cursor: "pointer",
-                                      fontSize: "16px",
-                                      padding: "0",
-                                      lineHeight: "1",
-                                    }}
-                                  >
-                                    ×
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                              style={{
+                                width: "100%",
+                                padding: "10px",
+                                border: "1px solid #ddd",
+                                borderRadius: "6px",
+                                fontFamily: "inherit",
+                              }}
+                            />
+                          </div>
                         </div>
 
                         <div>

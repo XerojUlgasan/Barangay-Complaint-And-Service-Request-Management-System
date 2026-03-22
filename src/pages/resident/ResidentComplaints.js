@@ -13,6 +13,7 @@ import {
 } from "../../supabse_db/resident/resident";
 import { useAuth } from "../../context/AuthContext";
 import ResidentSidebar from "../../components/ResidentSidebar";
+import ResidentSettings from "../../components/ResidentSettings";
 import "../../styles/UserPages.css";
 
 const MyComplaints = () => {
@@ -304,7 +305,9 @@ const MyComplaints = () => {
 
   const handleSubmitChoice = (type) => {
     setShowSubmitModal(false);
-    navigate(type === "certificate" ? "/submit/certificate" : "/submit/complaint");
+    navigate(
+      type === "certificate" ? "/submit/certificate" : "/submit/complaint",
+    );
   };
 
   const handleViewHistory = async (complaint) => {
@@ -895,6 +898,7 @@ const MyComplaints = () => {
                 <strong>{userName || "Loading..."}</strong>
                 <span>Resident</span>
               </div>
+              <ResidentSettings />
               <button
                 onClick={() => setShowLogoutModal(true)}
                 className="back-button"
@@ -970,7 +974,14 @@ const MyComplaints = () => {
             {activeTab === "filed" && (
               <>
                 <div className="mr-filter-bar">
-                  <div style={{ display: "flex", gap: "12px", alignItems: "center", flex: 1 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "12px",
+                      alignItems: "center",
+                      flex: 1,
+                    }}
+                  >
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
