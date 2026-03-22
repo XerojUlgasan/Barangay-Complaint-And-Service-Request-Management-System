@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { completePasswordRecovery } from "../../supabse_db/auth/auth";
+import supabase from "../../supabse_db/supabase_client";
 import "../../styles/Auth.css";
 
 const ForgotPassword = () => {
@@ -13,26 +14,70 @@ const ForgotPassword = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [recoveryAccessToken, setRecoveryAccessToken] = useState("");
   const [recoveryRefreshToken, setRecoveryRefreshToken] = useState("");
+  const [recoveryReady, setRecoveryReady] = useState(false);
 
   useEffect(() => {
-    const hash = window.location.hash.startsWith("#")
-      ? window.location.hash.slice(1)
-      : "";
-    const params = new URLSearchParams(hash);
-    const accessToken = params.get("access_token") || "";
-    const refreshToken = params.get("refresh_token") || "";
-    const type = params.get("type") || "";
+    const initRecovery = async () => {
+      const hash = window.location.hash.startsWith("#")
+        ? window.location.hash.slice(1)
+        : "";
+      const hashParams = new URLSearchParams(hash);
+      const searchParams = new URLSearchParams(window.location.search);
 
-    if (type !== "recovery" || !accessToken || !refreshToken) {
+      const accessToken = hashParams.get("access_token") || "";
+      const refreshToken = hashParams.get("refresh_token") || "";
+      const hashType = hashParams.get("type") || "";
+
+      // Legacy/implicit recovery links return tokens in URL hash.
+      if (hashType === "recovery" && accessToken && refreshToken) {
+        setRecoveryAccessToken(accessToken);
+        setRecoveryRefreshToken(refreshToken);
+        setRecoveryReady(true);
+        setError("");
+        return;
+      }
+
+      // PKCE recovery links return an auth code in query params.
+      const code = searchParams.get("code") || "";
+      if (code) {
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        if (!exchangeError) {
+          setRecoveryReady(true);
+          setError("");
+          return;
+        }
+
+        // If code was already consumed (auto-detected by client), a valid session
+        // may still exist. Accept that session for password update.
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData?.session) {
+          setRecoveryReady(true);
+          setError("");
+          return;
+        }
+
+        setRecoveryReady(false);
+        setError(
+          "Invalid or expired password reset link. Please request a new one.",
+        );
+        return;
+      }
+
+      // Fallback: URL params may already be cleaned after auto session detection.
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData?.session) {
+        setRecoveryReady(true);
+        setError("");
+        return;
+      }
+
+      setRecoveryReady(false);
       setError(
         "Invalid or expired password reset link. Please request a new one.",
       );
-      return;
-    }
+    };
 
-    setRecoveryAccessToken(accessToken);
-    setRecoveryRefreshToken(refreshToken);
-    setError("");
+    initRecovery();
   }, []);
 
   const handleSubmit = async (e) => {
@@ -50,19 +95,40 @@ const ForgotPassword = () => {
       return;
     }
 
-    if (!recoveryAccessToken || !recoveryRefreshToken) {
-      setError(
-        "Recovery token missing. Please open the latest reset link from your email.",
+    setIsSubmitting(true);
+
+    let result;
+    if (recoveryAccessToken && recoveryRefreshToken) {
+      result = await completePasswordRecovery(
+        password,
+        recoveryAccessToken,
+        recoveryRefreshToken,
       );
-      return;
+    } else {
+      // Re-check live session to avoid false negatives when URL params were auto-consumed.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const hasRecoverySession = Boolean(sessionData?.session);
+
+      if (!recoveryReady && !hasRecoverySession) {
+        setIsSubmitting(false);
+        setError(
+          "Recovery token missing. Please open the latest reset link from your email.",
+        );
+        return;
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({
+        password,
+      });
+
+      result = updateError
+        ? { success: false, message: updateError.message }
+        : {
+            success: true,
+            message: "Password updated successfully. You can now sign in.",
+          };
     }
 
-    setIsSubmitting(true);
-    const result = await completePasswordRecovery(
-      password,
-      recoveryAccessToken,
-      recoveryRefreshToken,
-    );
     setIsSubmitting(false);
 
     if (!result.success) {
