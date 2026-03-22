@@ -1,115 +1,117 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { logout } from "../../supabse_db/auth/auth";
 import { useAuth } from "../../context/AuthContext";
 import { getRequests } from "../../supabse_db/request/request";
 import { getComplaints } from "../../supabse_db/complaint/complaint";
+import { getResidentByAuthUid, formatResidentFullName } from "../../supabse_db/resident/resident";
 import ResidentSidebar from "../../components/ResidentSidebar";
 import "../../styles/UserPages.css";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { authUser, userName, userLoading } = useAuth();
+  const { authUser, userLoading, residentLoading } = useAuth();
 
   const [requests, setRequests] = useState([]);
-  const [complaints, setComplaints] = useState([]);
-  const [recentRequests, setRecentRequests] = useState([]);
+  const [residentName, setResidentName] = useState("");
   const [loading, setLoading] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    if (userLoading || !authUser) return;
+    if (userLoading || residentLoading || !authUser) return;
 
     const fetchData = async () => {
       setLoading(true);
-
       try {
-        // Fetch requests using the actual function
-        const requestsRes = await getRequests();
+        const [requestsRes, complaintsRes, residentRes] = await Promise.all([
+          getRequests(),
+          getComplaints(),
+          getResidentByAuthUid(authUser.id)
+        ]);
+        
         if (requestsRes.success) {
           setRequests(requestsRes.data);
-          // Get only the 3 most recent for the recent requests list
-          setRecentRequests(requestsRes.data.slice(0, 3));
         }
 
-        // Fetch complaints using the actual function
-        const complaintsRes = await getComplaints();
-        if (complaintsRes.success) {
-          setComplaints(complaintsRes.data);
+        if (residentRes.success && residentRes.data) {
+          const fullName = formatResidentFullName(residentRes.data);
+          setResidentName(fullName || authUser.email || "Barangay User");
+        } else {
+          setResidentName(authUser.email || "Barangay User");
         }
       } catch (error) {
         console.error("Error fetching data:", error);
+        setResidentName(authUser.email || "Barangay User");
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     };
 
     fetchData();
-  }, [authUser, userLoading]);
+  }, [authUser, userLoading, residentLoading]);
 
-  const handleLogoutConfirm = async () => {
+  const handleLogoutConfirm = useCallback(async () => {
     try {
       await logout();
       navigate("/login");
     } catch (error) {
       console.error("Logout error:", error);
     }
-  };
+  }, [navigate]);
 
-  const handleSubmitChoice = (type) => {
+  const handleSubmitChoice = useCallback((type) => {
     setShowSubmitModal(false);
-    if (type === "certificate") {
-      navigate("/submit/certificate");
-    } else {
-      navigate("/submit/complaint");
-    }
-  };
+    navigate(type === "certificate" ? "/submit/certificate" : "/submit/complaint");
+  }, [navigate]);
 
-  const closeSidebar = () => setSidebarOpen(false);
+  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
-  const normalize = (str) => (str || "").toLowerCase().replace(/[\s_-]/g, "");
+  const normalize = useCallback((str) => (str || "").toLowerCase().replace(/[\s_-]/g, ""), []);
 
-  // Calculate counts from actual requests data
-  const pendingCount = requests.filter((r) => 
-    normalize(r.request_status) === normalize("pending")
-  ).length;
-  
-  const inProgressCount = requests.filter((r) => 
-    normalize(r.request_status) === normalize("inprogress")
-  ).length;
-  
-  const complianceCount = requests.filter((r) => 
-    normalize(r.request_status) === normalize("forcompliance")
-  ).length;
-  
-  const completedCount = requests.filter((r) => 
-    normalize(r.request_status) === normalize("completed")
-  ).length;
+  const { pendingCount, inProgressCount, complianceCount, completedCount, recentRequests } = useMemo(() => {
+    const counts = { pending: 0, inProgress: 0, compliance: 0, completed: 0 };
+    
+    requests.forEach((r) => {
+      const status = (r.request_status || "").toLowerCase().replace(/[\s_-]/g, "");
+      if (status === "pending") counts.pending++;
+      else if (status === "inprogress") counts.inProgress++;
+      else if (status === "forcompliance") counts.compliance++;
+      else if (status === "completed") counts.completed++;
+    });
 
-  const formatDate = (dateStr) => {
+    return {
+      pendingCount: counts.pending,
+      inProgressCount: counts.inProgress,
+      complianceCount: counts.compliance,
+      completedCount: counts.completed,
+      recentRequests: requests.slice(0, 3)
+    };
+  }, [requests]);
+
+  const formatDate = useCallback((dateStr) => {
     if (!dateStr) return "";
     return new Date(dateStr).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
     });
-  };
+  }, []);
 
-  const getBadgeClass = (status) => {
-    const n = normalize(status);
+  const getBadgeClass = useCallback((status) => {
+    const n = (status || "").toLowerCase().replace(/[\s_-]/g, "");
     if (n === "completed" || n === "resolved") return "badge completed";
     if (n === "inprogress") return "badge progress";
     if (n === "pending") return "badge pending";
     if (n === "rejected" || n === "dismissed") return "badge rejected";
     return "badge";
-  };
+  }, []);
 
-  const formatStatus = (status) => {
+  const formatStatus = useCallback((status) => {
     if (!status) return "";
     return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-  };
+  }, []);
 
   return (
     <div className="user-landing-page">
@@ -274,7 +276,7 @@ const Dashboard = () => {
 
             <div className="user">
               <div className="user-text">
-                <strong>{userName || "Loading..."}</strong>
+                <strong>{authUser?.email || "Loading..."}</strong>
                 <span>Resident</span>
               </div>
               <button
@@ -297,7 +299,7 @@ const Dashboard = () => {
           </div>
 
           <div className="welcome">
-            <h1>Welcome, {userName || "..."}!</h1>
+            <h1>Welcome, {residentName || "..."}!</h1>
             <p>Manage your barangay services and requests</p>
           </div>
 

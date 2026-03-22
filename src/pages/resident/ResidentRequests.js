@@ -20,6 +20,7 @@ const MyRequests = () => {
   const [filter, setFilter] = useState("All Status");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
 
   // History modal state
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -64,6 +65,11 @@ const MyRequests = () => {
     } catch (error) {
       console.error("Logout error:", error);
     }
+  };
+
+  const handleSubmitChoice = (type) => {
+    setShowSubmitModal(false);
+    navigate(type === "certificate" ? "/submit/certificate" : "/submit/complaint");
   };
 
   const handleViewHistory = async (req) => {
@@ -273,6 +279,90 @@ const MyRequests = () => {
                   onClick={handleLogoutConfirm}
                 >
                   Yes, Logout
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SUBMIT TYPE MODAL */}
+        {showSubmitModal && (
+          <div
+            className="submit-modal-overlay"
+            onClick={() => setShowSubmitModal(false)}
+          >
+            <div className="submit-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="submit-modal-header">
+                <h3 className="submit-modal-title">
+                  What would you like to submit?
+                </h3>
+                <button
+                  className="submit-modal-close"
+                  onClick={() => setShowSubmitModal(false)}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    width="18"
+                    height="18"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="submit-modal-body">
+                <button
+                  className="submit-modal-option"
+                  onClick={() => handleSubmitChoice("certificate")}
+                >
+                  <div className="submit-modal-icon-wrap green">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      width="28"
+                      height="28"
+                    >
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <polyline points="9 15 11 17 15 13" />
+                    </svg>
+                  </div>
+                  <span className="submit-modal-option-title">
+                    Certificate Request
+                  </span>
+                  <span className="submit-modal-option-sub">
+                    Indigency, Clearance, etc.
+                  </span>
+                </button>
+
+                <button
+                  className="submit-modal-option"
+                  onClick={() => handleSubmitChoice("complaint")}
+                >
+                  <div className="submit-modal-icon-wrap red">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      width="28"
+                      height="28"
+                    >
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    </svg>
+                  </div>
+                  <span className="submit-modal-option-title">
+                    File Complaint
+                  </span>
+                  <span className="submit-modal-option-sub">
+                    Report incidents or issues
+                  </span>
                 </button>
               </div>
             </div>
@@ -678,33 +768,64 @@ const MyRequests = () => {
             </p>
 
             <div className="mr-filter-bar">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#059669"
-                strokeWidth="2"
-                width="18"
-                height="18"
+              <div style={{ display: "flex", gap: "12px", alignItems: "center", flex: 1 }}>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#059669"
+                  strokeWidth="2"
+                  width="18"
+                  height="18"
+                >
+                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                </svg>
+                <select
+                  className="mr-select"
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                >
+                  <option>All Status</option>
+                  <option>Pending</option>
+                  <option>In Progress</option>
+                  <option>For Compliance</option>
+                  <option>For Validation</option>
+                  <option>Complied</option>
+                  <option>Completed</option>
+                  <option>Rejected</option>
+                </select>
+                <span className="mr-count">
+                  {filtered.length} request{filtered.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+              <button
+                onClick={() => setShowSubmitModal(true)}
+                style={{
+                  padding: "8px 16px",
+                  backgroundColor: "#059669",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
               >
-                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-              </svg>
-              <select
-                className="mr-select"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-              >
-                <option>All Status</option>
-                <option>Pending</option>
-                <option>In Progress</option>
-                <option>For Compliance</option>
-                <option>For Validation</option>
-                <option>Complied</option>
-                <option>Completed</option>
-                <option>Rejected</option>
-              </select>
-              <span className="mr-count">
-                {filtered.length} request{filtered.length !== 1 ? "s" : ""}
-              </span>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  width="16"
+                  height="16"
+                >
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                New Request
+              </button>
             </div>
 
             {loading ? (
