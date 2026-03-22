@@ -326,6 +326,10 @@ export const logout = async () => {
 // SEND PASSWORD RESET EMAIL
 export const requestPasswordReset = async (email) => {
   const normalizedEmail = (email || "").trim().toLowerCase();
+  const redirectBase =
+    typeof window !== "undefined" && window.location?.origin
+      ? window.location.origin
+      : "http://localhost:3000";
 
   if (!normalizedEmail) {
     return {
@@ -335,7 +339,7 @@ export const requestPasswordReset = async (email) => {
   }
 
   const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-    redirectTo: "http://localhost:3000/forgot-password",
+    redirectTo: `${redirectBase}/forgot-password`,
   });
 
   if (error) {

@@ -69,7 +69,9 @@ const MyRequests = () => {
 
   const handleSubmitChoice = (type) => {
     setShowSubmitModal(false);
-    navigate(type === "certificate" ? "/submit/certificate" : "/submit/complaint");
+    navigate(
+      type === "certificate" ? "/submit/certificate" : "/submit/complaint",
+    );
   };
 
   const handleViewHistory = async (req) => {
@@ -237,6 +239,21 @@ const MyRequests = () => {
     if (n === "forvalidation") return "#0369a1";
     if (n === "complied") return "#1e40af";
     return "#f59e0b";
+  };
+
+  const getAssignedOfficialName = (request) => {
+    const official = Array.isArray(request?.official)
+      ? request.official[0]
+      : request?.official;
+
+    if (!official) return "—";
+
+    const fullName = [official.firstname, official.lastname]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+
+    return fullName || "—";
   };
 
   return (
@@ -768,7 +785,14 @@ const MyRequests = () => {
             </p>
 
             <div className="mr-filter-bar">
-              <div style={{ display: "flex", gap: "12px", alignItems: "center", flex: 1 }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "12px",
+                  alignItems: "center",
+                  flex: 1,
+                }}
+              >
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -883,7 +907,7 @@ const MyRequests = () => {
                       </div>
                       <div className="mr-meta-row">
                         <span>Assigned:</span>
-                        <span>{req.assigned_official_name || "—"}</span>
+                        <span>{getAssignedOfficialName(req)}</span>
                       </div>
                     </div>
 
