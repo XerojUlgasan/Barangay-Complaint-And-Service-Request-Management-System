@@ -2,6 +2,35 @@ import React, { useState, useRef, useEffect } from "react";
 import "../styles/ChatBot.css";
 import supabase, { API_CONFIG } from "../supabse_db/supabase_client";
 
+// Minimal safe Markdown-like renderer (module-level to avoid re-creation on each render)
+const escapeHtml = (unsafe) => {
+  return String(unsafe)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+};
+
+const renderMarkdown = (text) => {
+  if (text === null || text === undefined) return "";
+  let t = String(text);
+  t = escapeHtml(t);
+  // Code spans: `code`
+  t = t.replace(/`([^`]+)`/g, "<code>$1</code>");
+  // Bold: **bold** or __bold__
+  t = t.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+  t = t.replace(/__(.*?)__/g, "<strong>$1</strong>");
+  // Italic: *italic* or _italic_
+  t = t.replace(/\*(.*?)\*/g, "<em>$1</em>");
+  t = t.replace(/_(.*?)_/g, "<em>$1</em>");
+  // Links: [text](url)
+  t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, "<a href='$2' target='_blank' rel='noopener noreferrer'>$1</a>");
+  // New lines to <br>
+  t = t.replace(/\r?\n/g, "<br />");
+  return t;
+};
+
 const ChatBot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
@@ -21,44 +50,7 @@ const ChatBot = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Minimal safe Markdown-like renderer
-  const escapeHtml = (unsafe) => {
-    return unsafe
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/\"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-  };
-
-  const renderMarkdown = (text) => {
-    if (!text && text !== 0) return "";
-    // Ensure it's a string
-    let t = String(text);
-
-    // Escape HTML to prevent XSS
-    t = escapeHtml(t);
-
-    // Code spans: `code`
-    t = t.replace(/`([^`]+)`/g, "<code>$1</code>");
-
-    // Bold: **bold** or __bold__
-    t = t.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-    t = t.replace(/__(.*?)__/g, "<strong>$1</strong>");
-
-    // Italic: *italic* or _italic_
-    // Avoid conflict with bold by doing after bold replacement
-    t = t.replace(/\*(.*?)\*/g, "<em>$1</em>");
-    t = t.replace(/_(.*?)_/g, "<em>$1</em>");
-
-    // Links: [text](url)
-    t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, "<a href='$2' target='_blank' rel='noopener noreferrer'>$1</a>");
-
-    // New lines to <br>
-    t = t.replace(/\r?\n/g, "<br />");
-
-    return t;
-  };
+  // renderMarkdown is defined at module scope for performance
 
   useEffect(() => {
     scrollToBottom();

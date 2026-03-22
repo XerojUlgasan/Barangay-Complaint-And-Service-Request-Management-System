@@ -107,10 +107,10 @@
 .chatbot-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 12px; /* reduced padding */
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px; /* smaller gap to reduce extra spacing */
   background: #f9fafb;
 }
 
@@ -169,11 +169,24 @@
 
 .message-content {
   max-width: 75%;
-  padding: 10px 14px;
+  padding: 8px 12px; /* slightly smaller padding */
   border-radius: 12px;
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.4; /* tighter line-height */
   word-wrap: break-word;
+  margin: 0; /* remove default margins causing extra space */
+}
+
+/* Ensure inner elements like p don't add extra margins */
+.message-content p,
+.message-content h1,
+.message-content h2,
+.message-content h3,
+.message-content ul,
+.message-content ol,
+.message-content li {
+  margin: 0;
+  padding: 0;
 }
 
 .user-msg .message-content {
