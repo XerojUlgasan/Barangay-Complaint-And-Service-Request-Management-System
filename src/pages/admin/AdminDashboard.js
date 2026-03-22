@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
 import {
   Clock,
   AlertCircle,
   CheckCircle,
-  XCircle,
   TrendingUp,
   MapPin,
   Users,
@@ -17,8 +17,6 @@ import {
   getAllComplaints,
   getAllRequests,
   getOfficialsWithStats,
-  getRequestTrends,
-  getComplaintTrends,
   getResidentStats,
   analyzeComplaintsByLocation,
   analyzeComplaintsByType,
@@ -27,6 +25,333 @@ import {
   calculateAverageResolutionTime,
 } from "../../supabse_db/analytics/analytics";
 import { getAnnouncements } from "../../supabse_db/announcement/announcement";
+
+const PERIOD_FILTERS = [
+  { key: "today", label: "Today" },
+  { key: "week", label: "This Week" },
+  { key: "month", label: "This Month" },
+  { key: "year", label: "This Year" },
+];
+
+const PERIOD_LABEL_MAP = PERIOD_FILTERS.reduce((acc, item) => {
+  acc[item.key] = item.label;
+  return acc;
+}, {});
+
+const startOfDay = (date) =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+
+const endOfDay = (date) =>
+  new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    23,
+    59,
+    59,
+    999,
+  );
+
+const addDays = (date, days) => {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+};
+
+const getComparisonWindows = (period) => {
+  const now = new Date();
+
+  if (period === "today") {
+    const currentStart = startOfDay(now);
+    const currentEnd = now;
+    const prevDate = addDays(now, -1);
+    return {
+      currentStart,
+      currentEnd,
+      previousStart: startOfDay(prevDate),
+      previousEnd: endOfDay(prevDate),
+      previousLabel: "yesterday",
+    };
+  }
+
+  if (period === "week") {
+    const currentEnd = now;
+    const currentStart = startOfDay(addDays(now, -6));
+    const previousEnd = endOfDay(addDays(currentStart, -1));
+    const previousStart = startOfDay(addDays(previousEnd, -6));
+    return {
+      currentStart,
+      currentEnd,
+      previousStart,
+      previousEnd,
+      previousLabel: "the previous 7 days",
+    };
+  }
+
+  if (period === "month") {
+    const currentStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      1,
+      0,
+      0,
+      0,
+      0,
+    );
+    const currentEnd = now;
+
+    const previousMonthDate = new Date(
+      now.getFullYear(),
+      now.getMonth() - 1,
+      1,
+    );
+    const previousStart = new Date(
+      previousMonthDate.getFullYear(),
+      previousMonthDate.getMonth(),
+      1,
+      0,
+      0,
+      0,
+      0,
+    );
+
+    const lastDayPrevMonth = new Date(
+      previousMonthDate.getFullYear(),
+      previousMonthDate.getMonth() + 1,
+      0,
+    ).getDate();
+    const targetDay = Math.min(now.getDate(), lastDayPrevMonth);
+
+    const previousEnd = new Date(
+      previousMonthDate.getFullYear(),
+      previousMonthDate.getMonth(),
+      targetDay,
+      now.getHours(),
+      now.getMinutes(),
+      now.getSeconds(),
+      now.getMilliseconds(),
+    );
+
+    return {
+      currentStart,
+      currentEnd,
+      previousStart,
+      previousEnd,
+      previousLabel: "the same period last month",
+    };
+  }
+
+  const currentStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+  const currentEnd = now;
+  const previousStart = new Date(now.getFullYear() - 1, 0, 1, 0, 0, 0, 0);
+  const previousEnd = new Date(
+    now.getFullYear() - 1,
+    now.getMonth(),
+    now.getDate(),
+    now.getHours(),
+    now.getMinutes(),
+    now.getSeconds(),
+    now.getMilliseconds(),
+  );
+
+  return {
+    currentStart,
+    currentEnd,
+    previousStart,
+    previousEnd,
+    previousLabel: "the same period last year",
+  };
+};
+
+const countItemsInRange = (items = [], start, end, dateField = "created_at") =>
+  items.filter((item) => {
+    const value = item?.[dateField];
+    if (!value) return false;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return false;
+    return date >= start && date <= end;
+  }).length;
+
+const formatDeltaText = (current, previous, noun, previousLabel) => {
+  if (current === 0 && previous === 0) {
+    return `No ${noun} recorded compared to ${previousLabel}.`;
+  }
+
+  if (previous === 0) {
+    return `${current} ${noun} this period, up from 0 in ${previousLabel}.`;
+  }
+
+  const delta = current - previous;
+  const pct = Math.round((Math.abs(delta) / previous) * 100);
+
+  if (delta === 0) {
+    return `${noun[0].toUpperCase() + noun.slice(1)} stayed the same as ${previousLabel}.`;
+  }
+
+  if (delta > 0) {
+    return `${pct}% more ${noun} than ${previousLabel}.`;
+  }
+
+  return `${pct}% fewer ${noun} than ${previousLabel}.`;
+};
+
+const getOfficialPeriodStats = (
+  officials = [],
+  requests = [],
+  complaints = [],
+  period,
+) => {
+  const windows = getComparisonWindows(period);
+
+  const getWindowStats = (start, end) => {
+    const requestsInWindow = requests.filter((r) => {
+      const date = new Date(r.created_at);
+      if (Number.isNaN(date.getTime())) return false;
+      return date >= start && date <= end;
+    });
+
+    const complaintsInWindow = complaints.filter((c) => {
+      const date = new Date(c.created_at);
+      if (Number.isNaN(date.getTime())) return false;
+      return date >= start && date <= end;
+    });
+
+    const totalCases = requestsInWindow.length + complaintsInWindow.length;
+
+    const completedRequests = requestsInWindow.filter(
+      (r) => r.status === "completed" || r.request_status === "completed",
+    ).length;
+    const completedComplaints = complaintsInWindow.filter(
+      (c) => c.status === "resolved" || c.status === "completed",
+    ).length;
+    const completedCases = completedRequests + completedComplaints;
+
+    const activeOfficials = officials.filter((official) => {
+      const hasRequests = requestsInWindow.some(
+        (r) => r.assigned_official_id === official.auth_uid,
+      );
+      const hasComplaints = complaintsInWindow.some(
+        (c) => c.assigned_official_id === official.auth_uid,
+      );
+      return hasRequests || hasComplaints;
+    }).length;
+
+    const officialWorkloads = officials.map((official) => {
+      const reqCount = requestsInWindow.filter(
+        (r) => r.assigned_official_id === official.auth_uid,
+      ).length;
+      const compCount = complaintsInWindow.filter(
+        (c) => c.assigned_official_id === official.auth_uid,
+      ).length;
+
+      return {
+        name:
+          official.full_name ||
+          `${official.firstname || ""} ${official.lastname || ""}`.trim() ||
+          "Unknown Official",
+        total: reqCount + compCount,
+      };
+    });
+
+    const busiestOfficial =
+      officialWorkloads
+        .sort((a, b) => b.total - a.total)
+        .find((o) => o.total > 0) || null;
+
+    return {
+      totalCases,
+      completedCases,
+      activeOfficials,
+      completionRate:
+        totalCases > 0 ? Math.round((completedCases / totalCases) * 100) : 0,
+      busiestOfficial,
+    };
+  };
+
+  return {
+    previousLabel: windows.previousLabel,
+    current: getWindowStats(windows.currentStart, windows.currentEnd),
+    previous: getWindowStats(windows.previousStart, windows.previousEnd),
+  };
+};
+
+const getDateOnly = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+};
+
+const isWithinPeriod = (dateValue, period) => {
+  if (!dateValue) return false;
+
+  const rowDate = getDateOnly(dateValue);
+  if (!rowDate) return false;
+
+  const today = getDateOnly(new Date());
+  if (!today) return false;
+
+  if (period === "today") {
+    return rowDate.getTime() === today.getTime();
+  }
+
+  const daysDiff = Math.floor((today - rowDate) / (1000 * 60 * 60 * 24));
+
+  if (period === "week") {
+    return daysDiff >= 0 && daysDiff < 7;
+  }
+
+  if (period === "month") {
+    return (
+      rowDate.getFullYear() === today.getFullYear() &&
+      rowDate.getMonth() === today.getMonth()
+    );
+  }
+
+  if (period === "year") {
+    return rowDate.getFullYear() === today.getFullYear();
+  }
+
+  return true;
+};
+
+function TimeFilterDropdown({ timeFilter, setTimeFilter }) {
+  return (
+    <div style={{ minWidth: "180px" }}>
+      <label
+        htmlFor="analytics-time-filter"
+        style={{
+          display: "block",
+          fontSize: "0.75rem",
+          color: "#6b7280",
+          marginBottom: "0.25rem",
+          fontWeight: 600,
+        }}
+      >
+        Date Filter
+      </label>
+      <select
+        id="analytics-time-filter"
+        value={timeFilter}
+        onChange={(e) => setTimeFilter(e.target.value)}
+        style={{
+          width: "100%",
+          border: "1px solid #d1d5db",
+          borderRadius: "0.5rem",
+          padding: "0.5rem 0.75rem",
+          fontSize: "0.875rem",
+          color: "#111827",
+          backgroundColor: "#ffffff",
+        }}
+      >
+        {PERIOD_FILTERS.map((period) => (
+          <option key={period.key} value={period.key}>
+            {period.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 // Simple inline BarChart using SVG so we don't add dependencies
 function BarChart({ data = [], labels = [] }) {
@@ -355,7 +680,7 @@ function DashboardView({
         </div>
 
         {/* Top Summary Cards (stat-box style) */}
-        <div className="stat-row" style={{ marginBottom: '2rem' }}>
+        <div className="stat-row" style={{ marginBottom: "2rem" }}>
           <div className="stat-box yellow">
             <span className="stat-icon">
               <FileText size={18} />
@@ -383,9 +708,7 @@ function DashboardView({
               <Users size={18} />
             </span>
             <div className="stat-label">Active Residents</div>
-            <div className="stat-num">
-              {residentStats.activeResidents || 0}
-            </div>
+            <div className="stat-num">{residentStats.activeResidents || 0}</div>
             <div className="stat-sub">
               {residentStats.totalHouseholds || 0} households registered
             </div>
@@ -587,7 +910,11 @@ function DashboardView({
                     </div>
                   </div>
                   <div
-                    className={`feed-status ${(req.status || req.request_status || "pending")
+                    className={`feed-status ${(
+                      req.status ||
+                      req.request_status ||
+                      "pending"
+                    )
                       .toLowerCase()
                       .replace(/[_ ]/g, "-")}`}
                   >
@@ -612,9 +939,77 @@ function DashboardView({
   );
 }
 
-function ComplaintsView({ complaints = [] }) {
+function ComplaintsView({
+  complaints = [],
+  allComplaints = [],
+  timeFilter = "month",
+  setTimeFilter = () => {},
+}) {
+  const [showInsights, setShowInsights] = useState(false);
+
   const locationStats = analyzeComplaintsByLocation(complaints);
   const typeStats = analyzeComplaintsByType(complaints);
+
+  const complaintInsights = (() => {
+    const windows = getComparisonWindows(timeFilter);
+
+    const currentTotal = countItemsInRange(
+      allComplaints,
+      windows.currentStart,
+      windows.currentEnd,
+    );
+    const previousTotal = countItemsInRange(
+      allComplaints,
+      windows.previousStart,
+      windows.previousEnd,
+    );
+
+    const currentResolved = allComplaints.filter((c) => {
+      const date = new Date(c.created_at);
+      if (Number.isNaN(date.getTime())) return false;
+      const resolved = c.status === "resolved" || c.status === "completed";
+      return (
+        resolved && date >= windows.currentStart && date <= windows.currentEnd
+      );
+    }).length;
+
+    const previousResolved = allComplaints.filter((c) => {
+      const date = new Date(c.created_at);
+      if (Number.isNaN(date.getTime())) return false;
+      const resolved = c.status === "resolved" || c.status === "completed";
+      return (
+        resolved && date >= windows.previousStart && date <= windows.previousEnd
+      );
+    }).length;
+
+    const currentPending = allComplaints.filter((c) => {
+      const date = new Date(c.created_at);
+      if (Number.isNaN(date.getTime())) return false;
+      return (
+        c.status === "pending" &&
+        date >= windows.currentStart &&
+        date <= windows.currentEnd
+      );
+    }).length;
+
+    return [
+      formatDeltaText(
+        currentTotal,
+        previousTotal,
+        "complaints",
+        windows.previousLabel,
+      ),
+      formatDeltaText(
+        currentResolved,
+        previousResolved,
+        "resolved complaints",
+        windows.previousLabel,
+      ),
+      currentPending > 0
+        ? `${currentPending} complaint${currentPending > 1 ? "s" : ""} are still pending in this period.`
+        : "No pending complaints in this period.",
+    ];
+  })();
 
   // Aggregate complaints by date for line chart
   const complaintsByDate = complaints.reduce((acc, complaint) => {
@@ -646,10 +1041,74 @@ function ComplaintsView({ complaints = [] }) {
 
   return (
     <div className="admin-page">
-      <div className="analytics-header">
-        <h3>Complaints Analytics</h3>
-        <p className="muted">Monitor and analyze community complaints</p>
+      <div
+        className="analytics-header"
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: "1rem",
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <h3>Complaints Analytics</h3>
+          <p className="muted">
+            Monitor and analyze community complaints (
+            {PERIOD_LABEL_MAP[timeFilter]})
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end" }}>
+          <button
+            onClick={() => setShowInsights((prev) => !prev)}
+            style={{
+              border: "1px solid #d1d5db",
+              backgroundColor: showInsights ? "#eff6ff" : "#ffffff",
+              color: "#1f2937",
+              borderRadius: "0.5rem",
+              padding: "0.5rem 0.75rem",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            {showInsights ? "Hide Insights" : "View Insights"}
+          </button>
+          <TimeFilterDropdown
+            timeFilter={timeFilter}
+            setTimeFilter={setTimeFilter}
+          />
+        </div>
       </div>
+
+      {showInsights && (
+        <div
+          className="chart-card"
+          style={{
+            marginBottom: "1rem",
+            background: "#f8fafc",
+            border: "1px solid #dbeafe",
+          }}
+        >
+          <div className="chart-header" style={{ color: "#1d4ed8" }}>
+            Insights ({PERIOD_LABEL_MAP[timeFilter]})
+          </div>
+          <div className="chart-body">
+            <div
+              style={{
+                display: "grid",
+                gap: "0.5rem",
+                color: "#334155",
+                fontSize: "0.92rem",
+              }}
+            >
+              {complaintInsights.map((line, idx) => (
+                <div key={idx}>• {line}</div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Summary Stats */}
       <div className="stat-row">
@@ -750,91 +1209,613 @@ function ComplaintsView({ complaints = [] }) {
         </div>
       </div>
 
-      {/* Complaints Table */}
-      <div style={{ marginTop: "2rem" }}>
-        <h4>All Complaints</h4>
-        <div className="table-responsive">
-          <div className="table">
-            <div
-              className="table-row table-head"
-              style={{ gridTemplateColumns: "repeat(7, 1fr)" }}
-            >
-              <div data-label="ID">ID</div>
-              <div data-label="Complainant">Complainant</div>
-              <div data-label="Type">Type</div>
-              <div data-label="Location">Location</div>
-              <div data-label="Status">Status</div>
-              <div data-label="Priority">Priority</div>
-              <div data-label="Date">Date</div>
-            </div>
-            {complaints.length > 0 ? (
-              complaints.map((c) => (
-                <div
-                  className="table-row"
-                  key={c.id}
-                  style={{ gridTemplateColumns: "repeat(7, 1fr)" }}
-                >
-                  <div data-label="ID">#{c.id}</div>
+      {/* Complaints Feed */}
+      <div className="live-feed">
+        <div
+          className="live-header"
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "1rem",
+          }}
+        >
+          <div>
+            All Complaints <span className="badge">REAL-TIME</span>
+          </div>
+          <Link
+            to="/BarangayAdmin/complaints"
+            style={{
+              fontSize: "0.85rem",
+              fontWeight: 600,
+              color: "#2563eb",
+              textDecoration: "none",
+            }}
+          >
+            View More
+          </Link>
+        </div>
+        <div className="feed-list">
+          {complaints.length > 0 ? (
+            complaints.slice(0, 10).map((c) => (
+              <div className="feed-item" key={c.id}>
+                <div className="feed-icon">🚨</div>
+                <div className="feed-body">
+                  <div className="feed-title">
+                    {c.complaint_type || "Complaint"}
+                  </div>
+                  <div className="feed-sub muted">
+                    {c.incident_location || "Unknown Location"} •{" "}
+                    {new Date(c.created_at).toLocaleDateString()}
+                  </div>
                   <div
-                    data-label="Complainant"
+                    className="feed-sub"
                     style={{
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
+                      marginTop: "0.25rem",
+                      fontSize: "0.85rem",
+                      color: "#666",
                     }}
                   >
                     {c.complainant_name || "Unknown"}
                   </div>
-                  <div
-                    data-label="Type"
-                    style={{
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {c.complaint_type || "General"}
-                  </div>
-                  <div
-                    data-label="Location"
-                    style={{
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {(c.incident_location || "Unknown").substring(0, 20)}
-                  </div>
-                  <div data-label="Status">
-                    <span
-                      className={`status ${(c.status || "pending").toLowerCase().replace(" ", "_")}`}
-                    >
-                      {c.status || "Pending"}
-                    </span>
-                  </div>
-                  <div data-label="Priority" style={{ textAlign: "center" }}>
-                    {c.priority_level || "Normal"}
-                  </div>
-                  <div data-label="Date" style={{ textAlign: "center" }}>
-                    {new Date(c.created_at).toLocaleDateString()}
-                  </div>
                 </div>
-              ))
-            ) : (
-              <div
-                style={{ padding: "2rem", textAlign: "center", color: "#999" }}
-              >
-                <p>No complaints yet</p>
+                <div
+                  className={`feed-status ${(c.status || "pending")
+                    .toLowerCase()
+                    .replace(/[_ ]/g, "-")}`}
+                >
+                  {c.status || "Pending"}
+                </div>
               </div>
-            )}
-          </div>
+            ))
+          ) : (
+            <div className="feed-item">
+              <div className="feed-body">
+                <div className="feed-title">No complaints yet</div>
+                <div className="feed-sub muted">
+                  Complaints will appear here
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function OfficialsView({ officials = [] }) {
+function RequestsView({
+  requests = [],
+  allRequests = [],
+  timeFilter = "month",
+  setTimeFilter = () => {},
+}) {
+  const [showInsights, setShowInsights] = useState(false);
+
+  const requestInsights = (() => {
+    const windows = getComparisonWindows(timeFilter);
+
+    const currentTotal = countItemsInRange(
+      allRequests,
+      windows.currentStart,
+      windows.currentEnd,
+    );
+    const previousTotal = countItemsInRange(
+      allRequests,
+      windows.previousStart,
+      windows.previousEnd,
+    );
+
+    const currentCompleted = allRequests.filter((r) => {
+      const date = new Date(r.created_at);
+      if (Number.isNaN(date.getTime())) return false;
+      const completed =
+        r.status === "completed" || r.request_status === "completed";
+      return (
+        completed && date >= windows.currentStart && date <= windows.currentEnd
+      );
+    }).length;
+
+    const previousCompleted = allRequests.filter((r) => {
+      const date = new Date(r.created_at);
+      if (Number.isNaN(date.getTime())) return false;
+      const completed =
+        r.status === "completed" || r.request_status === "completed";
+      return (
+        completed &&
+        date >= windows.previousStart &&
+        date <= windows.previousEnd
+      );
+    }).length;
+
+    const currentPending = allRequests.filter((r) => {
+      const date = new Date(r.created_at);
+      if (Number.isNaN(date.getTime())) return false;
+      const pending = r.status === "pending" || r.request_status === "pending";
+      return (
+        pending && date >= windows.currentStart && date <= windows.currentEnd
+      );
+    }).length;
+
+    return [
+      formatDeltaText(
+        currentTotal,
+        previousTotal,
+        "requests",
+        windows.previousLabel,
+      ),
+      formatDeltaText(
+        currentCompleted,
+        previousCompleted,
+        "completed requests",
+        windows.previousLabel,
+      ),
+      currentPending > 0
+        ? `${currentPending} request${currentPending > 1 ? "s" : ""} are still pending in this period.`
+        : "No pending requests in this period.",
+    ];
+  })();
+
+  // Calculate request status counts
+  const pendingCount = requests.filter(
+    (r) => r.status === "pending" || r.request_status === "pending",
+  ).length;
+  const inProgressCount = requests.filter(
+    (r) => r.status === "in_progress" || r.request_status === "in_progress",
+  ).length;
+  const completedCount = requests.filter(
+    (r) => r.status === "completed" || r.request_status === "completed",
+  ).length;
+  const rejectedCount = requests.filter(
+    (r) => r.status === "rejected" || r.request_status === "rejected",
+  ).length;
+  const totalRequests = requests.length;
+
+  // Calculate performance metrics
+  const avgResponseTime = calculateAverageResponseTime(requests);
+  const avgResolutionTime = calculateAverageResolutionTime(requests);
+
+  // Get request types breakdown
+  const requestTypes = analyzeRequestsByType(requests).slice(0, 5);
+
+  // Get recent 5 requests for live feed
+  const recentRequests = requests.slice(0, 5);
+
+  // Build monthly trend chart from currently filtered requests
+  const monthlyTrendsMap = requests.reduce((acc, request) => {
+    if (!request.created_at) return acc;
+
+    const createdAt = new Date(request.created_at);
+    if (Number.isNaN(createdAt.getTime())) return acc;
+
+    const key = `${createdAt.getFullYear()}-${createdAt.getMonth()}`;
+    const label = createdAt.toLocaleDateString("en-US", {
+      month: "short",
+      year: "2-digit",
+    });
+
+    if (!acc[key]) {
+      acc[key] = { label, count: 0, ts: createdAt.getTime() };
+    }
+    acc[key].count += 1;
+    return acc;
+  }, {});
+
+  const monthlyTrends = Object.values(monthlyTrendsMap)
+    .sort((a, b) => a.ts - b.ts)
+    .slice(-6);
+
+  const trendLabels = monthlyTrends.map((t) => t.label);
+  const trendData = monthlyTrends.map((t) => t.count);
+
+  // Aggregate requests by date for line chart
+  const requestsByDate = requests.reduce((acc, request) => {
+    const dateStr = new Date(request.created_at).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+    const existing = acc.find((item) => item.date === dateStr);
+    if (existing) {
+      existing.count += 1;
+    } else {
+      acc.push({ date: dateStr, count: 1 });
+    }
+    return acc;
+  }, []);
+
+  const sortedByDate = requestsByDate
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(-12);
+
+  return (
+    <div className="admin-page">
+      <section className="analytics">
+        <div
+          className="analytics-header"
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: "1rem",
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <h3>Requests Analytics</h3>
+            <p className="muted">
+              Monitor and analyze service requests (
+              {PERIOD_LABEL_MAP[timeFilter]})
+            </p>
+          </div>
+          <div
+            style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end" }}
+          >
+            <button
+              onClick={() => setShowInsights((prev) => !prev)}
+              style={{
+                border: "1px solid #d1d5db",
+                backgroundColor: showInsights ? "#eff6ff" : "#ffffff",
+                color: "#1f2937",
+                borderRadius: "0.5rem",
+                padding: "0.5rem 0.75rem",
+                fontSize: "0.875rem",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              {showInsights ? "Hide Insights" : "View Insights"}
+            </button>
+            <TimeFilterDropdown
+              timeFilter={timeFilter}
+              setTimeFilter={setTimeFilter}
+            />
+          </div>
+        </div>
+
+        {showInsights && (
+          <div
+            className="chart-card"
+            style={{
+              marginBottom: "1rem",
+              background: "#f8fafc",
+              border: "1px solid #dbeafe",
+            }}
+          >
+            <div className="chart-header" style={{ color: "#1d4ed8" }}>
+              Insights ({PERIOD_LABEL_MAP[timeFilter]})
+            </div>
+            <div className="chart-body">
+              <div
+                style={{
+                  display: "grid",
+                  gap: "0.5rem",
+                  color: "#334155",
+                  fontSize: "0.92rem",
+                }}
+              >
+                {requestInsights.map((line, idx) => (
+                  <div key={idx}>• {line}</div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Summary Stats */}
+        <div className="stat-row" style={{ marginBottom: "2rem" }}>
+          <div className="stat-box yellow">
+            <span className="stat-icon">
+              <FileText size={18} />
+            </span>
+            <div className="stat-label">Total Requests</div>
+            <div className="stat-num">{totalRequests}</div>
+            <div className="stat-sub">
+              {completedCount} completed • {pendingCount} pending
+            </div>
+          </div>
+
+          <div className="stat-box blue">
+            <span className="stat-icon">
+              <Clock size={18} />
+            </span>
+            <div className="stat-label">Pending</div>
+            <div className="stat-num">{pendingCount}</div>
+            <div className="stat-sub">Awaiting processing</div>
+          </div>
+
+          <div className="stat-box orange">
+            <span className="stat-icon">
+              <AlertCircle size={18} />
+            </span>
+            <div className="stat-label">In Progress</div>
+            <div className="stat-num">{inProgressCount}</div>
+            <div className="stat-sub">Currently being processed</div>
+          </div>
+
+          <div className="stat-box green">
+            <span className="stat-icon">
+              <CheckCircle size={18} />
+            </span>
+            <div className="stat-label">Completed</div>
+            <div className="stat-num">{completedCount}</div>
+            <div className="stat-sub">Successfully fulfilled</div>
+          </div>
+        </div>
+
+        {/* Performance Metrics */}
+        <div className="stat-row">
+          <div className="stat-box yellow">
+            <span className="stat-icon">
+              <Clock size={18} />
+            </span>
+            <div className="stat-label">Avg Response</div>
+            <div className="stat-num">{avgResponseTime}h</div>
+          </div>
+          <div className="stat-box blue">
+            <span className="stat-icon">
+              <TrendingUp size={18} />
+            </span>
+            <div className="stat-label">Avg Resolution</div>
+            <div className="stat-num">{avgResolutionTime}d</div>
+          </div>
+          <div className="stat-box green">
+            <span className="stat-icon">
+              <CheckCircle size={18} />
+            </span>
+            <div className="stat-label">Completion Rate</div>
+            <div className="stat-num">
+              {totalRequests > 0
+                ? ((completedCount / totalRequests) * 100).toFixed(0)
+                : 0}
+              %
+            </div>
+          </div>
+          <div className="stat-box red">
+            <span className="stat-icon">
+              <AlertCircle size={18} />
+            </span>
+            <div className="stat-label">Rejected</div>
+            <div className="stat-num">{rejectedCount}</div>
+          </div>
+        </div>
+
+        {/* Charts Grid */}
+        <div className="charts-grid">
+          <div className="chart-card big">
+            <div className="chart-header">
+              <FileText size={18} />
+              Request Submission Trends
+            </div>
+            <div className="chart-body">
+              {trendData.length > 0 ? (
+                <BarChart data={trendData} labels={trendLabels} />
+              ) : (
+                <div
+                  style={{
+                    padding: "2rem",
+                    textAlign: "center",
+                    color: "#999",
+                  }}
+                >
+                  No request trend data available
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="chart-card big">
+            <div className="chart-header">
+              <BarChart3 size={18} />
+              Request Status Distribution
+            </div>
+            <div className="chart-body donut">
+              <DonutChart
+                segments={[
+                  { value: pendingCount, color: "#f59e0b" },
+                  { value: inProgressCount, color: "#0ea5e9" },
+                  { value: completedCount, color: "#10b981" },
+                  { value: rejectedCount, color: "#ef4444" },
+                ]}
+              />
+            </div>
+            <div className="status-legend">
+              <div className="legend-item">
+                <span
+                  className="legend-color"
+                  style={{ background: "#f59e0b" }}
+                ></span>
+                <span className="legend-label">Pending ({pendingCount})</span>
+              </div>
+              <div className="legend-item">
+                <span
+                  className="legend-color"
+                  style={{ background: "#0ea5e9" }}
+                ></span>
+                <span className="legend-label">
+                  In Progress ({inProgressCount})
+                </span>
+              </div>
+              <div className="legend-item">
+                <span
+                  className="legend-color"
+                  style={{ background: "#10b981" }}
+                ></span>
+                <span className="legend-label">
+                  Completed ({completedCount})
+                </span>
+              </div>
+              <div className="legend-item">
+                <span
+                  className="legend-color"
+                  style={{ background: "#ef4444" }}
+                ></span>
+                <span className="legend-label">Rejected ({rejectedCount})</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Time Series and Request Types */}
+        <div className="charts-grid">
+          <div className="chart-card big">
+            <div className="chart-header">
+              <BarChart3 size={18} />
+              Requests Over Time (Last 12 Days)
+            </div>
+            <div className="chart-body">
+              {sortedByDate.length > 0 ? (
+                <LineChart
+                  data={sortedByDate.map((d) => d.count)}
+                  labels={sortedByDate.map((d) => d.date)}
+                />
+              ) : (
+                <div
+                  style={{
+                    padding: "2rem",
+                    textAlign: "center",
+                    color: "#999",
+                  }}
+                >
+                  No request data available
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="chart-card">
+            <div className="chart-header">
+              <FileText size={18} />
+              Popular Request Types
+            </div>
+            <div className="chart-body">
+              {requestTypes.length > 0 ? (
+                <div className="location-list">
+                  {requestTypes.map((type, idx) => (
+                    <div key={idx} className="location-item">
+                      <div className="location-rank">#{idx + 1}</div>
+                      <div className="location-name">{type.type}</div>
+                      <div className="location-count">{type.count}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    padding: "2rem",
+                    textAlign: "center",
+                    color: "#999",
+                  }}
+                >
+                  No request data available
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Live Request Feed */}
+        <div className="live-feed">
+          <div
+            className="live-header"
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: "1rem",
+            }}
+          >
+            <div>
+              Live Request Feed <span className="badge">REAL-TIME</span>
+            </div>
+            <Link
+              to="/BarangayAdmin/requests"
+              style={{
+                fontSize: "0.85rem",
+                fontWeight: 600,
+                color: "#2563eb",
+                textDecoration: "none",
+              }}
+            >
+              View More
+            </Link>
+          </div>
+          <div className="feed-list">
+            {recentRequests.length > 0 ? (
+              recentRequests.slice(0, 10).map((req) => (
+                <div className="feed-item" key={req.id}>
+                  <div className="feed-icon">📄</div>
+                  <div className="feed-body">
+                    <div className="feed-title">{req.subject || "Request"}</div>
+                    <div className="feed-sub muted">
+                      {req.certificate_type || "Service Request"} •{" "}
+                      {new Date(req.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <div
+                    className={`feed-status ${(
+                      req.status ||
+                      req.request_status ||
+                      "pending"
+                    )
+                      .toLowerCase()
+                      .replace(/[_ ]/g, "-")}`}
+                  >
+                    {req.status || req.request_status || "Pending"}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="feed-item">
+                <div className="feed-body">
+                  <div className="feed-title">No requests yet</div>
+                  <div className="feed-sub muted">
+                    Requests will appear here
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function OfficialsView({
+  officials = [],
+  allRequests = [],
+  allComplaints = [],
+  timeFilter = "month",
+  setTimeFilter = () => {},
+}) {
+  const [showInsights, setShowInsights] = useState(false);
+
+  const officialsInsightData = getOfficialPeriodStats(
+    officials,
+    allRequests,
+    allComplaints,
+    timeFilter,
+  );
+
+  const officialsInsights = [
+    formatDeltaText(
+      officialsInsightData.current.totalCases,
+      officialsInsightData.previous.totalCases,
+      "total assigned cases",
+      officialsInsightData.previousLabel,
+    ),
+    formatDeltaText(
+      officialsInsightData.current.activeOfficials,
+      officialsInsightData.previous.activeOfficials,
+      "active officials handling cases",
+      officialsInsightData.previousLabel,
+    ),
+    `Completion rate is ${officialsInsightData.current.completionRate}% this period (${officialsInsightData.previous.completionRate}% in ${officialsInsightData.previousLabel}).`,
+    officialsInsightData.current.busiestOfficial
+      ? `${officialsInsightData.current.busiestOfficial.name} has the highest workload with ${officialsInsightData.current.busiestOfficial.total} case${officialsInsightData.current.busiestOfficial.total > 1 ? "s" : ""}.`
+      : "No assigned official workload recorded for this period.",
+  ];
+
   const totalCases = officials.reduce(
     (sum, o) => sum + (o.stats?.totalCases || 0),
     0,
@@ -855,12 +1836,74 @@ function OfficialsView({ officials = [] }) {
 
   return (
     <div className="admin-page">
-      <div className="analytics-header">
-        <h3>Official Performance Analytics</h3>
-        <p className="muted">
-          Track workload distribution and performance metrics
-        </p>
+      <div
+        className="analytics-header"
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: "1rem",
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <h3>Official Performance Analytics</h3>
+          <p className="muted">
+            Track workload distribution and performance metrics (
+            {PERIOD_LABEL_MAP[timeFilter]})
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end" }}>
+          <button
+            onClick={() => setShowInsights((prev) => !prev)}
+            style={{
+              border: "1px solid #d1d5db",
+              backgroundColor: showInsights ? "#eff6ff" : "#ffffff",
+              color: "#1f2937",
+              borderRadius: "0.5rem",
+              padding: "0.5rem 0.75rem",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            {showInsights ? "Hide Insights" : "View Insights"}
+          </button>
+          <TimeFilterDropdown
+            timeFilter={timeFilter}
+            setTimeFilter={setTimeFilter}
+          />
+        </div>
       </div>
+
+      {showInsights && (
+        <div
+          className="chart-card"
+          style={{
+            marginBottom: "1rem",
+            background: "#f8fafc",
+            border: "1px solid #dbeafe",
+          }}
+        >
+          <div className="chart-header" style={{ color: "#1d4ed8" }}>
+            Insights ({PERIOD_LABEL_MAP[timeFilter]})
+          </div>
+          <div className="chart-body">
+            <div
+              style={{
+                display: "grid",
+                gap: "0.5rem",
+                color: "#334155",
+                fontSize: "0.92rem",
+              }}
+            >
+              {officialsInsights.map((line, idx) => (
+                <div key={idx}>• {line}</div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Summary Stats */}
       {/* choose color for avg completion based on percent */}
@@ -961,9 +2004,7 @@ function OfficialsView({ officials = [] }) {
                   else cls += " bad";
                   return (
                     <div className={`official-stat ${cls}`}>
-                      <div className="stat-value">
-                        {rate}%
-                      </div>
+                      <div className="stat-value">{rate}%</div>
                       <div className="stat-label-small">Completion Rate</div>
                     </div>
                   );
@@ -984,86 +2025,18 @@ function OfficialsView({ officials = [] }) {
           </div>
         )}
       </div>
-
-      {/* Performance Table */}
-      <div style={{ marginTop: "2rem" }}>
-        <h4>Performance Summary Table</h4>
-        <div className="table-responsive">
-          <div className="table">
-            <div
-              className="table-row table-head"
-              style={{ gridTemplateColumns: "repeat(8, 1fr)" }}
-            >
-              <div data-label="Name">Name</div>
-              <div data-label="Role">Role</div>
-              <div data-label="Requests">Requests</div>
-              <div data-label="Complaints">Complaints</div>
-              <div data-label="Total Cases">Total Cases</div>
-              <div data-label="Completed">Completed</div>
-              <div data-label="Pending">Pending</div>
-              <div data-label="Completion Rate">Completion Rate</div>
-            </div>
-            {officials.map((o) => (
-              <div
-                className="table-row"
-                key={o.id}
-                style={{ gridTemplateColumns: "repeat(8, 1fr)" }}
-              >
-                <div
-                  data-label="Name"
-                  style={{
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {o.full_name || `${o.firstname} ${o.lastname}`}
-                </div>
-                <div data-label="Role" style={{ textAlign: "center" }}>
-                  {o.role || "Official"}
-                </div>
-                <div data-label="Requests" style={{ textAlign: "center" }}>
-                  {o.stats?.totalRequests || 0}
-                </div>
-                <div data-label="Complaints" style={{ textAlign: "center" }}>
-                  {o.stats?.totalComplaints || 0}
-                </div>
-                <div data-label="Total Cases" style={{ textAlign: "center" }}>
-                  {o.stats?.totalCases || 0}
-                </div>
-                <div data-label="Completed" style={{ textAlign: "center" }}>
-                  {o.stats?.completedCases || 0}
-                </div>
-                <div data-label="Pending" style={{ textAlign: "center" }}>
-                  {o.stats?.pendingCases || 0}
-                </div>
-                <div data-label="Completion Rate" style={{ textAlign: "center" }}>
-                  {(() => {
-                    const rate = parseFloat(o.stats?.completionRate || 0);
-                    let st = rate >= 75 ? "completed" : rate >= 50 ? "warning" : "rejected";
-                    return (
-                      <span className={`status ${st}`}>{rate}%</span>
-                    );
-                  })()}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
 
 export default function AdminDashboard() {
-  const [active, setActive] = useState("Overview");
+  const [active, setActive] = useState("Requests");
+  const [timeFilter, setTimeFilter] = useState("month");
   const [requests, setRequests] = useState([]);
   const [complaints, setComplaints] = useState([]);
   const [officials, setOfficials] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [residentStats, setResidentStats] = useState({});
-  const [requestTrends, setRequestTrends] = useState([]);
-  const [complaintTrends, setComplaintTrends] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -1198,17 +2171,6 @@ export default function AdminDashboard() {
           setResidentStats(residentStatsResult.data);
         }
 
-        // Fetch trends
-        const reqTrendsResult = await getRequestTrends(6);
-        if (reqTrendsResult.success) {
-          setRequestTrends(reqTrendsResult.data);
-        }
-
-        const compTrendsResult = await getComplaintTrends(6);
-        if (compTrendsResult.success) {
-          setComplaintTrends(compTrendsResult.data);
-        }
-
         // Fetch announcements
         const announcementsResult = await getAnnouncements();
         if (
@@ -1232,23 +2194,90 @@ export default function AdminDashboard() {
     fetchAllData();
   }, []);
 
+  const filteredRequests = requests.filter((request) =>
+    isWithinPeriod(request.created_at, timeFilter),
+  );
+
+  const filteredComplaints = complaints.filter((complaint) =>
+    isWithinPeriod(complaint.created_at, timeFilter),
+  );
+
+  const filteredOfficials = officials.map((official) => {
+    const officialRequests = filteredRequests.filter(
+      (request) => request.assigned_official_id === official.auth_uid,
+    );
+    const officialComplaints = filteredComplaints.filter(
+      (complaint) => complaint.assigned_official_id === official.auth_uid,
+    );
+
+    const totalRequests = officialRequests.length;
+    const totalComplaints = officialComplaints.length;
+    const totalCases = totalRequests + totalComplaints;
+
+    const completedRequests = officialRequests.filter(
+      (request) =>
+        request.status === "completed" ||
+        request.request_status === "completed",
+    ).length;
+    const completedComplaints = officialComplaints.filter(
+      (complaint) =>
+        complaint.status === "resolved" || complaint.status === "completed",
+    ).length;
+    const completedCases = completedRequests + completedComplaints;
+
+    const pendingRequests = officialRequests.filter(
+      (request) =>
+        request.status === "pending" || request.request_status === "pending",
+    ).length;
+    const pendingComplaints = officialComplaints.filter(
+      (complaint) => complaint.status === "pending",
+    ).length;
+    const pendingCases = pendingRequests + pendingComplaints;
+
+    return {
+      ...official,
+      stats: {
+        totalRequests,
+        totalComplaints,
+        totalCases,
+        completedCases,
+        pendingCases,
+        completionRate:
+          totalCases > 0 ? ((completedCases / totalCases) * 100).toFixed(1) : 0,
+      },
+    };
+  });
+
   // Render appropriate view based on active tab
   let Content = null;
-  if (active === "Overview") {
+  if (active === "Requests") {
     Content = (
-      <DashboardView
-        requests={requests}
-        complaints={complaints}
-        announcements={announcements}
-        residentStats={residentStats}
-        requestTrends={requestTrends}
-        complaintTrends={complaintTrends}
+      <RequestsView
+        requests={filteredRequests}
+        allRequests={requests}
+        timeFilter={timeFilter}
+        setTimeFilter={setTimeFilter}
       />
     );
   } else if (active === "Complaints") {
-    Content = <ComplaintsView complaints={complaints} />;
+    Content = (
+      <ComplaintsView
+        complaints={filteredComplaints}
+        allComplaints={complaints}
+        timeFilter={timeFilter}
+        setTimeFilter={setTimeFilter}
+      />
+    );
   } else if (active === "Officials") {
-    Content = <OfficialsView officials={officials} />;
+    Content = (
+      <OfficialsView
+        officials={filteredOfficials}
+        allRequests={requests}
+        allComplaints={complaints}
+        timeFilter={timeFilter}
+        setTimeFilter={setTimeFilter}
+      />
+    );
   }
 
   // Loading state
@@ -1279,7 +2308,7 @@ export default function AdminDashboard() {
 // Horizontal Tabs Component
 function HorizontalTabs({ active, setActive }) {
   const tabs = [
-    { name: "Overview", icon: BarChart3 },
+    { name: "Requests", icon: FileText },
     { name: "Complaints", icon: AlertCircle },
     { name: "Officials", icon: Users },
   ];
