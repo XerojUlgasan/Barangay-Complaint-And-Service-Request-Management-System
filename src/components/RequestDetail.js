@@ -46,7 +46,8 @@ const RequestDetail = ({
     if (!request || !request.id) return;
     setHistoryLoading(true);
     try {
-      const historyFn = itemType === "complaint" ? getComplaintHistory : getRequestHistory;
+      const historyFn =
+        itemType === "complaint" ? getComplaintHistory : getRequestHistory;
       const result = await historyFn(request.id);
       if (result.success) {
         setHistory(result.data || []);
@@ -128,20 +129,31 @@ const RequestDetail = ({
       NON_COMPLIANT: { color: "#EC4899", label: "NON COMPLIANT" },
       FOR_VALIDATION: { color: "#06B6D4", label: "FOR VALIDATION" },
     };
-    return statusMap[formData.status] || { color: "#6B7280", label: formData.status };
+    return (
+      statusMap[formData.status] || { color: "#6B7280", label: formData.status }
+    );
   };
 
   const statusBadge = getStatusBadge();
 
   const modalContent = (
     <>
-      <div className="modal-overlay" onClick={handleOverlayClick}></div>
+      <div
+        className="modal-overlay request-detail-overlay"
+        onClick={handleOverlayClick}
+      ></div>
 
-      <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal-dialog request-detail-dialog"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="modal-header">
           <div className="modal-header-content">
-            <span className="status-badge" style={{ backgroundColor: statusBadge.color }}>
+            <span
+              className="status-badge"
+              style={{ backgroundColor: statusBadge.color }}
+            >
               {statusBadge.label}
             </span>
             <span className="request-id">ID: #{request.id}</span>
@@ -171,21 +183,22 @@ const RequestDetail = ({
                 <span>{request.submissionDate}</span>
               </div>
             </div>
-            {itemType === "complaint" && (request.respondents || request.respondent_id) && (
-              <div className="detail-section">
-                <label className="detail-label">RESPONDENT(S)</label>
-                <div className="detail-value">
-                  <span className="respondent-icon">👥</span>
-                  <span>
-                    {request.respondents
-                      ? request.respondents
-                      : Array.isArray(request.respondent_id)
-                      ? request.respondent_id.join(", ")
-                      : request.respondent_id || "—"}
-                  </span>
+            {itemType === "complaint" &&
+              (request.respondents || request.respondent_id) && (
+                <div className="detail-section">
+                  <label className="detail-label">RESPONDENT(S)</label>
+                  <div className="detail-value">
+                    <span className="respondent-icon">👥</span>
+                    <span>
+                      {request.respondents
+                        ? request.respondents
+                        : Array.isArray(request.respondent_id)
+                          ? request.respondent_id.join(", ")
+                          : request.respondent_id || "—"}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
 
           {/* Description */}
@@ -245,7 +258,9 @@ const RequestDetail = ({
               </select>
             </div>
             <div className="form-group">
-              <label className="form-label">Internal Notes / Official Response</label>
+              <label className="form-label">
+                Internal Notes / Official Response
+              </label>
               <textarea
                 name="internalNotes"
                 value={formData.internalNotes}
@@ -268,14 +283,20 @@ const RequestDetail = ({
               <ul className="history-list">
                 {history.map((h, idx) => {
                   const date = new Date(h.updated_at || h.created_at);
-                  const rawStatus = (h.request_status || "").toUpperCase().replace(/ /g, "_");
+                  const rawStatus = (h.request_status || "")
+                    .toUpperCase()
+                    .replace(/ /g, "_");
                   const statusLabel = h.request_status
                     ? h.request_status.replace(/_/g, " ").toUpperCase()
                     : "";
                   const dotColor = statusColorMap[rawStatus] || "#6B7280";
 
                   return (
-                    <li key={idx} className="history-item" style={{ "--dot-color": dotColor }}>
+                    <li
+                      key={idx}
+                      className="history-item"
+                      style={{ "--dot-color": dotColor }}
+                    >
                       <div className="history-row">
                         <div className="history-row-top">
                           <span
@@ -307,7 +328,9 @@ const RequestDetail = ({
 
         {/* Footer */}
         <div className="modal-footer">
-          <button className="btn-close" onClick={onClose}>Close</button>
+          <button className="btn-close" onClick={onClose}>
+            Close
+          </button>
           <button className="btn-save" onClick={handleSave}>
             ✓ Save & Update Status
           </button>

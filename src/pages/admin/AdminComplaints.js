@@ -2,39 +2,33 @@ import React, { useState, useEffect } from "react";
 import { ChevronDown, X } from "lucide-react";
 import "../../styles/BarangayAdmin.css";
 import "../../styles/RequestDetail.css";
-import {
-  getRequests,
-  getRequestHistory,
-} from "../../supabse_db/request/request";
+import { getComplaints } from "../../supabse_db/complaint/complaint";
 
 const STATUS_COLORS = {
   Pending: "#fbbf24",
   "In Progress": "#3b82f6",
   Completed: "#10b981",
   Rejected: "#ef4444",
-  "For Compliance": "#8b5cf6",
-  "Non Compliant": "#ec4899",
-  "For Validation": "#06b6d4",
+  Investigating: "#8b5cf6",
+  Resolved: "#06b6d4",
 };
 
 const STATUS_LABELS = {
   pending: "Pending",
   in_progress: "In Progress",
+  investigating: "Investigating",
   completed: "Completed",
   rejected: "Rejected",
-  for_compliance: "For Compliance",
-  non_compliant: "Non Compliant",
-  for_validation: "For Validation",
+  resolved: "Resolved",
 };
 
 const STATUS_COLOR_MAP = {
   PENDING: "#F59E0B",
   IN_PROGRESS: "#0EA5E9",
+  INVESTIGATING: "#8B5CF6",
   COMPLETED: "#10B981",
   REJECTED: "#EF4444",
-  FOR_COMPLIANCE: "#8B5CF6",
-  NON_COMPLIANT: "#EC4899",
-  FOR_VALIDATION: "#06B6D4",
+  RESOLVED: "#06B6D4",
 };
 
 const normalizeStatus = (status) => {
@@ -45,100 +39,101 @@ const normalizeStatus = (status) => {
 
 const getStatusColor = (statusLabel) => STATUS_COLORS[statusLabel] || "#9ca3af";
 
-export default function AdminRequests() {
-  const [selectedRequestStatus, setSelectedRequestStatus] =
+export default function AdminComplaints() {
+  const [selectedComplaintStatus, setSelectedComplaintStatus] =
     useState("All Status");
-  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [requestDropdownOpen, setRequestDropdownOpen] = useState(false);
-  const [requests, setRequests] = useState([]);
-  const [loadingRequests, setLoadingRequests] = useState(true);
-  const [errorRequests, setErrorRequests] = useState(null);
-
-  const [history, setHistory] = useState([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
+  const [complaintDropdownOpen, setComplaintDropdownOpen] = useState(false);
+  const [complaints, setComplaints] = useState([]);
+  const [loadingComplaints, setLoadingComplaints] = useState(true);
+  const [errorComplaints, setErrorComplaints] = useState(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  const transformRequestData = (dbRequest) => {
+  const transformComplaintData = (dbComplaint) => {
     return {
-      id: dbRequest.id,
-      title: dbRequest.subject || "Untitled Request",
-      subtitle: dbRequest.certificate_type || "Service Request",
-      status: normalizeStatus(dbRequest.request_status || dbRequest.status),
-      submittedBy: dbRequest.requester_name || "Unknown",
-      date: dbRequest.created_at
-        ? new Date(dbRequest.created_at).toISOString().split("T")[0]
+      id: dbComplaint.id,
+      title: dbComplaint.complaint_type || "Untitled Complaint",
+      location: dbComplaint.incident_location || "Unknown Location",
+      status: normalizeStatus(dbComplaint.status),
+      complainant: dbComplaint.complainant_name || "Unknown",
+      date: dbComplaint.created_at
+        ? new Date(dbComplaint.created_at).toISOString().split("T")[0]
         : "N/A",
-      lastUpdate: dbRequest.updated_at
-        ? new Date(dbRequest.updated_at).toISOString().split("T")[0]
-        : dbRequest.created_at
-          ? new Date(dbRequest.created_at).toISOString().split("T")[0]
+      lastUpdate: dbComplaint.updated_at
+        ? new Date(dbComplaint.updated_at).toISOString().split("T")[0]
+        : dbComplaint.created_at
+          ? new Date(dbComplaint.created_at).toISOString().split("T")[0]
           : "N/A",
-      assignedOfficial: dbRequest.assigned_official_name || "Unassigned",
-      description: dbRequest.description || "No description provided",
-      response: dbRequest.remarks || "No response yet",
+      priority: dbComplaint.priority_level || "Normal",
+      description: dbComplaint.description || "No description provided",
+      remarks: dbComplaint.remarks || "No remarks yet",
     };
   };
 
   useEffect(() => {
-    const fetchRequests = async () => {
+    const fetchComplaints = async () => {
       try {
-        setLoadingRequests(true);
-        setErrorRequests(null);
-        console.log("AdminRequests: Starting fetch...");
-        const result = await getRequests();
-        console.log("AdminRequests: getRequests result:", result);
+        setLoadingComplaints(true);
+        setErrorComplaints(null);
+        console.log("AdminComplaints: Starting fetch...");
+        const result = await getComplaints();
+        console.log("AdminComplaints: getComplaints result:", result);
 
         if (result.success && Array.isArray(result.data)) {
-          console.log("AdminRequests: Raw data from DB:", result.data);
-          const transformedRequests = result.data.map((req) =>
-            transformRequestData(req),
+          console.log("AdminComplaints: Raw data from DB:", result.data);
+          const transformedComplaints = result.data.map((complaint) =>
+            transformComplaintData(complaint),
           );
-          console.log("AdminRequests: Transformed data:", transformedRequests);
-          setRequests(transformedRequests);
+          console.log(
+            "AdminComplaints: Transformed data:",
+            transformedComplaints,
+          );
+          setComplaints(transformedComplaints);
         } else {
           console.error(
-            "AdminRequests: Failed to fetch requests:",
+            "AdminComplaints: Failed to fetch complaints:",
             result.message,
           );
-          setErrorRequests(result.message || "Failed to fetch requests");
-          setRequests([]);
+          setErrorComplaints(result.message || "Failed to fetch complaints");
+          setComplaints([]);
         }
       } catch (err) {
-        console.error("AdminRequests: Catch error:", err);
-        setErrorRequests("Error fetching requests: " + err.message);
-        setRequests([]);
+        console.error("AdminComplaints: Catch error:", err);
+        setErrorComplaints("Error fetching complaints: " + err.message);
+        setComplaints([]);
       } finally {
-        setLoadingRequests(false);
+        setLoadingComplaints(false);
       }
     };
 
-    fetchRequests();
+    fetchComplaints();
   }, []);
 
-  // Filter requests based on status, search query, and date range
-  const filteredRequests = requests.filter((req) => {
+  // Filter complaints based on status, search query, and date range
+  const filteredComplaints = complaints.filter((complaint) => {
     // Status filter
     const statusMatch =
-      selectedRequestStatus === "All Status" ||
-      req.status === selectedRequestStatus;
+      selectedComplaintStatus === "All Status" ||
+      complaint.status === selectedComplaintStatus;
 
     // Search filter
     const searchLower = searchQuery.toLowerCase();
     const searchMatch =
-      req.title.toLowerCase().includes(searchLower) ||
-      req.subtitle.toLowerCase().includes(searchLower) ||
-      req.submittedBy.toLowerCase().includes(searchLower) ||
-      req.description.toLowerCase().includes(searchLower);
+      complaint.title.toLowerCase().includes(searchLower) ||
+      complaint.location.toLowerCase().includes(searchLower) ||
+      complaint.complainant.toLowerCase().includes(searchLower) ||
+      complaint.description.toLowerCase().includes(searchLower);
 
     // Date filter
-    const reqDate = new Date(req.date);
+    const complaintDate = new Date(complaint.date);
     const start = startDate ? new Date(startDate) : null;
     const end = endDate ? new Date(endDate) : null;
-    const dateMatch = (!start || reqDate >= start) && (!end || reqDate <= end);
+    const dateMatch =
+      (!start || complaintDate >= start) && (!end || complaintDate <= end);
 
     return statusMatch && searchMatch && dateMatch;
   });
@@ -158,47 +153,23 @@ export default function AdminRequests() {
     };
   }, [isModalOpen]);
 
-  // blur handled via inline className on page-content wrapper
-
-  const openModal = (request) => {
-    setSelectedRequest(request);
+  const openModal = (complaint) => {
+    setSelectedComplaint(complaint);
     setIsModalOpen(true);
-    fetchHistory(request.id);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
-    setHistory([]);
-    setTimeout(() => setSelectedRequest(null), 300);
-  };
-
-  const fetchHistory = async (requestId) => {
-    if (!requestId) return;
-    setHistoryLoading(true);
-    try {
-      const result = await getRequestHistory(requestId);
-      if (result.success) {
-        setHistory(result.data || []);
-      } else {
-        console.error("AdminRequests: history fetch failed", result.message);
-        setHistory([]);
-      }
-    } catch (err) {
-      console.error("AdminRequests: error fetching history", err);
-      setHistory([]);
-    }
-    setHistoryLoading(false);
+    setTimeout(() => setSelectedComplaint(null), 300);
   };
 
   const statusOptions = [
     "All Status",
     "Pending",
+    "Investigating",
     "In Progress",
-    "Completed",
+    "Resolved",
     "Rejected",
-    "For Compliance",
-    "Non Compliant",
-    "For Validation",
   ];
 
   return (
@@ -213,14 +184,12 @@ export default function AdminRequests() {
           style={{ alignItems: "flex-start", marginBottom: 12 }}
         >
           <div>
-            <h3>System-wide Requests</h3>
-            <p className="muted">
-              Monitor all service requests across the barangay.
-            </p>
+            <h3>System-wide Complaints</h3>
+            <p className="muted">Monitor all complaints across the barangay.</p>
           </div>
         </div>
 
-        {/* REQUESTS SECTION */}
+        {/* COMPLAINTS SECTION */}
         <div style={{ marginBottom: "2.5rem" }}>
           {/* Filters and Search */}
           <div
@@ -246,7 +215,7 @@ export default function AdminRequests() {
               </label>
               <input
                 type="text"
-                placeholder="Search by title, type, requester, or description..."
+                placeholder="Search by type, location, complainant, or description..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
@@ -338,16 +307,16 @@ export default function AdminRequests() {
           >
             <button
               className="status-filter-btn"
-              onClick={() => setRequestDropdownOpen(!requestDropdownOpen)}
+              onClick={() => setComplaintDropdownOpen(!complaintDropdownOpen)}
             >
-              {selectedRequestStatus}
+              {selectedComplaintStatus}
               <ChevronDown size={18} style={{ marginLeft: "0.5rem" }} />
             </button>
-            {requestDropdownOpen && (
+            {complaintDropdownOpen && (
               <>
                 <div
                   style={{ position: "fixed", inset: 0, zIndex: 999 }}
-                  onClick={() => setRequestDropdownOpen(false)}
+                  onClick={() => setComplaintDropdownOpen(false)}
                 />
                 <div
                   className="status-filter-dropdown"
@@ -358,8 +327,8 @@ export default function AdminRequests() {
                       key={option}
                       className="status-filter-item"
                       onClick={() => {
-                        setSelectedRequestStatus(option);
-                        setRequestDropdownOpen(false);
+                        setSelectedComplaintStatus(option);
+                        setComplaintDropdownOpen(false);
                       }}
                     >
                       {option}
@@ -370,7 +339,7 @@ export default function AdminRequests() {
             )}
           </div>
 
-          {errorRequests && (
+          {errorComplaints && (
             <div
               style={{
                 padding: "1rem",
@@ -380,15 +349,15 @@ export default function AdminRequests() {
                 color: "#991b1b",
               }}
             >
-              Error: {errorRequests}
+              Error: {errorComplaints}
             </div>
           )}
 
-          {loadingRequests && (
+          {loadingComplaints && (
             <div style={{ padding: "1rem", marginBottom: "1rem" }}>
               <div className="loading-wrap">
                 <div className="loading-spinner" aria-hidden="true"></div>
-                <div className="loading-text">Loading requests...</div>
+                <div className="loading-text">Loading complaints...</div>
               </div>
             </div>
           )}
@@ -400,7 +369,8 @@ export default function AdminRequests() {
               color: "#6b7280",
             }}
           >
-            Showing {filteredRequests.length} of {requests.length} requests
+            Showing {filteredComplaints.length} of {complaints.length}{" "}
+            complaints
           </div>
 
           <div className="requests-table-card">
@@ -408,38 +378,63 @@ export default function AdminRequests() {
               <thead>
                 <tr>
                   <th>ID</th>
-                  <th>Request Details</th>
+                  <th>Complaint Details</th>
                   <th>Status</th>
-                  <th>Submitted By</th>
+                  <th>Complainant</th>
+                  <th>Priority</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredRequests.length > 0 ? (
-                  filteredRequests.map((request) => (
-                    <tr key={request.id}>
+                {filteredComplaints.length > 0 ? (
+                  filteredComplaints.map((complaint) => (
+                    <tr key={complaint.id}>
                       <td>
-                        <span className="req-id-chip">{request.id}</span>
+                        <span className="req-id-chip">{complaint.id}</span>
                       </td>
                       <td className="req-details">
-                        <div className="req-title">{request.title}</div>
-                        <div className="req-subtitle">{request.subtitle}</div>
+                        <div className="req-title">{complaint.title}</div>
+                        <div className="req-subtitle">{complaint.location}</div>
                       </td>
                       <td className="req-status">
                         <span
                           className="ar-status-badge"
                           style={{
-                            backgroundColor: getStatusColor(request.status),
+                            backgroundColor: getStatusColor(complaint.status),
                           }}
                         >
-                          {request.status}
+                          {complaint.status}
                         </span>
                       </td>
-                      <td className="req-submitted">{request.submittedBy}</td>
+                      <td className="req-submitted">{complaint.complainant}</td>
+                      <td style={{ textAlign: "center" }}>
+                        <span
+                          style={{
+                            padding: "0.25rem 0.75rem",
+                            borderRadius: "0.25rem",
+                            backgroundColor:
+                              complaint.priority === "High"
+                                ? "#fee2e2"
+                                : complaint.priority === "Medium"
+                                  ? "#fef3c7"
+                                  : "#d1fae5",
+                            color:
+                              complaint.priority === "High"
+                                ? "#991b1b"
+                                : complaint.priority === "Medium"
+                                  ? "#92400e"
+                                  : "#065f46",
+                            fontSize: "0.875rem",
+                            fontWeight: "500",
+                          }}
+                        >
+                          {complaint.priority}
+                        </span>
+                      </td>
                       <td className="req-action">
                         <button
                           className="btn-save ar-table-action-btn"
-                          onClick={() => openModal(request)}
+                          onClick={() => openModal(complaint)}
                         >
                           View Details
                         </button>
@@ -449,14 +444,14 @@ export default function AdminRequests() {
                 ) : (
                   <tr>
                     <td
-                      colSpan="5"
+                      colSpan="6"
                       style={{
                         padding: "2rem",
                         textAlign: "center",
                         color: "#6b7280",
                       }}
                     >
-                      No requests found matching your filters.
+                      No complaints found matching your filters.
                     </td>
                   </tr>
                 )}
@@ -471,12 +466,12 @@ export default function AdminRequests() {
       {isModalOpen && <div className="ar-modal-overlay" onClick={closeModal} />}
 
       {/* Modal */}
-      {isModalOpen && selectedRequest && (
+      {isModalOpen && selectedComplaint && (
         <div className="ar-modal">
           {/* Header */}
           <div className="ar-modal-header">
             <div className="ar-modal-header-top">
-              <h3 className="ar-modal-title">{selectedRequest.title}</h3>
+              <h3 className="ar-modal-title">{selectedComplaint.title}</h3>
               <button className="ar-modal-close" onClick={closeModal}>
                 <X size={18} />
               </button>
@@ -485,10 +480,10 @@ export default function AdminRequests() {
               <span
                 className="ar-status-badge-modal"
                 style={{
-                  backgroundColor: getStatusColor(selectedRequest.status),
+                  backgroundColor: getStatusColor(selectedComplaint.status),
                 }}
               >
-                {selectedRequest.status.toUpperCase()}
+                {selectedComplaint.status.toUpperCase()}
               </span>
               <span className="ar-admin-tag">System Admin View</span>
             </div>
@@ -498,91 +493,45 @@ export default function AdminRequests() {
           <div className="ar-modal-body">
             <div className="ar-metadata-grid">
               <div className="ar-metadata-item">
-                <label className="ar-metadata-label">Citizen</label>
+                <label className="ar-metadata-label">Complainant</label>
                 <p className="ar-metadata-value">
-                  {selectedRequest.submittedBy}
+                  {selectedComplaint.complainant}
+                </p>
+              </div>
+              <div className="ar-metadata-item">
+                <label className="ar-metadata-label">Location</label>
+                <p className="ar-metadata-value">
+                  {selectedComplaint.location}
+                </p>
+              </div>
+              <div className="ar-metadata-item">
+                <label className="ar-metadata-label">Priority</label>
+                <p className="ar-metadata-value">
+                  {selectedComplaint.priority}
                 </p>
               </div>
               <div className="ar-metadata-item">
                 <label className="ar-metadata-label">Submitted</label>
-                <p className="ar-metadata-value">{selectedRequest.date}</p>
+                <p className="ar-metadata-value">{selectedComplaint.date}</p>
               </div>
               <div className="ar-metadata-item">
                 <label className="ar-metadata-label">Last Update</label>
                 <p className="ar-metadata-value">
-                  {selectedRequest.lastUpdate}
-                </p>
-              </div>
-              <div className="ar-metadata-item">
-                <label className="ar-metadata-label">Assigned Official</label>
-                <p className="ar-metadata-value ar-official-value">
-                  {selectedRequest.assignedOfficial}
+                  {selectedComplaint.lastUpdate}
                 </p>
               </div>
             </div>
 
             <div className="ar-section">
-              <h4 className="ar-section-title">Request Description</h4>
+              <h4 className="ar-section-title">Complaint Description</h4>
               <div className="ar-description-box">
-                {selectedRequest.description}
+                {selectedComplaint.description}
               </div>
             </div>
 
             <div className="ar-section">
-              <h4 className="ar-section-title">Official Response / Notes</h4>
-              <div className="ar-response-box">{selectedRequest.response}</div>
-            </div>
-
-            {/* History — reuses RequestDetail.css timeline classes */}
-            <div className="history-section">
-              <div className="history-header">
-                <h3>History</h3>
-              </div>
-              {historyLoading ? (
-                <p className="history-loading">Loading history...</p>
-              ) : history && history.length > 0 ? (
-                <ul className="history-list">
-                  {history.map((h, idx) => {
-                    const date = new Date(h.updated_at || h.created_at);
-                    const rawStatus = (h.request_status || "")
-                      .toUpperCase()
-                      .replace(/ /g, "_");
-                    const statusLabel = h.request_status
-                      ? h.request_status.replace(/_/g, " ").toUpperCase()
-                      : "";
-                    const dotColor = STATUS_COLOR_MAP[rawStatus] || "#6B7280";
-                    return (
-                      <li
-                        key={idx}
-                        className="history-item"
-                        style={{ "--dot-color": dotColor }}
-                      >
-                        <div className="history-row">
-                          <div className="history-row-top">
-                            <span
-                              className="history-status"
-                              style={{ backgroundColor: dotColor }}
-                            >
-                              {statusLabel}
-                            </span>
-                            <span className="history-user">
-                              {h.updater_name || "System"}
-                            </span>
-                          </div>
-                          <span className="history-date">
-                            {date.toLocaleString()}
-                          </span>
-                          {h.remarks && (
-                            <div className="history-remarks">{h.remarks}</div>
-                          )}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <p className="no-history">No history available.</p>
-              )}
+              <h4 className="ar-section-title">Official Remarks / Notes</h4>
+              <div className="ar-response-box">{selectedComplaint.remarks}</div>
             </div>
           </div>
 

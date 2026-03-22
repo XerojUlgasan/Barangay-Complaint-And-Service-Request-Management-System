@@ -28,6 +28,12 @@ const SubmitRequest = () => {
   const isCertificate = location.pathname.includes("certificate");
   const isComplaint = !isCertificate;
 
+  const getCurrentDateTimeLocal = () => {
+    const now = new Date();
+    const tzOffsetMs = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - tzOffsetMs).toISOString().slice(0, 16);
+  };
+
   const [formData, setFormData] = useState({
     complaintType: "",
     certificateType: "",
@@ -108,6 +114,15 @@ const SubmitRequest = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitError("");
+
+    if (isComplaint && formData.incidentDate) {
+      const selected = new Date(formData.incidentDate);
+      const now = new Date();
+      if (!Number.isNaN(selected.getTime()) && selected > now) {
+        setSubmitError("Incident date and time cannot be in the future.");
+        return;
+      }
+    }
 
     // Validate respondents for complaint
     if (isComplaint && selectedRespondents.length === 0) {
@@ -348,11 +363,12 @@ const SubmitRequest = () => {
                         Incident Date <span className="required-star">*</span>
                       </label>
                       <input
-                        type="date"
+                        type="datetime-local"
                         id="incidentDate"
                         name="incidentDate"
                         value={formData.incidentDate}
                         onChange={handleChange}
+                        max={getCurrentDateTimeLocal()}
                         className="form-input"
                         required
                       />

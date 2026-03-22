@@ -1,126 +1,148 @@
 import React, { useState, useEffect } from "react";
-import { ChevronDown, User, Calendar, Clock, ArrowRight } from "lucide-react";
-import { getAssignedComplaints } from "../../supabse_db/official/official";
-import { updateComplaintStatus } from "../../supabse_db/official/official";
-import { fetchImagesForItem } from "../../supabse_db/uploadImages";
+import { ChevronDown } from "lucide-react";
+import {
+  getAssignedComplaints,
+  updateComplaintStatus,
+} from "../../supabse_db/official/official";
 import RequestDetail from "../../components/RequestDetail";
-import "../../styles/Requests.css";
+import "../../styles/BarangayAdmin.css";
+import "../../styles/RequestDetail.css";
+
+const STATUS_COLORS = {
+  Pending: "#fbbf24",
+  "In Progress": "#3b82f6",
+  Completed: "#10b981",
+  Rejected: "#ef4444",
+  "For Compliance": "#8b5cf6",
+  "Non Compliant": "#ec4899",
+  "For Validation": "#06b6d4",
+};
+
+const STATUS_LABELS = {
+  pending: "Pending",
+  in_progress: "In Progress",
+  completed: "Completed",
+  rejected: "Rejected",
+  for_compliance: "For Compliance",
+  non_compliant: "Non Compliant",
+  for_validation: "For Validation",
+};
+
+const normalizeStatus = (status) => {
+  if (!status) return "Pending";
+  const normalized = typeof status === "string" ? status.toLowerCase() : status;
+  return STATUS_LABELS[normalized] || status;
+};
+
+const getStatusColor = (statusLabel) => STATUS_COLORS[statusLabel] || "#9ca3af";
 
 export default function OfficialComplaints() {
-  const [complaints, setComplaints] = useState([]);
-  const [filterStatus, setFilterStatus] = useState("All Status");
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-
+  const [selectedComplaintStatus, setSelectedComplaintStatus] =
+    useState("All Status");
   const [selectedComplaint, setSelectedComplaint] = useState(null);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [complaintDropdownOpen, setComplaintDropdownOpen] = useState(false);
+  const [complaints, setComplaints] = useState([]);
+  const [loadingComplaints, setLoadingComplaints] = useState(true);
+  const [errorComplaints, setErrorComplaints] = useState(null);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  const transformComplaintData = (dbComplaint) => ({
+    ...dbComplaint,
+    id: dbComplaint.id,
+    title: dbComplaint.complaint_type || "Untitled Complaint",
+    location: dbComplaint.incident_location || "Unknown Location",
+    status: normalizeStatus(dbComplaint.status),
+    complainant: dbComplaint.complainant_name || "Unknown",
+    date: dbComplaint.created_at
+      ? new Date(dbComplaint.created_at).toISOString().split("T")[0]
+      : "N/A",
+    lastUpdate: dbComplaint.updated_at
+      ? new Date(dbComplaint.updated_at).toISOString().split("T")[0]
+      : dbComplaint.created_at
+        ? new Date(dbComplaint.created_at).toISOString().split("T")[0]
+        : "N/A",
+    priority: dbComplaint.priority_level || "Normal",
+    description: dbComplaint.description || "No description provided",
+    remarks: dbComplaint.remarks || "No remarks yet",
+  });
 
   useEffect(() => {
-    fetchAssignedComplaints();
+    const fetchComplaints = async () => {
+      try {
+        setLoadingComplaints(true);
+        setErrorComplaints(null);
+        const result = await getAssignedComplaints();
+
+        if (result.success && Array.isArray(result.data)) {
+          const transformedComplaints = result.data.map((complaint) =>
+            transformComplaintData(complaint),
+          );
+          setComplaints(transformedComplaints);
+        } else {
+          setErrorComplaints(result.message || "Failed to fetch complaints");
+          setComplaints([]);
+        }
+      } catch (err) {
+        setErrorComplaints("Error fetching complaints: " + err.message);
+        setComplaints([]);
+      } finally {
+        setLoadingComplaints(false);
+      }
+    };
+
+    fetchComplaints();
   }, []);
 
-  // Blur the page content behind the modal when it opens
   useEffect(() => {
-    const pageContent = document.querySelector('.requests-container');
-    if (!pageContent) return;
-
-    if (isDetailModalOpen) {
-      pageContent.classList.add('modal-open-blur');
-    } else {
-      pageContent.classList.remove('modal-open-blur');
+    const handleEscape = (e) => {
+      if (e.key === "Escape") closeModal();
+    };
+    if (isModalOpen) {
+      document.addEventListener("keydown", handleEscape);
+      document.body.style.overflow = "hidden";
     }
-
     return () => {
-      pageContent.classList.remove('modal-open-blur');
+      document.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "unset";
     };
-  }, [isDetailModalOpen]);
+  }, [isModalOpen]);
 
-  // Blur the page content behind the modal when it opens
-  useEffect(() => {
-    const pageContent = document.querySelector('.requests-container');
-    if (!pageContent) return;
+  const filteredComplaints = complaints.filter((complaint) => {
+    const statusMatch =
+      selectedComplaintStatus === "All Status" ||
+      complaint.status === selectedComplaintStatus;
 
-    if (isDetailModalOpen) {
-      pageContent.classList.add('modal-open-blur');
-    } else {
-      pageContent.classList.remove('modal-open-blur');
-    }
+    const searchLower = searchQuery.toLowerCase();
+    const searchMatch =
+      complaint.title.toLowerCase().includes(searchLower) ||
+      complaint.location.toLowerCase().includes(searchLower) ||
+      complaint.complainant.toLowerCase().includes(searchLower) ||
+      complaint.description.toLowerCase().includes(searchLower);
 
-    return () => {
-      pageContent.classList.remove('modal-open-blur');
-    };
-  }, [isDetailModalOpen]);
+    const complaintDate = new Date(complaint.date);
+    const start = startDate ? new Date(startDate) : null;
+    const end = endDate ? new Date(endDate) : null;
+    const dateMatch =
+      (!start || complaintDate >= start) && (!end || complaintDate <= end);
 
-  const fetchAssignedComplaints = async () => {
-    try {
-      const result = await getAssignedComplaints();
-      console.log("Raw result from getAssignedComplaints:", result);
+    return statusMatch && searchMatch && dateMatch;
+  });
 
-      // Handle error responses from database function
-      if (!result.success) {
-        console.error("Failed to fetch complaints:", result.message);
-        setLoading(false);
-        return;
-      }
-
-      // Unwrap data from successful response
-      const data = result.data || [];
-      console.log("Fetched complaints:", data);
-
-      // Add additional fields for UI
-      const complaintsWithUI = data.map((complaint) => ({
-        ...complaint,
-        id: complaint.id,
-        title: complaint.complaint_type || "Complaint",
-        submittedBy: complaint.complainant_name || "Unknown",
-        respondents: complaint.respondent_names || "",
-        submissionDate: complaint.created_at
-          ? new Date(complaint.created_at).toLocaleDateString()
-          : "N/A",
-        updatedDate: complaint.updated_at
-          ? new Date(complaint.updated_at).toLocaleDateString()
-          : "N/A",
-        type: complaint.complaint_type,
-        status: complaint.status || "pending",
-        statusColor: getStatusColorForUI(complaint.status),
-        borderColor: getBorderColorForUI(complaint.status),
-      }));
-
-      setComplaints(complaintsWithUI);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error fetching assigned complaints:", error);
-      setLoading(false);
-    }
+  const openModal = (complaint) => {
+    setSelectedComplaint(complaint);
+    setIsModalOpen(true);
   };
 
-  const getStatusColorForUI = (status) => {
-    const colorMap = {
-      pending: "#F59E0B",
-      in_progress: "#0EA5E9",
-      completed: "#10B981",
-      rejected: "#EF4444",
-      for_compliance: "#8B5CF6",
-      non_compliant: "#EC4899",
-      for_validation: "#06B6D4",
-    };
-    return colorMap[status] || "#6B7280";
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setTimeout(() => setSelectedComplaint(null), 300);
   };
 
-  const getBorderColorForUI = (status) => {
-    const borderMap = {
-      pending: "#F59E0B",
-      in_progress: "#0EA5E9",
-      completed: "#10B981",
-      rejected: "#DC2626",
-      for_compliance: "#7C3AED",
-      non_compliant: "#DB2777",
-      for_validation: "#0891B2",
-    };
-    return borderMap[status] || "#6B7280";
-  };
-
-  const filterOptions = [
+  const statusOptions = [
     "All Status",
     "Pending",
     "In Progress",
@@ -130,55 +152,6 @@ export default function OfficialComplaints() {
     "Non Compliant",
     "For Validation",
   ];
-
-  const handleFilterChange = (option) => {
-    setFilterStatus(option);
-    setIsFilterOpen(false);
-  };
-
-  const getFilteredComplaints = () => {
-    if (filterStatus === "All Status") {
-      return complaints;
-    }
-
-    const statusMap = {
-      "In Progress": "in_progress",
-      Completed: "completed",
-      Pending: "pending",
-      Rejected: "rejected",
-      "For Compliance": "for_compliance",
-      "Non Compliant": "non_compliant",
-      "For Validation": "for_validation",
-    };
-
-    const dbStatus = statusMap[filterStatus];
-    console.log("Filtering by status:", filterStatus, "-> DB status:", dbStatus);
-    console.log(
-      "All complaints with status values:",
-      complaints.map((c) => ({ id: c.id, status: c.status })),
-    );
-
-    const filtered = complaints.filter(
-      (complaint) => complaint.status.toLowerCase() === dbStatus,
-    );
-    console.log("Filtered results:", filtered.length);
-
-    return filtered;
-  };
-
-  const handleViewDetails = (complaintId) => {
-    const complaint = complaints.find((c) => c.id === complaintId);
-    if (complaint) {
-      setSelectedComplaint(complaint);
-      setIsDetailModalOpen(true);
-      setIsFilterOpen(false);
-    }
-  };
-
-  const handleCloseModal = () => {
-    setIsDetailModalOpen(false);
-    setSelectedComplaint(null);
-  };
 
   const handleSaveComplaint = async (updatedData) => {
     try {
@@ -203,9 +176,11 @@ export default function OfficialComplaints() {
       );
 
       if (result.success) {
-        console.log("Complaint updated successfully");
-        fetchAssignedComplaints();
-        handleCloseModal();
+        const refreshed = await getAssignedComplaints();
+        if (refreshed.success && Array.isArray(refreshed.data)) {
+          setComplaints(refreshed.data.map(transformComplaintData));
+        }
+        closeModal();
       } else {
         console.error("Failed to update complaint:", result.message);
       }
@@ -214,162 +189,277 @@ export default function OfficialComplaints() {
     }
   };
 
-  const getStatusBadge = (status) => {
-    const lowercaseStatus =
-      typeof status === "string" ? status.toLowerCase() : status;
-    const statusMap = {
-      pending: { label: "PENDING", color: "#F59E0B" },
-      in_progress: { label: "IN PROGRESS", color: "#0EA5E9" },
-      completed: { label: "COMPLETED", color: "#10B981" },
-      rejected: { label: "REJECTED", color: "#EF4444" },
-      for_compliance: { label: "FOR COMPLIANCE", color: "#8B5CF6" },
-      non_compliant: { label: "NON COMPLIANT", color: "#EC4899" },
-      for_validation: { label: "FOR VALIDATION", color: "#06B6D4" },
-    };
-    return (
-      statusMap[lowercaseStatus] || {
-        label: typeof status === "string" ? status.toUpperCase() : status,
-        color: "#6B7280",
-      }
-    );
-  };
-
   return (
-    <div className="requests-container">
-      <div className="requests-header">
-        <h1 className="requests-title">Assigned Complaints</h1>
-        <p className="requests-subtitle">
-          Review and manage citizen complaints
-        </p>
-      </div>
-
-      <div className="filter-section">
-        <div className="filter-dropdown">
-          <button
-            className="filter-button"
-            onClick={() => setIsFilterOpen(!isFilterOpen)}
-          >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path
-                d="M3 5H17M5 10H15M7 15H13"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
-            <span>{filterStatus}</span>
-            <ChevronDown
-              size={20}
-              className={`chevron ${isFilterOpen ? "open" : ""}`}
-            />
-          </button>
-
-          {isFilterOpen && (
-            <div className="filter-menu">
-              {filterOptions.map((option) => (
-                <button
-                  key={option}
-                  className={`filter-item ${filterStatus === option ? "active" : ""}`}
-                  onClick={() => handleFilterChange(option)}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
-          )}
+    <div className="admin-page">
+      <div
+        className={`ar-page-content${isModalOpen ? " modal-open-blur" : ""}`}
+      >
+        <div
+          className="page-actions"
+          style={{ alignItems: "flex-start", marginBottom: 12 }}
+        >
+          <div>
+            <h3>Assigned Complaints</h3>
+            <p className="muted">
+              Review and manage complaints assigned to you.
+            </p>
+          </div>
         </div>
 
-        {isFilterOpen && (
+        <div style={{ marginBottom: "2.5rem" }}>
           <div
-            className="filter-overlay"
-            onClick={() => setIsFilterOpen(false)}
-          />
-        )}
-      </div>
+            style={{
+              marginBottom: "1.5rem",
+              display: "flex",
+              gap: "1rem",
+              flexWrap: "wrap",
+              alignItems: "flex-end",
+            }}
+          >
+            <div style={{ flex: "1", minWidth: "200px" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "0.875rem",
+                  fontWeight: "500",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                Search
+              </label>
+              <input
+                type="text"
+                placeholder="Search by type, location, complainant, or description..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "0.625rem",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "0.375rem",
+                  fontSize: "0.875rem",
+                }}
+              />
+            </div>
 
-      <div className="requests-list">
-        {loading ? (
-          <div className="empty-state">
-            <div className="loading-wrap">
-              <div className="loading-spinner" aria-hidden="true"></div>
-              <div className="loading-text">Loading complaints...</div>
+            <div
+              style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end" }}
+            >
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.875rem",
+                    fontWeight: "500",
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  From
+                </label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  style={{
+                    padding: "0.625rem",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "0.375rem",
+                    fontSize: "0.875rem",
+                  }}
+                />
+              </div>
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.875rem",
+                    fontWeight: "500",
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  To
+                </label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  style={{
+                    padding: "0.625rem",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "0.375rem",
+                    fontSize: "0.875rem",
+                  }}
+                />
+              </div>
+              {(startDate || endDate || searchQuery) && (
+                <button
+                  onClick={() => {
+                    setSearchQuery("");
+                    setStartDate("");
+                    setEndDate("");
+                  }}
+                  style={{
+                    padding: "0.625rem 1rem",
+                    backgroundColor: "#f3f4f6",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "0.375rem",
+                    cursor: "pointer",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  Clear Filters
+                </button>
+              )}
             </div>
           </div>
-        ) : getFilteredComplaints().length > 0 ? (
-          getFilteredComplaints().map((complaint) => {
-            const statusBadge = getStatusBadge(complaint.status);
-            return (
-              <div
-                key={complaint.id}
-                className="request-card"
-                style={{ borderLeft: `4px solid ${complaint.borderColor}` }}
-              >
-                <div className="request-badge">
-                  <span
-                    className="status-badge"
-                    style={{ backgroundColor: statusBadge.color }}
-                  >
-                    {statusBadge.label}
-                  </span>
-                  <span className="type-badge">{complaint.type}</span>
-                </div>
 
-                <h3 className="request-title">{complaint.title}</h3>
-
-                <div className="request-metadata">
-                  <div className="metadata-item">
-                    <User size={16} color="#6B7280" />
-                    <div>
-                      <span className="metadata-label">Complainant</span>
-                      <span className="metadata-value">
-                        {complaint.submittedBy}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="metadata-item">
-                    <Calendar size={16} color="#6B7280" />
-                    <div>
-                      <span className="metadata-label">Incident Date</span>
-                      <span className="metadata-value">
-                        {complaint.submissionDate}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="metadata-item">
-                    <Clock size={16} color="#6B7280" />
-                    <div>
-                      <span className="metadata-label">Last Updated</span>
-                      <span className="metadata-value">
-                        {complaint.updatedDate}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  className="view-details-btn"
-                  onClick={() => handleViewDetails(complaint.id)}
+          <div
+            className="status-filter-wrapper"
+            style={{ marginBottom: "1rem" }}
+          >
+            <button
+              className="status-filter-btn"
+              onClick={() => setComplaintDropdownOpen(!complaintDropdownOpen)}
+            >
+              {selectedComplaintStatus}
+              <ChevronDown size={18} style={{ marginLeft: "0.5rem" }} />
+            </button>
+            {complaintDropdownOpen && (
+              <>
+                <div
+                  style={{ position: "fixed", inset: 0, zIndex: 999 }}
+                  onClick={() => setComplaintDropdownOpen(false)}
+                />
+                <div
+                  className="status-dropdown"
+                  style={{
+                    width: "100%",
+                    maxWidth: "220px",
+                    maxHeight: "240px",
+                    overflowY: "auto",
+                    zIndex: 1000,
+                  }}
                 >
-                  View Details
-                  <ArrowRight size={18} />
-                </button>
-              </div>
-            );
-          })
-        ) : (
-          <div className="empty-state">
-            <p>No complaints found</p>
+                  {statusOptions.map((status) => (
+                    <button
+                      key={status}
+                      className={`status-option ${
+                        selectedComplaintStatus === status ? "active" : ""
+                      }`}
+                      onClick={() => {
+                        setSelectedComplaintStatus(status);
+                        setComplaintDropdownOpen(false);
+                      }}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
-        )}
+
+          <div
+            style={{
+              marginBottom: "0.75rem",
+              color: "#6b7280",
+              fontSize: "0.875rem",
+            }}
+          >
+            Showing {filteredComplaints.length} of {complaints.length}{" "}
+            complaints
+          </div>
+
+          <div className="requests-table-card">
+            <table className="requests-table">
+              <thead>
+                <tr>
+                  <th>Complaint Type</th>
+                  <th>Location</th>
+                  <th style={{ textAlign: "left" }}>Complainant</th>
+                  <th>Submitted</th>
+                  <th style={{ textAlign: "center" }}>Status</th>
+                  <th style={{ textAlign: "right" }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loadingComplaints ? (
+                  <tr>
+                    <td colSpan="6">
+                      <div
+                        className="loading-wrap"
+                        style={{ padding: "1rem 0" }}
+                      >
+                        <div
+                          className="loading-spinner"
+                          aria-hidden="true"
+                        ></div>
+                        <div className="loading-text">
+                          Loading complaints...
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ) : errorComplaints ? (
+                  <tr>
+                    <td
+                      colSpan="6"
+                      style={{ color: "#ef4444", textAlign: "center" }}
+                    >
+                      {errorComplaints}
+                    </td>
+                  </tr>
+                ) : filteredComplaints.length > 0 ? (
+                  filteredComplaints.map((c) => (
+                    <tr key={c.id}>
+                      <td>
+                        <div className="req-details">
+                          <div className="req-title">{c.title}</div>
+                        </div>
+                      </td>
+                      <td className="req-submitted">{c.location}</td>
+                      <td className="req-submitted">{c.complainant}</td>
+                      <td className="req-submitted">{c.date}</td>
+                      <td className="req-status">
+                        <span
+                          className={`status ${c.status
+                            .toLowerCase()
+                            .replace(/[_ ]/g, "_")}`}
+                        >
+                          {c.status}
+                        </span>
+                      </td>
+                      <td className="req-action">
+                        <button
+                          className="view-details-btn"
+                          onClick={() => openModal(c)}
+                        >
+                          View Details
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan="6"
+                      style={{ textAlign: "center", color: "#9ca3af" }}
+                    >
+                      No complaints found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <RequestDetail
         request={selectedComplaint}
         itemType="complaint"
-        isOpen={isDetailModalOpen}
-        onClose={handleCloseModal}
+        isOpen={isModalOpen}
+        onClose={closeModal}
         onSave={handleSaveComplaint}
       />
     </div>

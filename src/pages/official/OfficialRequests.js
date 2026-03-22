@@ -1,130 +1,122 @@
 import React, { useState, useEffect } from "react";
-import { ChevronDown, Calendar, User, Clock, ArrowRight } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import RequestDetail from "../../components/RequestDetail";
 import {
   getAssignedRequests,
   updateRequestStatus,
 } from "../../supabse_db/official/official";
-import "../../styles/Requests.css";
+import "../../styles/BarangayAdmin.css";
+import "../../styles/RequestDetail.css";
+
+const STATUS_COLORS = {
+  Pending: "#fbbf24",
+  "In Progress": "#3b82f6",
+  Completed: "#10b981",
+  Rejected: "#ef4444",
+  "Resident Complied": "#14b8a6",
+  "For Compliance": "#8b5cf6",
+  "Non Compliant": "#ec4899",
+  "For Validation": "#06b6d4",
+};
+
+const STATUS_LABELS = {
+  pending: "Pending",
+  in_progress: "In Progress",
+  completed: "Completed",
+  rejected: "Rejected",
+  resident_complied: "Resident Complied",
+  for_compliance: "For Compliance",
+  non_compliant: "Non Compliant",
+  for_validation: "For Validation",
+};
+
+const normalizeStatus = (status) => {
+  if (!status) return "Pending";
+  const normalized = typeof status === "string" ? status.toLowerCase() : status;
+  return STATUS_LABELS[normalized] || status;
+};
+
+const toStatusCode = (status) => {
+  if (!status) return "PENDING";
+  return String(status).toUpperCase().replace(/ /g, "_");
+};
 
 export default function OfficialRequests() {
-  const [requests, setRequests] = useState([]);
-  const [filterStatus, setFilterStatus] = useState("All Status");
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-
+  const [selectedRequestStatus, setSelectedRequestStatus] =
+    useState("All Status");
   const [selectedRequest, setSelectedRequest] = useState(null);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [requestDropdownOpen, setRequestDropdownOpen] = useState(false);
+  const [requests, setRequests] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(true);
+  const [errorRequests, setErrorRequests] = useState(null);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   useEffect(() => {
     fetchAssignedRequests();
   }, []);
 
-  // Blur the page content behind the modal when it opens
   useEffect(() => {
-    const pageContent = document.querySelector('.requests-container');
-    if (!pageContent) return;
-
-    if (isDetailModalOpen) {
-      pageContent.classList.add('modal-open-blur');
-    } else {
-      pageContent.classList.remove('modal-open-blur');
-    }
-
-    // Cleanup on unmount
-    return () => {
-      pageContent.classList.remove('modal-open-blur');
+    const handleEscape = (e) => {
+      if (e.key === "Escape") handleCloseModal();
     };
-  }, [isDetailModalOpen]);
+    if (isModalOpen) {
+      document.addEventListener("keydown", handleEscape);
+      document.body.style.overflow = "hidden";
+    }
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "unset";
+    };
+  }, [isModalOpen]);
 
   const fetchAssignedRequests = async () => {
     try {
+      setLoadingRequests(true);
+      setErrorRequests(null);
       const result = await getAssignedRequests();
-      console.log("Raw result from getAssignedRequests:", result);
 
-      // Handle error responses from database function
-      if (!result.success) {
-        console.error("Failed to fetch assigned requests:", result.message);
-        setLoading(false);
-        return;
-      }
-
-      // Unwrap data from successful response
-      const data = result.data || [];
-      if (data && Array.isArray(data)) {
-        // Format data to match component requirements
-        const formattedRequests = data.map((req) => {
-          // Normalize status to uppercase
-          const normalizedStatus = (
-            req.request_status || "PENDING"
-          ).toUpperCase();
-          const lowercaseStatus = (
-            req.request_status || "pending"
-          ).toLowerCase();
-
-          console.log("Formatting request:", req.id, {
-            subject: req.subject,
-            request_status: req.request_status,
-            normalizedStatus: normalizedStatus,
-            certificate_type: req.certificate_type,
-            requester_name: req.requester_name,
-          });
+      if (result.success && Array.isArray(result.data)) {
+        const formattedRequests = result.data.map((req) => {
+          const rawStatus = req.request_status || req.status || "pending";
 
           return {
+            ...req,
             id: req.id,
             title: req.subject || "Untitled Request",
-            type: req.certificate_type || "REQUEST",
-            status: normalizedStatus,
-            submittedBy: req.requester_name || "User",
+            type: req.certificate_type || "Request",
+            status: toStatusCode(rawStatus),
+            statusDisplay: normalizeStatus(rawStatus),
+            submittedBy: req.requester_name || "Unknown",
+            date: req.created_at
+              ? new Date(req.created_at).toISOString().split("T")[0]
+              : "N/A",
             submissionDate: req.created_at
               ? new Date(req.created_at).toLocaleDateString()
               : "N/A",
-            updatedDate: req.updated_at
-              ? new Date(req.updated_at).toLocaleDateString()
-              : "N/A",
-            statusColor: getStatusColor(lowercaseStatus),
-            borderColor: getBorderColor(lowercaseStatus),
+            lastUpdate: req.updated_at
+              ? new Date(req.updated_at).toISOString().split("T")[0]
+              : req.created_at
+                ? new Date(req.created_at).toISOString().split("T")[0]
+                : "N/A",
             description: req.description || "No description provided",
             internalNotes: req.remarks || "",
           };
         });
-
-        console.log("Formatted requests:", formattedRequests);
         setRequests(formattedRequests);
+      } else {
+        setErrorRequests(result.message || "Failed to fetch requests");
+        setRequests([]);
       }
-      setLoading(false);
     } catch (error) {
-      console.error("Error fetching assigned requests:", error);
-      setLoading(false);
+      setErrorRequests("Error fetching requests: " + error.message);
+      setRequests([]);
+    } finally {
+      setLoadingRequests(false);
     }
-  };
-
-  const getStatusColor = (status) => {
-    const colorMap = {
-      pending: "#F59E0B",
-      in_progress: "#0EA5E9",
-      completed: "#10B981",
-      rejected: "#EF4444",
-      resident_complied: "#14B8A6",
-      for_compliance: "#8B5CF6",
-      non_compliant: "#EC4899",
-      for_validation: "#06B6D4",
-    };
-    return colorMap[status] || "#6B7280";
-  };
-
-  const getBorderColor = (status) => {
-    const borderMap = {
-      pending: "#F59E0B",
-      in_progress: "#0EA5E9",
-      completed: "#10B981",
-      rejected: "#DC2626",
-      resident_complied: "#0D9488",
-      for_compliance: "#7C3AED",
-      non_compliant: "#DB2777",
-      for_validation: "#0891B2",
-    };
-    return borderMap[status] || "#6B7280";
   };
 
   const filterOptions = [
@@ -139,66 +131,39 @@ export default function OfficialRequests() {
     "For Validation",
   ];
 
-  const handleFilterChange = (option) => {
-    setFilterStatus(option);
-    setIsFilterOpen(false);
-  };
+  const filteredRequests = requests.filter((request) => {
+    const statusMatch =
+      selectedRequestStatus === "All Status" ||
+      request.statusDisplay === selectedRequestStatus;
 
-  const getFilteredRequests = () => {
-    if (filterStatus === "All Status") {
-      console.log("Showing all requests:", requests.length);
-      return requests;
-    }
+    const searchLower = searchQuery.toLowerCase();
+    const searchMatch =
+      request.title.toLowerCase().includes(searchLower) ||
+      request.type.toLowerCase().includes(searchLower) ||
+      request.submittedBy.toLowerCase().includes(searchLower) ||
+      request.description.toLowerCase().includes(searchLower);
 
-    const statusMap = {
-      "In Progress": "in_progress",
-      Completed: "completed",
-      Pending: "pending",
-      Rejected: "rejected",
-      "Resident Complied": "resident_complied",
-      "For Compliance": "for_compliance",
-      "Non Compliant": "non_compliant",
-      "For Validation": "for_validation",
-    };
+    const requestDate = new Date(request.date);
+    const start = startDate ? new Date(startDate) : null;
+    const end = endDate ? new Date(endDate) : null;
+    const dateMatch =
+      (!start || requestDate >= start) && (!end || requestDate <= end);
 
-    const dbStatus = statusMap[filterStatus];
-    console.log(
-      "Filtering by status:",
-      filterStatus,
-      "-> DB status:",
-      dbStatus,
-    );
-    console.log(
-      "All requests with status values:",
-      requests.map((r) => ({ id: r.id, status: r.status })),
-    );
+    return statusMatch && searchMatch && dateMatch;
+  });
 
-    const filtered = requests.filter(
-      (req) => req.status.toLowerCase() === dbStatus,
-    );
-    console.log("Filtered results:", filtered.length);
-
-    return filtered;
-  };
-
-  const handleViewDetails = (requestId) => {
-    const request = requests.find((req) => req.id === requestId);
-    if (request) {
-      setSelectedRequest(request);
-      setIsDetailModalOpen(true);
-      setIsFilterOpen(false);
-    }
+  const openModal = (request) => {
+    setSelectedRequest(request);
+    setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
-    setIsDetailModalOpen(false);
+    setIsModalOpen(false);
     setSelectedRequest(null);
   };
 
   const handleSaveRequest = async (updatedData) => {
     try {
-      console.log("Saving request with data:", updatedData);
-
       const statusMap = {
         PENDING: "pending",
         IN_PROGRESS: "in_progress",
@@ -211,12 +176,6 @@ export default function OfficialRequests() {
 
       const dbStatus =
         statusMap[updatedData.status] || updatedData.status.toLowerCase();
-      console.log(
-        "Converting status:",
-        updatedData.status,
-        "-> DB status:",
-        dbStatus,
-      );
 
       const result = await updateRequestStatus(
         updatedData.requestId,
@@ -225,176 +184,286 @@ export default function OfficialRequests() {
       );
 
       if (result.success) {
-        console.log("Request saved successfully! Refreshing list...");
         await fetchAssignedRequests();
         handleCloseModal();
-        console.log("Request updated successfully:", updatedData);
-        alert("Request updated successfully!");
       } else {
         console.error("Failed to update request:", result.message);
-        alert("Error: " + result.message);
       }
     } catch (error) {
       console.error("Error saving request update:", error);
-      alert("Error saving request: " + error.message);
     }
   };
 
-  const getStatusBadge = (status) => {
-    const lowercaseStatus = status.toLowerCase();
-    const statusMap = {
-      pending: { label: "PENDING", color: "#F59E0B" },
-      in_progress: { label: "IN PROGRESS", color: "#0EA5E9" },
-      completed: { label: "COMPLETED", color: "#10B981" },
-      rejected: { label: "REJECTED", color: "#EF4444" },
-      resident_complied: { label: "RESIDENT COMPLIED", color: "#14B8A6" },
-      for_compliance: { label: "FOR COMPLIANCE", color: "#8B5CF6" },
-      non_compliant: { label: "NON COMPLIANT", color: "#EC4899" },
-      for_validation: { label: "FOR VALIDATION", color: "#06B6D4" },
-    };
-    return (
-      statusMap[lowercaseStatus] || {
-        label: status.toUpperCase(),
-        color: "#6B7280",
-      }
-    );
-  };
-
   return (
-    <div className="requests-container">
-      <div className="requests-header">
-        <h1 className="requests-title">Assigned Requests</h1>
-        <p className="requests-subtitle">
-          Review and manage citizen service requests
-        </p>
-      </div>
-
-      <div className="filter-section">
-        <div className="filter-dropdown">
-          <button
-            className="filter-button"
-            onClick={() => setIsFilterOpen(!isFilterOpen)}
-          >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path
-                d="M3 5H17M5 10H15M7 15H13"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
-            <span>{filterStatus}</span>
-            <ChevronDown
-              size={20}
-              className={`chevron ${isFilterOpen ? "open" : ""}`}
-            />
-          </button>
-
-          {isFilterOpen && (
-            <div className="filter-menu">
-              {filterOptions.map((option) => (
-                <button
-                  key={option}
-                  className={`filter-item ${filterStatus === option ? "active" : ""}`}
-                  onClick={() => handleFilterChange(option)}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
-          )}
+    <div className="admin-page">
+      <div
+        className={`ar-page-content${isModalOpen ? " modal-open-blur" : ""}`}
+      >
+        <div
+          className="page-actions"
+          style={{ alignItems: "flex-start", marginBottom: 12 }}
+        >
+          <div>
+            <h3>Assigned Requests</h3>
+            <p className="muted">Review and manage requests assigned to you.</p>
+          </div>
         </div>
 
-        {isFilterOpen && (
+        <div style={{ marginBottom: "2.5rem" }}>
           <div
-            className="filter-overlay"
-            onClick={() => setIsFilterOpen(false)}
-          />
-        )}
-      </div>
+            style={{
+              marginBottom: "1.5rem",
+              display: "flex",
+              gap: "1rem",
+              flexWrap: "wrap",
+              alignItems: "flex-end",
+            }}
+          >
+            <div style={{ flex: "1", minWidth: "200px" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "0.875rem",
+                  fontWeight: "500",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                Search
+              </label>
+              <input
+                type="text"
+                placeholder="Search by subject, type, requester, or description..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "0.625rem",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "0.375rem",
+                  fontSize: "0.875rem",
+                }}
+              />
+            </div>
 
-      <div className="requests-list">
-        {loading ? (
-          <div className="empty-state">
-            <div className="loading-wrap">
-              <div className="loading-spinner" aria-hidden="true"></div>
-              <div className="loading-text">Loading requests...</div>
+            <div
+              style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end" }}
+            >
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.875rem",
+                    fontWeight: "500",
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  From
+                </label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  style={{
+                    padding: "0.625rem",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "0.375rem",
+                    fontSize: "0.875rem",
+                  }}
+                />
+              </div>
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.875rem",
+                    fontWeight: "500",
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  To
+                </label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  style={{
+                    padding: "0.625rem",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "0.375rem",
+                    fontSize: "0.875rem",
+                  }}
+                />
+              </div>
+              {(startDate || endDate || searchQuery) && (
+                <button
+                  onClick={() => {
+                    setSearchQuery("");
+                    setStartDate("");
+                    setEndDate("");
+                  }}
+                  style={{
+                    padding: "0.625rem 1rem",
+                    backgroundColor: "#f3f4f6",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "0.375rem",
+                    cursor: "pointer",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  Clear Filters
+                </button>
+              )}
             </div>
           </div>
-        ) : getFilteredRequests().length > 0 ? (
-          getFilteredRequests().map((request) => {
-            const statusBadge = getStatusBadge(request.status);
-            return (
-              <div
-                key={request.id}
-                className="request-card"
-                style={{ borderLeft: `4px solid ${request.borderColor}` }}
-              >
-                <div className="request-badge">
-                  <span
-                    className="status-badge"
-                    style={{ backgroundColor: statusBadge.color }}
-                  >
-                    {statusBadge.label}
-                  </span>
-                  <span className="type-badge">{request.type}</span>
-                </div>
 
-                <h3 className="request-title">{request.title}</h3>
-
-                <div className="request-metadata">
-                  <div className="metadata-item">
-                    <User size={16} color="#6B7280" />
-                    <div>
-                      <span className="metadata-label">Submitted by</span>
-                      <span className="metadata-value">
-                        {request.submittedBy}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="metadata-item">
-                    <Calendar size={16} color="#6B7280" />
-                    <div>
-                      <span className="metadata-label">Date Submitted</span>
-                      <span className="metadata-value">
-                        {request.submissionDate}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="metadata-item">
-                    <Clock size={16} color="#6B7280" />
-                    <div>
-                      <span className="metadata-label">Last Updated</span>
-                      <span className="metadata-value">
-                        {request.updatedDate}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  className="view-details-btn"
-                  onClick={() => handleViewDetails(request.id)}
+          <div
+            className="status-filter-wrapper"
+            style={{ marginBottom: "1rem" }}
+          >
+            <button
+              className="status-filter-btn"
+              onClick={() => setRequestDropdownOpen(!requestDropdownOpen)}
+            >
+              {selectedRequestStatus}
+              <ChevronDown size={18} style={{ marginLeft: "0.5rem" }} />
+            </button>
+            {requestDropdownOpen && (
+              <>
+                <div
+                  style={{ position: "fixed", inset: 0, zIndex: 999 }}
+                  onClick={() => setRequestDropdownOpen(false)}
+                />
+                <div
+                  className="status-dropdown"
+                  style={{
+                    width: "100%",
+                    maxWidth: "220px",
+                    maxHeight: "240px",
+                    overflowY: "auto",
+                    zIndex: 1000,
+                  }}
                 >
-                  View Details
-                  <ArrowRight size={18} />
-                </button>
-              </div>
-            );
-          })
-        ) : (
-          <div className="empty-state">
-            <p>No requests found</p>
+                  {filterOptions.map((status) => (
+                    <button
+                      key={status}
+                      className={`status-option ${
+                        selectedRequestStatus === status ? "active" : ""
+                      }`}
+                      onClick={() => {
+                        setSelectedRequestStatus(status);
+                        setRequestDropdownOpen(false);
+                      }}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
-        )}
+
+          <div
+            style={{
+              marginBottom: "0.75rem",
+              color: "#6b7280",
+              fontSize: "0.875rem",
+            }}
+          >
+            Showing {filteredRequests.length} of {requests.length} requests
+          </div>
+
+          <div className="requests-table-card">
+            <table className="requests-table">
+              <thead>
+                <tr>
+                  <th>Request Subject</th>
+                  <th>Type</th>
+                  <th style={{ textAlign: "left" }}>Requester</th>
+                  <th>Submitted</th>
+                  <th style={{ textAlign: "center" }}>Status</th>
+                  <th style={{ textAlign: "right" }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loadingRequests ? (
+                  <tr>
+                    <td colSpan="6">
+                      <div
+                        className="loading-wrap"
+                        style={{ padding: "1rem 0" }}
+                      >
+                        <div
+                          className="loading-spinner"
+                          aria-hidden="true"
+                        ></div>
+                        <div className="loading-text">Loading requests...</div>
+                      </div>
+                    </td>
+                  </tr>
+                ) : errorRequests ? (
+                  <tr>
+                    <td
+                      colSpan="6"
+                      style={{ color: "#ef4444", textAlign: "center" }}
+                    >
+                      {errorRequests}
+                    </td>
+                  </tr>
+                ) : filteredRequests.length > 0 ? (
+                  filteredRequests.map((r) => (
+                    <tr key={r.id}>
+                      <td>
+                        <div className="req-details">
+                          <div className="req-title">{r.title}</div>
+                        </div>
+                      </td>
+                      <td className="req-submitted">{r.type}</td>
+                      <td className="req-submitted">{r.submittedBy}</td>
+                      <td className="req-submitted">{r.date}</td>
+                      <td className="req-status">
+                        <span
+                          className={`status ${r.status
+                            .toLowerCase()
+                            .replace(/[_ ]/g, "_")}`}
+                          style={{
+                            backgroundColor: `${STATUS_COLORS[r.statusDisplay] || "#9ca3af"}20`,
+                            color: STATUS_COLORS[r.statusDisplay] || "#9ca3af",
+                            border: `1px solid ${STATUS_COLORS[r.statusDisplay] || "#9ca3af"}40`,
+                          }}
+                        >
+                          {r.statusDisplay}
+                        </span>
+                      </td>
+                      <td className="req-action">
+                        <button
+                          className="view-details-btn"
+                          onClick={() => openModal(r)}
+                        >
+                          View Details
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan="6"
+                      style={{ textAlign: "center", color: "#9ca3af" }}
+                    >
+                      No requests found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <RequestDetail
         request={selectedRequest}
         itemType="request"
-        isOpen={isDetailModalOpen}
+        isOpen={isModalOpen}
         onClose={handleCloseModal}
         onSave={handleSaveRequest}
       />

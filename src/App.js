@@ -10,7 +10,13 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 // --- Shared Layout (Official/Admin) ---
 import Layout from "./components/Layout";
 import ResidentLayout from "./components/ResidentLayout";
-import { LayoutDashboard, FileText, Megaphone, Users } from "lucide-react";
+import {
+  LayoutDashboard,
+  FileText,
+  Megaphone,
+  Users,
+  AlertCircle,
+} from "lucide-react";
 
 // --- Public / User-facing pages ---
 import Homepage from "./pages/guest/Home";
@@ -32,6 +38,7 @@ import OfficialAnnouncements from "./pages/official/OfficialAnnouncements";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
 import AdminRequests from "./pages/admin/AdminRequests";
+import AdminComplaints from "./pages/admin/AdminComplaints";
 import AdminUsers from "./pages/admin/AdminUsers";
 
 //test
@@ -188,6 +195,11 @@ function AppRoutes() {
                 icon: <FileText size={18} />,
               },
               {
+                path: "/BarangayAdmin/complaints",
+                label: "Complaints",
+                icon: <AlertCircle size={18} />,
+              },
+              {
                 path: "/BarangayAdmin/users",
                 label: "Users",
                 icon: <Users size={18} />,
@@ -203,6 +215,7 @@ function AppRoutes() {
         <Route index element={<AdminDashboard />} />
         <Route path="announcements" element={<AdminAnnouncements />} />
         <Route path="requests" element={<AdminRequests />} />
+        <Route path="complaints" element={<AdminComplaints />} />
         <Route path="users" element={<AdminUsers />} />
       </Route>
 
@@ -229,6 +242,11 @@ function AppRoutes() {
                 icon: <FileText size={18} />,
               },
               {
+                path: "/BarangayAdmin/complaints",
+                label: "Complaints",
+                icon: <AlertCircle size={18} />,
+              },
+              {
                 path: "/BarangayAdmin/users",
                 label: "Users",
                 icon: <Users size={18} />,
@@ -243,6 +261,7 @@ function AppRoutes() {
         <Route index element={<AdminDashboard />} />
         <Route path="announcements" element={<AdminAnnouncements />} />
         <Route path="requests" element={<AdminRequests />} />
+        <Route path="complaints" element={<AdminComplaints />} />
         <Route path="users" element={<AdminUsers />} />
       </Route>
     </Routes>
