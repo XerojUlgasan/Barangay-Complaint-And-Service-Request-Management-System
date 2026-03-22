@@ -5,6 +5,7 @@ import {
   checkHouseholdMember,
   registerByEmail,
   checkUserRole,
+  requestPasswordReset,
 } from "../../supabse_db/auth/auth";
 import "../../styles/Auth.css";
 
@@ -17,6 +18,11 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [signInError, setSignInError] = useState("");
   const [signInLoading, setSignInLoading] = useState(false);
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotError, setForgotError] = useState("");
+  const [forgotSuccess, setForgotSuccess] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   const [householdId, setHouseholdId] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -76,6 +82,37 @@ const Login = () => {
     } else {
       navigate("/dashboard");
     }
+  };
+
+  const openForgotModal = (e) => {
+    e.preventDefault();
+    setForgotEmail(email || "");
+    setForgotError("");
+    setForgotSuccess("");
+    setShowForgotModal(true);
+  };
+
+  const closeForgotModal = () => {
+    setShowForgotModal(false);
+    setForgotLoading(false);
+  };
+
+  const handleForgotSubmit = async (e) => {
+    e.preventDefault();
+    setForgotError("");
+    setForgotSuccess("");
+    setForgotLoading(true);
+
+    const result = await requestPasswordReset(forgotEmail);
+
+    setForgotLoading(false);
+
+    if (!result.success) {
+      setForgotError(result.message || "Failed to send reset link.");
+      return;
+    }
+
+    setForgotSuccess(result.message);
   };
 
   const handleVerifySubmit = async (e) => {
@@ -182,7 +219,11 @@ const Login = () => {
         </Link>
 
         <a className="shield-button">
-          <img src="/brgyease.png" alt="BarangayEase Logo" className="brgy-logo" />
+          <img
+            src="/brgyease.png"
+            alt="BarangayEase Logo"
+            className="brgy-logo"
+          />
         </a>
 
         <h5>BarangayEase</h5>
@@ -241,12 +282,22 @@ const Login = () => {
                 tabIndex="-1"
               >
                 {showPassword ? (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                     <circle cx="12" cy="12" r="3" />
                   </svg>
                 ) : (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
                     <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
                     <line x1="1" y1="1" x2="23" y2="23" />
                   </svg>
@@ -276,11 +327,71 @@ const Login = () => {
             {signInLoading ? "Signing in..." : "Sign in"}
           </button>
 
-          <a className="forgot" href="/">
+          <a
+            className="forgot"
+            href="/forgot-password"
+            onClick={openForgotModal}
+          >
             Forgot password?
           </a>
         </form>
       </div>
+
+      {showForgotModal && (
+        <div className="forgot-modal-overlay" role="dialog" aria-modal="true">
+          <div className="forgot-modal-card">
+            <h6 className="mb-2">Reset your password</h6>
+            <p className="text-muted mb-3" style={{ fontSize: "13px" }}>
+              Enter your email and we will send you a reset link.
+            </p>
+
+            <form onSubmit={handleForgotSubmit}>
+              <label htmlFor="forgotEmail" className="form-label">
+                Email
+              </label>
+              <input
+                id="forgotEmail"
+                type="email"
+                className="form-control"
+                placeholder="Enter your email"
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                required
+              />
+
+              {forgotError && (
+                <div className="forgot-message forgot-message-error">
+                  {forgotError}
+                </div>
+              )}
+
+              {forgotSuccess && (
+                <div className="forgot-message forgot-message-success">
+                  {forgotSuccess}
+                </div>
+              )}
+
+              <div className="forgot-modal-actions">
+                <button
+                  type="button"
+                  className="btn btn-back"
+                  onClick={closeForgotModal}
+                  disabled={forgotLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-success"
+                  disabled={forgotLoading}
+                >
+                  {forgotLoading ? "Sending..." : "Send Link"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* New User Container */}
       <div
@@ -304,7 +415,11 @@ const Login = () => {
         </Link>
 
         <a className="shield-button">
-          <img src="/brgyease.png" alt="BarangayEase Logo" className="brgy-logo" />
+          <img
+            src="/brgyease.png"
+            alt="BarangayEase Logo"
+            className="brgy-logo"
+          />
         </a>
 
         <h5>BarangayEase</h5>
@@ -482,12 +597,22 @@ const Login = () => {
                     tabIndex="-1"
                   >
                     {showNewPassword ? (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                         <circle cx="12" cy="12" r="3" />
                       </svg>
                     ) : (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
                         <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
                         <line x1="1" y1="1" x2="23" y2="23" />
                       </svg>
@@ -516,12 +641,22 @@ const Login = () => {
                     tabIndex="-1"
                   >
                     {showConfirmPassword ? (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                         <circle cx="12" cy="12" r="3" />
                       </svg>
                     ) : (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
                         <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
                         <line x1="1" y1="1" x2="23" y2="23" />
                       </svg>

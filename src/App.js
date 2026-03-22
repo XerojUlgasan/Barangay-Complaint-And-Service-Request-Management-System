@@ -15,6 +15,7 @@ import { LayoutDashboard, FileText, Megaphone, Users } from "lucide-react";
 // --- Public / User-facing pages ---
 import Homepage from "./pages/guest/Home";
 import Login from "./pages/guest/Login";
+import ForgotPassword from "./pages/guest/ForgotPassword";
 import UserLanding from "./pages/resident/ResidentDashboard";
 import SubmitRequest from "./pages/resident/SubmitRequest";
 import MyRequest from "./pages/resident/ResidentRequests";
@@ -61,6 +62,7 @@ function AppRoutes() {
       <Route path="/" element={<Homepage />} />
       <Route path="/homepage" element={<Homepage />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
 
       {/* USER ROUTES - Requires authentication */}
       <Route

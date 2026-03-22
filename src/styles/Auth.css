@@ -1,40 +1,46 @@
 /* Wrap everything in login-page class to avoid conflicts */
 .login-page {
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background-color: rgb(222, 255, 244);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    width: 100%;
-    position: relative;
-    margin: 0;
-    padding: 20px 0;
-    box-sizing: border-box;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  background-color: rgb(222, 255, 244);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  width: 100%;
+  position: relative;
+  margin: 0;
+  padding: 20px 0;
+  box-sizing: border-box;
 }
 
 /* Ensure html and body don't block scrolling */
-html, body {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-    overflow-y: auto;
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
 }
 
 .login-page .container-fluid {
-    background-color: rgb(255, 255, 255);
-    width: 90%;
-    max-width: 420px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-    border-radius: 18px;
-    text-align: center;  
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 24px 28px;
-    margin: 20px auto;
-    min-height: unset !important;
-    max-height: none;
+  background-color: rgb(255, 255, 255);
+  width: 90%;
+  max-width: 420px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  border-radius: 18px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 28px;
+  margin: 20px auto;
+  min-height: unset !important;
+  max-height: none;
 }
 
 .login-page .shield-button {
@@ -133,70 +139,70 @@ html, body {
 }
 
 .login-page .container-fluid h5 {
-    font-weight: 700;
-    font-size: 22px !important;
-    margin-bottom: 8px;
-    color: #0f172a;
+  font-weight: 700;
+  font-size: 22px !important;
+  margin-bottom: 8px;
+  color: #0f172a;
 }
 
 .login-page .container-fluid p {
-    color: #6b7280;
-    margin-bottom: 18px;
-    font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 18px;
+  font-size: 14px;
 }
 
 .login-page form {
-    width: 100%;
-    max-width: 370px;
+  width: 100%;
+  max-width: 370px;
 }
 
 .login-page .form-label {
-    text-align: start;
-    display: flex;
-    margin-top: 10px;
-    margin-bottom: 5px;
-    font-size: 13px;
-    font-weight: 500;
+  text-align: start;
+  display: flex;
+  margin-top: 10px;
+  margin-bottom: 5px;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .login-page .form-control {
-    width: 100% !important;
-    border: 1px solid rgba(0, 0, 0, 0.2) !important;
-    padding: 10px !important;
-    font-size: 14px !important;
+  width: 100% !important;
+  border: 1px solid rgba(0, 0, 0, 0.2) !important;
+  padding: 10px !important;
+  font-size: 14px !important;
 }
 
 .login-page .form-control:focus {
-    border-color: #059669 !important;
-    box-shadow: 0 0 0 0.2rem rgba(5, 150, 105, 0.25) !important;
+  border-color: #059669 !important;
+  box-shadow: 0 0 0 0.2rem rgba(5, 150, 105, 0.25) !important;
 }
 
 .login-page .btn-success {
-    width: 100% !important;
-    font-weight: 500;
-    font-size: 13px;
-    padding: 12px;
-    background-color: #198754;
-    border: none;
-    margin-top: 10px;
+  width: 100% !important;
+  font-weight: 500;
+  font-size: 13px;
+  padding: 12px;
+  background-color: #198754;
+  border: none;
+  margin-top: 10px;
 }
 
 .login-page .btn-success:hover {
-    background-color: #157347;
+  background-color: #157347;
 }
 
 .login-page .forgot {
-    text-align: start;
-    display: flex;
-    margin-top: 10px;
-    font-size: 13px;
-    color: #059669;
-    text-decoration: none;
+  text-align: start;
+  display: flex;
+  margin-top: 10px;
+  font-size: 13px;
+  color: #059669;
+  text-decoration: none;
 }
 
 .login-page .forgot:hover {
-    text-decoration: underline;
-    color: #047857;
+  text-decoration: underline;
+  color: #047857;
 }
 
 .login-page .step-circle {
@@ -222,49 +228,49 @@ html, body {
 }
 
 .login-page .identity-section {
-    width: 100%;
-    max-width: 370px;
+  width: 100%;
+  max-width: 370px;
 }
 
 .login-page .identity-section h6 {
-    font-weight: 600;
-    font-size: 18px;
-    margin-bottom: 8px;
+  font-weight: 600;
+  font-size: 18px;
+  margin-bottom: 8px;
 }
 
 .login-page .identity-section p {
-    font-size: 13px;
-    margin-bottom: 20px;
+  font-size: 13px;
+  margin-bottom: 20px;
 }
 
 .login-page #container2 {
-    padding-bottom: 40px;
-    padding: 10px;
-    margin-top: -10px;
+  padding-bottom: 40px;
+  padding: 10px;
+  margin-top: -10px;
 }
 
 .login-page .active-toggle {
-    background-color: #198754 !important;
-    color: white !important;
+  background-color: #198754 !important;
+  color: white !important;
 }
 
 .login-page .inactive-toggle {
-    background-color: transparent !important;
-    color: black !important;
-    border: none !important;
+  background-color: transparent !important;
+  color: black !important;
+  border: none !important;
 }
 
 .login-page .inactive-toggle:hover {
-    background-color: rgba(5, 150, 105, 0.1) !important;
+  background-color: rgba(5, 150, 105, 0.1) !important;
 }
 
 /* Removed fixed min-heights — now height is content-driven */
 .login-page .sign-in-container {
-    padding-bottom: 30px;
+  padding-bottom: 30px;
 }
 
 .login-page .new-user-container {
-    padding: 20px 30px 40px;
+  padding: 20px 30px 40px;
 }
 
 /* Add these to your existing login.css */
@@ -309,6 +315,57 @@ html, body {
   color: #059669;
 }
 
+.login-page .forgot-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 16px;
+}
+
+.login-page .forgot-modal-card {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  padding: 20px;
+  text-align: left;
+}
+
+.login-page .forgot-modal-card h6 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.login-page .forgot-message {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.login-page .forgot-message-error {
+  color: #dc2626;
+}
+
+.login-page .forgot-message-success {
+  color: #059669;
+}
+
+.login-page .forgot-modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.login-page .forgot-modal-actions .btn {
+  margin-top: 0;
+}
+
 /* ── Responsive tweaks ── */
 
 @media (max-width: 480px) {
@@ -325,7 +382,7 @@ html, body {
   .login-page .container-fluid h5 {
     font-size: 20px !important;
   }
-  
+
   .login-page .container-fluid p {
     font-size: 13px;
   }
@@ -340,11 +397,11 @@ html, body {
   .login-page .form {
     max-width: 100%;
   }
-  
+
   .login-page .container {
     max-width: 100%;
   }
-  
+
   .login-page .identity-section {
     max-width: 100%;
   }

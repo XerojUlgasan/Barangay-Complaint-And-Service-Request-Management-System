@@ -7,6 +7,7 @@ import household_supabase from "../../supabse_db/household_supabase_client";
 import { useAuth } from "../../context/AuthContext";
 import ResidentSidebar from "../../components/ResidentSidebar";
 import "../../styles/UserPages.css";
+import supabase from "../../supabse_db/supabase_client";
 
 const SubmitRequest = () => {
   const navigate = useNavigate();
@@ -59,7 +60,7 @@ const SubmitRequest = () => {
     }
 
     try {
-      const { data, error } = await household_supabase
+      const { data, error } = await supabase
         .from("resident_fullnames_vw")
         .select("id, fullname")
         .ilike("fullname", `%${query}%`)
