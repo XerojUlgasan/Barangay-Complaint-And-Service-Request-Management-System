@@ -71,7 +71,7 @@ const normalizeSexForDb = (value) => {
 };
 
 export const getPurokChoices = async () => {
-  const { data, error } = await household_supabase
+  const { data, error } = await supabase
     .from("puroks")
     .select("name")
     .order("name", { ascending: true });
@@ -712,8 +712,8 @@ export const getAnnouncementParticipants = async (announcementId) => {
   // Step 3: fetch full resident details from household_supabase
   let detailMap = new Map();
   if (residentIds.length > 0) {
-    const { data: residentDetails, error: rdErr } = await household_supabase
-      .from("residents")
+    const { data: residentDetails, error: rdErr } = await supabase
+      .from("residents_tbl")
       .select(
         "id, first_name, middle_name, last_name, suffix, contact_number, email, address_line",
       )

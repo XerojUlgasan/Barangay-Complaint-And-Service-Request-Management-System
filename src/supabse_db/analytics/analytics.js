@@ -281,19 +281,15 @@ export const getComplaintTrends = async (monthsBack = 6) => {
 // Get resident statistics
 export const getResidentStats = async () => {
   try {
-    const { data: households, error: hError } = await household_supabase
-      .from("households")
-      .select("id");
-
-    const { data: residents, error: rError } = await household_supabase
-      .from("residents")
+    const { data: residents, error: rError } = await supabase
+      .from("residents_tbl")
       .select("id");
 
     const { data: registrations, error: rrError } = await supabase
       .from("registered_residents")
       .select("is_activated");
 
-    if (hError || rError || rrError) {
+    if (rError || rrError) {
       return {
         success: false,
         data: { totalHouseholds: 0, totalResidents: 0, activeResidents: 0 },
@@ -303,7 +299,6 @@ export const getResidentStats = async () => {
     return {
       success: true,
       data: {
-        totalHouseholds: households?.length || 0,
         totalResidents: residents?.length || 0,
         activeResidents:
           registrations?.filter((r) => r.is_activated === true).length || 0,

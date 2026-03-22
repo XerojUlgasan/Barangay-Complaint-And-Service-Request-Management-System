@@ -85,11 +85,10 @@ export const getAllResidents = async () => {
     return { success: true, data: [] };
   }
 
-  const { data: residentsData, error: residentsError } =
-    await household_supabase
-      .from("residents")
-      .select("*")
-      .in("id", residentIds);
+  const { data: residentsData, error: residentsError } = await supabase
+    .from("residents_tbl")
+    .select("*")
+    .in("id", residentIds);
 
   if (residentsError) {
     console.error("Error fetching residents:", residentsError);
@@ -129,10 +128,10 @@ export const getUnregisteredResidents = async () => {
     ...new Set((registrations || []).map((row) => row.id).filter(Boolean)),
   ];
 
-  let query = household_supabase
-    .from("residents")
+  let query = supabase
+    .from("residents_tbl")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("id", { ascending: false });
 
   if (registeredIds.length > 0) {
     const formattedIds = `(${registeredIds.map((id) => `"${id}"`).join(",")})`;
@@ -192,8 +191,8 @@ export const getResidentById = async (residentId) => {
     return accessResult;
   }
 
-  const { data, error } = await household_supabase
-    .from("residents")
+  const { data, error } = await supabase
+    .from("residents_tbl")
     .select("*")
     .eq("id", residentId)
     .single();

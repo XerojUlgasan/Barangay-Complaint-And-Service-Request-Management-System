@@ -27,13 +27,14 @@ export const checkHouseholdMember = async (
   middlename,
   birthdate,
 ) => {
-  let query = household_supabase
-    .from("residents")
+  let query = supabase
+    .from("residents_tbl")
     .select("id,email")
     .eq("first_name", firstname)
     .eq("last_name", lastname)
     .eq("date_of_birth", birthdate)
-    .eq("household_id", household_id);
+    .eq("household_id", household_id)
+    .eq("status", "Active");
 
   if (middlename === null || middlename === "") {
     query = query.is("middle_name", null);
@@ -217,8 +218,8 @@ export const registerByEmail = async (email, password) => {
   }
 
   // 5. Update resident email in household database
-  const { error: residentUpdateError } = await household_supabase
-    .from("residents")
+  const { error: residentUpdateError } = await supabase
+    .from("residents_tbl")
     .update({ email: normalizedEmail })
     .eq("id", member_id);
 
@@ -322,6 +323,92 @@ export const logout = async () => {
   console.log("LOGGED OUT");
 };
 
+// SEND PASSWORD RESET EMAIL
+export const requestPasswordReset = async (email) => {
+  const normalizedEmail = (email || "").trim().toLowerCase();
+
+  if (!normalizedEmail) {
+    return {
+      success: false,
+      message: "Email is required.",
+    };
+  }
+
+  const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+    redirectTo: "http://localhost:3000/forgot-password",
+  });
+
+  if (error) {
+    return {
+      success: false,
+      message: error.message,
+    };
+  }
+
+  return {
+    success: true,
+    message: "Password reset link sent. Please check your email.",
+  };
+};
+
+// COMPLETE PASSWORD RESET USING RECOVERY TOKENS
+export const completePasswordRecovery = async (
+  password,
+  accessToken,
+  refreshToken,
+) => {
+  const normalizedPassword = (password || "").trim();
+
+  if (!accessToken) {
+    return {
+      success: false,
+      message: "Recovery token is missing from the reset link.",
+    };
+  }
+
+  if (!refreshToken) {
+    return {
+      success: false,
+      message: "Refresh token is missing from the reset link.",
+    };
+  }
+
+  if (normalizedPassword.length < 6) {
+    return {
+      success: false,
+      message: "Password must be at least 6 characters.",
+    };
+  }
+
+  const { error: sessionError } = await supabase.auth.setSession({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  });
+
+  if (sessionError) {
+    return {
+      success: false,
+      message: sessionError.message,
+    };
+  }
+
+  const { error: updateError } = await supabase.auth.updateUser({
+    password: normalizedPassword,
+  });
+
+  if (updateError) {
+    return {
+      success: false,
+      message: updateError.message,
+    };
+  }
+
+  return {
+    success: true,
+    message: "Password updated successfully. You can now sign in.",
+  };
+};
+
 // DEBUG FUNCTIONS
 
 const checkUser = async () => {
@@ -331,8 +418,8 @@ const checkUser = async () => {
 const checkMemberId = async () => {
   console.log("CHECKING MEMBER ID:", member_id);
 
-  const { data, error } = await household_supabase
-    .from("residents")
+  const { data, error } = await supabase
+    .from("residents_tbl")
     .select("id")
     .eq("id", member_id)
     .maybeSingle();
