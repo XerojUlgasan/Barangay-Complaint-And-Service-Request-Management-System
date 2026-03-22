@@ -9,9 +9,10 @@
   position: fixed;
   inset: 0;
   background: rgba(2, 6, 23, 0.74);
-  z-index: 999;
+  z-index: 10000;
   animation: overlayIn 0.25s ease;
   pointer-events: auto;
+  backdrop-filter: blur(4px);
 }
 
 @keyframes overlayIn {
@@ -34,7 +35,7 @@
   width: 90%;
   max-width: 620px;
   max-height: 75vh;
-  z-index: 1000;
+  z-index: 10001;
   box-shadow:
     var(--shadow-lg, 0 24px 64px rgba(0, 0, 0, 0.35)),
     0 0 0 1px rgba(15, 24, 37, 0.04);

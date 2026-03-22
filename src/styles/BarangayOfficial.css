@@ -1159,11 +1159,12 @@
 .modal-overlay-official {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
+  z-index: 10000;
+  backdrop-filter: blur(4px);
 }
 
 .modal-content-official {
@@ -1173,6 +1174,8 @@
   max-width: 480px;
   width: 90%;
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.16);
+  z-index: 10001;
+  position: relative;
 }
 
 .modal-title-official {

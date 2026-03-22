@@ -111,6 +111,17 @@ const OfficialAnnouncements = () => {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (showSignupModal || showDetailsModal) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [showSignupModal, showDetailsModal]);
+
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
     return new Date(dateStr).toLocaleDateString("en-US", {
