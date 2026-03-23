@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, X } from "lucide-react";
 import "../../styles/BarangayAdmin.css";
 import "../../styles/RequestDetail.css";
@@ -247,6 +248,7 @@ export default function AdminComplaints() {
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
+                  max={new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split("T")[0]}
                   style={{
                     padding: "0.625rem",
                     border: "1px solid #d1d5db",
@@ -270,6 +272,7 @@ export default function AdminComplaints() {
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
+                  max={new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split("T")[0]}
                   style={{
                     padding: "0.625rem",
                     border: "1px solid #d1d5db",
@@ -463,10 +466,13 @@ export default function AdminComplaints() {
       {/* end ar-page-content */}
 
       {/* Modal Overlay */}
-      {isModalOpen && <div className="ar-modal-overlay" onClick={closeModal} />}
+      {isModalOpen && createPortal(
+        <div className="ar-modal-overlay" onClick={closeModal} />,
+        document.body
+      )}
 
       {/* Modal */}
-      {isModalOpen && selectedComplaint && (
+      {isModalOpen && selectedComplaint && createPortal(
         <div className="ar-modal">
           {/* Header */}
           <div className="ar-modal-header">
@@ -541,7 +547,8 @@ export default function AdminComplaints() {
               Close Monitor
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

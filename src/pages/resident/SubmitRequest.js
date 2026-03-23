@@ -124,11 +124,11 @@ const SubmitRequest = () => {
       }
     }
 
-    // Validate respondents for complaint
-    if (isComplaint && selectedRespondents.length === 0) {
-      setSubmitError("Please add at least one respondent to the complaint.");
-      return;
-    }
+    // Validate respondents for complaint - removed validation
+    // if (isComplaint && selectedRespondents.length === 0) {
+    //   setSubmitError("Please add at least one respondent to the complaint.");
+    //   return;
+    // }
 
     setSubmitLoading(true);
 
@@ -409,7 +409,7 @@ const SubmitRequest = () => {
 
                     <div className="form-group">
                       <label htmlFor="respondents">
-                        Respondent(s) <span className="required-star">*</span>
+                        Respondent(s)
                       </label>
                       <div
                         className="respondent-input-wrapper"
@@ -422,7 +422,6 @@ const SubmitRequest = () => {
                           onChange={handleRespondentInputChange}
                           placeholder="Search and add respondents (type at least 2 characters)..."
                           className="form-input"
-                          required={selectedRespondents.length === 0}
                         />
                         {respondentSuggestions.length > 0 && (
                           <div
@@ -513,7 +512,7 @@ const SubmitRequest = () => {
                       )}
                       <p className="attachment-hint">
                         Add one or more respondents involved in the complaint
-                        (required)
+                        (optional)
                       </p>
                     </div>
 

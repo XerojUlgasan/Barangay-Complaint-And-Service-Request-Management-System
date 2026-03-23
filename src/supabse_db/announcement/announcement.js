@@ -352,18 +352,24 @@ export const updateAnnouncement = async (
     updatePayload.send_sms = Boolean(eventData.send_sms);
   }
 
-  const { error } = await supabase
+  console.log("Update payload:", updatePayload);
+  console.log("EventData passed:", eventData);
+
+  const { data, error } = await supabase
     .from("announcement_tbl")
     .update(updatePayload)
-    .eq("id", id);
+    .eq("id", id)
+    .select()
+    .single();
 
   if (error) {
     console.error("Error updating announcement:", error);
     return { success: false, message: error.message };
   }
 
+  console.log("Announcement updated successfully, data:", data);
   invalidateAnnouncementCache();
-  return { success: true, message: "Announcement updated successfully" };
+  return { success: true, data, message: "Announcement updated successfully" };
 };
 
 export const deleteAnnouncement = async (id) => {

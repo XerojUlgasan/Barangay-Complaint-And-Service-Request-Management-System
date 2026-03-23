@@ -12,6 +12,7 @@ import {
   Edit,
 } from "lucide-react";
 import "../../styles/BarangayAdmin.css";
+import "../../styles/AdminAnnouncements.css";
 import {
   getAnnouncements,
   postAnnouncement,
@@ -32,6 +33,7 @@ export default function AdminAnnouncements() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [posting, setPosting] = useState(false);
+  const [imageLoadingMap, setImageLoadingMap] = useState({});
   const [dateErrors, setDateErrors] = useState({ start: "", end: "" });
   const [formData, setFormData] = useState({
     category: "general",
@@ -241,36 +243,73 @@ export default function AdminAnnouncements() {
 
   // Fetch announcements on mount
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchAnnouncements = async () => {
       try {
         setLoading(true);
         setError(null);
         const result = await getAnnouncements();
-        console.log("Announcements fetched:", result);
+        
+        if (!isMounted) return;
+        
         if (result.success && Array.isArray(result.data)) {
           setAnnouncements(result.data);
-          // Fetch images for each announcement
-          const imageMap = {};
-          for (const announcement of result.data) {
-            const imageResult = await fetchAnnouncementImages(announcement.id);
-            if (imageResult.success && imageResult.images.length > 0) {
-              imageMap[announcement.id] = imageResult.images[0].url;
+          setLoading(false);
+          
+          // Fetch images in parallel after announcements are displayed
+          const imagePromises = result.data.map(async (announcement) => {
+            if (!isMounted) return null;
+            
+            setImageLoadingMap(prev => ({ ...prev, [announcement.id]: true }));
+            
+            try {
+              const imageResult = await fetchAnnouncementImages(announcement.id);
+              if (isMounted && imageResult.success && imageResult.images.length > 0) {
+                return { id: announcement.id, url: imageResult.images[0].url };
+              }
+            } catch (err) {
+              console.error(`Error fetching image for announcement ${announcement.id}:`, err);
+            } finally {
+              if (isMounted) {
+                setImageLoadingMap(prev => ({ ...prev, [announcement.id]: false }));
+              }
             }
-          }
-          setAnnouncementImages(imageMap);
+            return null;
+          });
+          
+          // Update images as they load
+          Promise.all(imagePromises).then(results => {
+            if (!isMounted) return;
+            
+            const imageMap = {};
+            results.forEach(result => {
+              if (result && result.url) {
+                imageMap[result.id] = result.url;
+              }
+            });
+            
+            setAnnouncementImages(imageMap);
+          });
         } else {
           console.error("Failed to fetch announcements:", result.message);
           setError(result.message);
+          setLoading(false);
         }
       } catch (err) {
         console.error("Error fetching announcements:", err);
-        setError("Error fetching announcements");
-      } finally {
-        setLoading(false);
+        if (isMounted) {
+          setError("Error fetching announcements");
+          setLoading(false);
+        }
       }
     };
 
     fetchAnnouncements();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -325,6 +364,7 @@ export default function AdminAnnouncements() {
   };
 
   const openEditModal = (ann) => {
+    console.log("Editing announcement:", ann);
     setEditingAnnouncement(ann);
     setIsEditMode(true);
     setFormData({
@@ -337,13 +377,13 @@ export default function AdminAnnouncements() {
       event_end: ann.event_end ? ann.event_end.slice(0, 16) : "",
       audience: ann.audience || "residents",
       max_participants: ann.max_participants || "",
-      purok: ann.purok || [],
+      purok: Array.isArray(ann.purok) ? ann.purok : [],
       min_age: ann.min_age ?? "",
       max_age: ann.max_age ?? "",
-      voter_status: ann.voter_status || [],
-      occupation: ann.occupation || [],
-      religion: ann.religion || [],
-      civil_status: ann.civil_status || [],
+      voter_status: Array.isArray(ann.voter_status) ? ann.voter_status : [],
+      occupation: Array.isArray(ann.occupation) ? ann.occupation : [],
+      religion: Array.isArray(ann.religion) ? ann.religion : [],
+      civil_status: Array.isArray(ann.civil_status) ? ann.civil_status : [],
       sex: mapSexToUi(ann.sex),
       send_sms: Boolean(ann.send_sms),
     });
@@ -427,7 +467,13 @@ export default function AdminAnnouncements() {
         const result = await deleteAnnouncement(id);
         if (result.success) {
           console.log("Announcement deleted successfully");
-          setAnnouncements(announcements.filter((ann) => ann.id !== id));
+          // Optimistically update UI
+          setAnnouncements(prev => prev.filter((ann) => ann.id !== id));
+          setAnnouncementImages(prev => {
+            const newImages = { ...prev };
+            delete newImages[id];
+            return newImages;
+          });
         } else {
           alert("Error deleting announcement: " + result.message);
         }
@@ -582,6 +628,13 @@ export default function AdminAnnouncements() {
 
       if (result.success) {
         console.log("Announcement saved successfully:", result.data);
+        
+        // Show success message
+        if (isEditMode) {
+          alert("Announcement updated successfully!");
+        } else {
+          alert("Announcement created successfully!");
+        }
 
         // Upload image if provided and it's a file (not just a reference)
         if (formData.imageFile && formData.imageFile instanceof File) {
@@ -636,23 +689,39 @@ export default function AdminAnnouncements() {
         });
         setShowAdvanced(false);
         closeModal();
+        
         // Refresh announcements list
         const refreshResult = await getAnnouncements();
         if (refreshResult.success && Array.isArray(refreshResult.data)) {
           setAnnouncements(refreshResult.data);
-          // Fetch images for new announcements
-          const imageMap = { ...announcementImages };
-          for (const announcement of refreshResult.data) {
-            if (!imageMap[announcement.id]) {
-              const imageResult = await fetchAnnouncementImages(
-                announcement.id,
-              );
-              if (imageResult.success && imageResult.images.length > 0) {
-                imageMap[announcement.id] = imageResult.images[0].url;
+          
+          // Fetch images only for new/updated announcements in parallel
+          const newAnnouncements = refreshResult.data.filter(
+            ann => !announcementImages[ann.id] || isEditMode
+          );
+          
+          if (newAnnouncements.length > 0) {
+            const imagePromises = newAnnouncements.map(async (announcement) => {
+              try {
+                const imageResult = await fetchAnnouncementImages(announcement.id);
+                if (imageResult.success && imageResult.images.length > 0) {
+                  return { id: announcement.id, url: imageResult.images[0].url };
+                }
+              } catch (err) {
+                console.error(`Error fetching image for announcement ${announcement.id}:`, err);
               }
-            }
+              return null;
+            });
+            
+            const results = await Promise.all(imagePromises);
+            const newImageMap = { ...announcementImages };
+            results.forEach(result => {
+              if (result && result.url) {
+                newImageMap[result.id] = result.url;
+              }
+            });
+            setAnnouncementImages(newImageMap);
           }
-          setAnnouncementImages(imageMap);
         }
       } else {
         alert("Error posting announcement: " + result.message);
@@ -711,17 +780,36 @@ export default function AdminAnnouncements() {
           ? announcements.map((it) => (
               <div key={it.id} className={`announcement-card`}>
                 <div className="announcement-left">
-                  <img
-                    src={
-                      announcementImages[it.id] ||
-                      "https://via.placeholder.com/160x100?text=Announcement"
-                    }
-                    alt={it.title}
-                    onError={(e) => {
-                      e.target.src =
-                        "https://via.placeholder.com/160x100?text=Announcement";
-                    }}
-                  />
+                  {imageLoadingMap[it.id] ? (
+                    <div
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: "#f3f4f6",
+                      }}
+                    >
+                      <div
+                        className="loading-spinner"
+                        style={{ width: "24px", height: "24px" }}
+                      />
+                    </div>
+                  ) : (
+                    <img
+                      src={
+                        announcementImages[it.id] ||
+                        "https://via.placeholder.com/160x100?text=Announcement"
+                      }
+                      alt={it.title}
+                      loading="lazy"
+                      onError={(e) => {
+                        e.target.src =
+                          "https://via.placeholder.com/160x100?text=Announcement";
+                      }}
+                    />
+                  )}
                 </div>
 
                 <div className="announcement-right">
@@ -1095,36 +1183,15 @@ export default function AdminAnnouncements() {
         )}
 
       {/* Modal - TEST VERSION */}
-      {showModal && (
+      {showModal && createPortal(
         <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 9999,
-          }}
+          className="admin-announcement-modal-overlay"
           onClick={(e) => {
             if (e.target === e.currentTarget) closeModal();
           }}
         >
           <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: "12px",
-              padding: "24px",
-              maxWidth: "1100px",
-              width: "96%",
-              maxHeight: "94vh",
-              overflow: "auto",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-              zIndex: 10000,
-            }}
+            className="admin-announcement-modal-dialog"
             onClick={(e) => e.stopPropagation()}
           >
             <div
@@ -2604,7 +2671,8 @@ export default function AdminAnnouncements() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

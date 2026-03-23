@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import '../styles/Sidebar.css';
@@ -20,19 +20,30 @@ import '../styles/Sidebar.css';
  */
 const Sidebar = ({ activeMenu = 'dashboard', menuItems = [] }) => {
   // State to track if sidebar is open on mobile devices
-  const [isOpen, setIsOpen] = useState(true);
-
+  const [isOpen, setIsOpen] = useState(false);
+  
+  // Detect screen size and reset mobile state on desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 768) {
+        setIsOpen(false);
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
 
   return (
     <>
       {/* Mobile Menu Toggle Button - only visible on small screens */}
-      <button className={`mobile-menu-toggle ${isOpen ? 'hidden' : ''}`} onClick={() => setIsOpen(!isOpen)}>
-        {isOpen ? <Menu size={24} /> : <Menu size={24} />}
+      <button className={`mobile-menu-toggle ${isOpen ? 'hidden' : ''}`} onClick={() => setIsOpen(true)}>
+        <Menu size={24} />
       </button>
 
       {/* Sidebar Container - main navigation panel */}
-      <aside className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
+      <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
         {/* Logo Section - branding and app name */}
         <div className="sidebar-logo">
           <div className="logo-icon">
