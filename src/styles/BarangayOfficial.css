@@ -523,11 +523,25 @@
 }
 .ann-details-modal-img {
   width: 100%;
-  height: 160px;
+  height: 220px;
   object-fit: cover;
   border-radius: 12px;
   margin-bottom: 14px;
   display: block;
+}
+
+.ann-details-modal-img-placeholder {
+  width: 100%;
+  height: 220px;
+  border-radius: 12px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ann-details-modal-img-emoji {
+  font-size: 4rem;
+  opacity: 0.4;
 }
 .ann-details-modal-cat {
   display: inline-block;

@@ -448,12 +448,21 @@ const OfficialAnnouncements = () => {
           >
             {/* Modal Header */}
             <div className="ann-details-modal-header">
-              {announcementImages[selectedAnnouncement.id] && (
+              {announcementImages[selectedAnnouncement.id] ? (
                 <img
                   src={announcementImages[selectedAnnouncement.id]}
                   alt={selectedAnnouncement.title}
                   className="ann-details-modal-img"
                 />
+              ) : (
+                <div
+                  className="ann-details-modal-img-placeholder"
+                  style={{ background: getCategoryConfig(selectedAnnouncement.category).bg }}
+                >
+                  <span className="ann-details-modal-img-emoji">
+                    {getCategoryConfig(selectedAnnouncement.category).icon}
+                  </span>
+                </div>
               )}
               <div className="ann-details-modal-header-text">
                 <span
