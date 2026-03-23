@@ -29,28 +29,26 @@ const OfficialAnnouncements = () => {
   const [signupAction, setSignupAction] = useState("signup");
   const [userSignups, setUserSignups] = useState({});
   const [participantCounts, setParticipantCounts] = useState({});
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
       const { data: userData } = await supabase.auth.getUser();
-
       if (userData?.user) {
         const residentResult = await getResidentByAuthUid(userData.user.id);
         if (residentResult.success && residentResult.data) {
           setUserName(formatResidentFullName(residentResult.data));
         }
       }
-
       const result = await getAnnouncements();
       if (result.success) {
         const filteredAnnouncements = result.data.filter(
-          (ann) =>
-            ann.audience && String(ann.audience).toLowerCase() === "officials",
+          (ann) => ann.audience && String(ann.audience).toLowerCase() === "officials",
         );
         setAnnouncements(filteredAnnouncements);
         const imageMap = {};
         const imagePromises = result.data.map(async (ann) => {
-          // Only process images for filtered announcements
           if (!filteredAnnouncements.find((fa) => fa.id === ann.id)) return;
           const imageResult = await fetchAnnouncementImages(ann.id);
           if (imageResult.success && imageResult.images.length > 0) {
@@ -59,8 +57,6 @@ const OfficialAnnouncements = () => {
         });
         await Promise.all(imagePromises);
         setAnnouncementImages(imageMap);
-
-        // fetch participant counts for event announcements that have max_participants
         const eventAnns = filteredAnnouncements.filter(
           (a) => a.category && String(a.category).toLowerCase() === "event",
         );
@@ -73,8 +69,7 @@ const OfficialAnnouncements = () => {
                   .from("event_participants")
                   .select("*", { count: "exact", head: true })
                   .eq("announcement_id", a.id);
-                if (!error)
-                  counts[a.id] = typeof count === "number" ? count : 0;
+                if (!error) counts[a.id] = typeof count === "number" ? count : 0;
                 else counts[a.id] = 0;
               } catch (err) {
                 counts[a.id] = 0;
@@ -82,7 +77,6 @@ const OfficialAnnouncements = () => {
             }),
           );
           setParticipantCounts(counts);
-          // if logged in, fetch which events this official signed up for
           if (userData && userData.user) {
             try {
               const annIds = eventAnns.map((a) => a.id);
@@ -91,24 +85,17 @@ const OfficialAnnouncements = () => {
                 .select("announcement_id")
                 .in("announcement_id", annIds)
                 .eq("user_uid", userData.user.id);
-
               if (!signupError && Array.isArray(signupRows)) {
                 const signups = {};
-                signupRows.forEach((r) => {
-                  signups[r.announcement_id] = true;
-                });
+                signupRows.forEach((r) => { signups[r.announcement_id] = true; });
                 setUserSignups(signups);
               }
-            } catch (err) {
-              // ignore
-            }
+            } catch (err) {}
           }
         }
       }
-
       setLoading(false);
     };
-
     fetchData();
   }, []);
 
@@ -118,225 +105,302 @@ const OfficialAnnouncements = () => {
     } else {
       document.body.style.overflow = "";
     }
-    return () => {
-      document.body.style.overflow = "";
-    };
+    return () => { document.body.style.overflow = ""; };
   }, [showSignupModal, showDetailsModal]);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
     return new Date(dateStr).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
+      month: "short", day: "numeric", year: "numeric",
     });
   };
 
-  const getPriorityClass = (priority) => {
-    if (!priority) return "";
-    if (priority.toLowerCase() === "high") return "ann-priority high";
-    if (priority.toLowerCase() === "medium") return "ann-priority medium";
-    return "ann-priority normal";
+  const formatDateShort = (dateStr) => {
+    if (!dateStr) return "";
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      month: "short", day: "numeric",
+    });
   };
 
-  const getCategoryIcon = (category) => {
-    if (!category) return null;
-    if (category.toLowerCase() === "event")
-      return (
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          width="15"
-          height="15"
-        >
-          <rect x="3" y="4" width="18" height="18" rx="2" />
-          <path d="M16 2v4M8 2v4M3 10h18" />
-        </svg>
-      );
-    return (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        width="15"
-        height="15"
-      >
-        <circle cx="12" cy="12" r="10" />
-        <line x1="12" y1="8" x2="12" y2="12" />
-        <line x1="12" y1="16" x2="12.01" y2="16" />
-      </svg>
-    );
+  const getCategoryConfig = (category) => {
+    const cat = (category || "").toLowerCase();
+    if (cat === "event") return { label: "Event", color: "#8b5cf6", bg: "#f5f3ff", icon: "📅" };
+    if (cat === "alert") return { label: "Alert", color: "#ef4444", bg: "#fef2f2", icon: "🚨" };
+    return { label: "General", color: "#10b981", bg: "#f0fdf4", icon: "📢" };
   };
+
+  const getPriorityConfig = (priority) => {
+    const p = (priority || "").toLowerCase();
+    if (p === "high") return { label: "HIGH", color: "#dc2626", bg: "#fef2f2" };
+    if (p === "urgent") return { label: "URGENT", color: "#9f1239", bg: "#fff1f2" };
+    if (p === "medium") return { label: "MED", color: "#d97706", bg: "#fffbeb" };
+    return null;
+  };
+
+  const filterOptions = [
+    { key: "all", label: "All" },
+    { key: "event", label: "Events" },
+    { key: "general", label: "General" },
+    { key: "alert", label: "Alerts" },
+  ];
+
+  const filteredAnnouncements = announcements.filter((ann) => {
+    const cat = (ann.category || "general").toLowerCase();
+    const matchesFilter = activeFilter === "all" || cat === activeFilter;
+    const matchesSearch =
+      !searchQuery ||
+      ann.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ann.content?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
+
+  const eventCount = announcements.filter(a => (a.category || "").toLowerCase() === "event").length;
+  const signedUpCount = Object.keys(userSignups).length;
+
+  if (loading) {
+    return (
+      <div className="ann-page-root">
+        <div className="ann-loading-state">
+          <div className="ann-loading-spinner" />
+          <span>Loading announcements...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="barangay-official-container">
-      <div className="dashboard-header">
-        <h1>Announcements</h1>
-        <p>Stay updated with official barangay announcements</p>
+    <div className="ann-page-root">
+      {/* ── Page Header ── */}
+      <div className="ann-page-header">
+        <div className="ann-page-header-left">
+          <h1 className="ann-page-title">Announcements</h1>
+          <p className="ann-page-subtitle">Stay updated with official barangay announcements</p>
+        </div>
+        <div className="ann-summary-chips">
+          <div className="ann-summary-chip">
+            <span className="ann-summary-chip-num">{announcements.length}</span>
+            <span className="ann-summary-chip-label">Total</span>
+          </div>
+          <div className="ann-summary-chip accent-purple">
+            <span className="ann-summary-chip-num">{eventCount}</span>
+            <span className="ann-summary-chip-label">Events</span>
+          </div>
+          <div className="ann-summary-chip accent-green">
+            <span className="ann-summary-chip-num">{signedUpCount}</span>
+            <span className="ann-summary-chip-label">Joined</span>
+          </div>
+        </div>
       </div>
 
-      {loading ? (
-        <p style={{ color: "#888", padding: "0 2rem" }}>
-          Loading announcements...
-        </p>
-      ) : announcements.length === 0 ? (
-        <p style={{ color: "#888", padding: "0 2rem" }}>
-          No announcements yet.
-        </p>
+      {/* ── Search & Filter Bar ── */}
+      <div className="ann-toolbar">
+        <div className="ann-search-wrap">
+          <svg className="ann-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            className="ann-search-input"
+            type="text"
+            placeholder="Search announcements..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <div className="ann-filter-pills">
+          {filterOptions.map((f) => (
+            <button
+              key={f.key}
+              className={`ann-filter-pill${activeFilter === f.key ? " active" : ""}`}
+              onClick={() => setActiveFilter(f.key)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Count Label ── */}
+      <div className="ann-count-label">
+        Showing {filteredAnnouncements.length} of {announcements.length} announcements
+      </div>
+
+      {/* ── Cards Grid ── */}
+      {filteredAnnouncements.length === 0 ? (
+        <div className="ann-empty-state">
+          <div className="ann-empty-icon">📭</div>
+          <p className="ann-empty-text">No announcements found</p>
+          <p className="ann-empty-sub">Try adjusting your search or filter</p>
+        </div>
       ) : (
-        <div className="ann-grid">
-          {announcements.map((ann) => (
-            <div className="ann-card" key={ann.id}>
-              {/* LEFT: IMAGE */}
-              <div className="ann-image">
-                {announcementImages[ann.id] ? (
-                  <img src={announcementImages[ann.id]} alt={ann.title} />
-                ) : (
-                  <div className="ann-image-placeholder">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      width="40"
-                      height="40"
-                    >
-                      <rect x="3" y="3" width="18" height="18" rx="3" />
-                      <circle cx="8.5" cy="8.5" r="1.5" />
-                      <polyline points="21 15 16 10 5 21" />
-                    </svg>
-                  </div>
-                )}
-              </div>
+        <div className="ann-cards-grid">
+          {filteredAnnouncements.map((ann, idx) => {
+            const catConfig = getCategoryConfig(ann.category);
+            const priorityConfig = getPriorityConfig(ann.priority);
+            const isEvent = (ann.category || "").toLowerCase() === "event";
+            const isSignedUp = userSignups && userSignups[ann.id];
+            const participantCount = (participantCounts && participantCounts[ann.id]) || 0;
+            const hasImage = !!announcementImages[ann.id];
+            const fillPct = ann.max_participants
+              ? Math.min(100, Math.round((participantCount / ann.max_participants) * 100))
+              : 0;
 
-              {/* RIGHT: CONTENT */}
-              <div className="ann-body">
-                {/* TOP ROW */}
-                <div className="ann-meta-top">
-                  <div className="ann-category-icon">
-                    {getCategoryIcon(ann.category)}
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      flex: 1,
-                    }}
+            return (
+              <div
+                className="ann-card-new"
+                key={ann.id}
+                style={{ animationDelay: `${idx * 0.05}s` }}
+              >
+                {/* Image / Placeholder */}
+                <div className="ann-card-img-wrap">
+                  {hasImage ? (
+                    <img src={announcementImages[ann.id]} alt={ann.title} className="ann-card-img" />
+                  ) : (
+                    <div className="ann-card-img-placeholder" style={{ background: catConfig.bg }}>
+                      <span className="ann-card-img-emoji">{catConfig.icon}</span>
+                    </div>
+                  )}
+
+                  {/* Category badge overlaid on image */}
+                  <span
+                    className="ann-card-cat-badge"
+                    style={{ background: catConfig.color }}
                   >
-                    <div className="ann-title">{ann.title}</div>
-                    {ann.priority &&
-                      ann.priority.toLowerCase() !== "normal" &&
-                      ann.priority.toLowerCase() !== "low" && (
-                        <div className={getPriorityClass(ann.priority)}>
-                          {ann.priority.toUpperCase()}
-                        </div>
-                      )}
-                  </div>
-                </div>
+                    {catConfig.label}
+                  </span>
 
-                {/* METADATA */}
-                <div className="ann-meta-left">
-                  Posted by {ann.author || "Barangay"} •{" "}
-                  {formatDate(ann.created_at)}
-                </div>
-
-                {/* DESCRIPTION */}
-                <div className="ann-description">{ann.content}</div>
-
-                {/* FOOTER */}
-                <div className="ann-footer">
-                  <div className="ann-category">
-                    {ann.category?.toUpperCase() || "ANNOUNCEMENT"}
-                  </div>
-
-                  {ann.category && ann.category.toLowerCase() === "event" && (
-                    <>
-                      {typeof ann.max_participants !== "undefined" &&
-                        ann.max_participants !== null && (
-                          <span className="ann-slots">
-                            {((participantCounts &&
-                              participantCounts[ann.id]) ||
-                              0) +
-                              " / " +
-                              ann.max_participants}
-                          </span>
-                        )}
-
-                      <button
-                        className="ann-signup-btn"
-                        onClick={() => {
-                          setSelectedAnnouncement(ann);
-                          setShowDetailsModal(true);
-                        }}
-                      >
-                        View Details
-                      </button>
-
-                      {userSignups && userSignups[ann.id] && (
-                        <button
-                          className="ann-signup-btn cancel"
-                          onClick={() => {
-                            setSelectedAnnouncement(ann);
-                            setSignupMessage(null);
-                            setSignupAction("cancel");
-                            setShowSignupModal(true);
-                          }}
-                        >
-                          Cancel Signup
-                        </button>
-                      )}
-                    </>
+                  {/* Priority badge */}
+                  {priorityConfig && (
+                    <span
+                      className="ann-card-priority-badge"
+                      style={{ color: priorityConfig.color, background: priorityConfig.bg }}
+                    >
+                      {priorityConfig.label}
+                    </span>
                   )}
                 </div>
+
+                {/* Card Body */}
+                <div className="ann-card-body">
+                  <div className="ann-card-meta">
+                    <span className="ann-card-author">
+                      {ann.author || "Barangay"}
+                    </span>
+                    <span className="ann-card-dot">·</span>
+                    <span className="ann-card-date">{formatDateShort(ann.created_at)}</span>
+                  </div>
+
+                  <h3 className="ann-card-title">{ann.title}</h3>
+                  <p className="ann-card-desc">{ann.content}</p>
+
+                  {/* Event details */}
+                  {isEvent && ann.event_start && (
+                    <div className="ann-card-event-row">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
+                        <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+                      </svg>
+                      <span>{new Date(ann.event_start).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                    </div>
+                  )}
+
+                  {/* Participant bar */}
+                  {isEvent && ann.max_participants && (
+                    <div className="ann-card-participants">
+                      <div className="ann-card-participants-label">
+                        <span>{participantCount} / {ann.max_participants} joined</span>
+                        <span>{fillPct}%</span>
+                      </div>
+                      <div className="ann-card-bar-track">
+                        <div
+                          className="ann-card-bar-fill"
+                          style={{
+                            width: `${fillPct}%`,
+                            background: fillPct >= 90 ? "#ef4444" : fillPct >= 60 ? "#f59e0b" : "#10b981",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Footer actions */}
+                  <div className="ann-card-footer">
+                    {isEvent ? (
+                      <>
+                        <button
+                          className="ann-card-btn-outline"
+                          onClick={() => { setSelectedAnnouncement(ann); setShowDetailsModal(true); }}
+                        >
+                          View Details
+                        </button>
+                        {isSignedUp ? (
+                          <button
+                            className="ann-card-btn-cancel"
+                            onClick={() => {
+                              setSelectedAnnouncement(ann);
+                              setSignupMessage(null);
+                              setSignupAction("cancel");
+                              setShowSignupModal(true);
+                            }}
+                          >
+                            ✓ Signed Up
+                          </button>
+                        ) : (
+                          <button
+                            className="ann-card-btn-primary"
+                            onClick={() => {
+                              setSelectedAnnouncement(ann);
+                              setSignupMessage(null);
+                              setSignupAction("signup");
+                              setShowSignupModal(true);
+                            }}
+                          >
+                            Sign Up
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <span className="ann-card-posted">
+                        Posted {formatDate(ann.created_at)}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {/* SIGNUP CONFIRMATION MODAL */}
+      {/* ── SIGNUP MODAL ── */}
       {showSignupModal && selectedAnnouncement && createPortal(
-        <div
-          className="modal-overlay-official"
-          onClick={() => setShowSignupModal(false)}
-        >
-          <div
-            className="modal-content-official"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="modal-title-official">
-              Confirm {signupAction === "signup" ? "Signup" : "Cancellation"}
+        <div className="ann-modal-overlay" onClick={() => setShowSignupModal(false)}>
+          <div className="ann-modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="ann-modal-icon">
+              {signupAction === "signup" ? "🎉" : "⚠️"}
+            </div>
+            <h3 className="ann-modal-title">
+              {signupAction === "signup" ? "Confirm Sign Up" : "Cancel Registration"}
             </h3>
-            <p className="modal-message-official">
+            <p className="ann-modal-msg">
               Are you sure you want to{" "}
-              {signupAction === "signup"
-                ? "sign up for"
-                : "cancel your signup for"}{" "}
-              <b>{selectedAnnouncement.title}</b>?
+              {signupAction === "signup" ? "sign up for" : "cancel your signup for"}{" "}
+              <strong>{selectedAnnouncement.title}</strong>?
             </p>
             {signupMessage && (
-              <p
-                style={{
-                  color: signupMessage.success ? "green" : "red",
-                  marginTop: "12px",
-                }}
-              >
+              <div className={`ann-modal-feedback ${signupMessage.success ? "success" : "error"}`}>
                 {signupMessage.message}
-              </p>
+              </div>
             )}
-            <div className="modal-actions-official">
+            <div className="ann-modal-actions">
               <button
-                className="modal-btn-official cancel"
+                className="ann-modal-btn-cancel"
                 onClick={() => setShowSignupModal(false)}
                 disabled={signupLoading}
               >
-                Cancel
+                Dismiss
               </button>
               <button
-                className="modal-btn-official confirm"
+                className={`ann-modal-btn-confirm${signupAction === "cancel" ? " danger" : ""}`}
+                disabled={signupLoading}
                 onClick={async () => {
                   setSignupLoading(true);
                   setSignupMessage(null);
@@ -345,59 +409,29 @@ const OfficialAnnouncements = () => {
                       const res = await signupForEvent(selectedAnnouncement.id);
                       setSignupMessage(res);
                       if (res && res.success) {
-                        setUserSignups((s) => ({
-                          ...s,
-                          [selectedAnnouncement.id]: true,
-                        }));
-                        setParticipantCounts((c) => ({
-                          ...c,
-                          [selectedAnnouncement.id]:
-                            (c[selectedAnnouncement.id] || 0) + 1,
-                        }));
-                        setTimeout(() => {
-                          setShowSignupModal(false);
-                        }, 1000);
+                        setUserSignups((s) => ({ ...s, [selectedAnnouncement.id]: true }));
+                        setParticipantCounts((c) => ({ ...c, [selectedAnnouncement.id]: (c[selectedAnnouncement.id] || 0) + 1 }));
+                        setTimeout(() => setShowSignupModal(false), 1000);
                       }
                     } else {
                       const res = await cancelSignup(selectedAnnouncement.id);
                       setSignupMessage(res);
                       if (res && res.success) {
-                        setUserSignups((s) => {
-                          const n = { ...s };
-                          delete n[selectedAnnouncement.id];
-                          return n;
-                        });
-                        setParticipantCounts((c) => ({
-                          ...c,
-                          [selectedAnnouncement.id]: Math.max(
-                            0,
-                            (c[selectedAnnouncement.id] || 1) - 1,
-                          ),
-                        }));
-                        setTimeout(() => {
-                          setShowSignupModal(false);
-                        }, 400);
+                        setUserSignups((s) => { const n = { ...s }; delete n[selectedAnnouncement.id]; return n; });
+                        setParticipantCounts((c) => ({ ...c, [selectedAnnouncement.id]: Math.max(0, (c[selectedAnnouncement.id] || 1) - 1) }));
+                        setTimeout(() => setShowSignupModal(false), 400);
                       }
                     }
                   } catch (err) {
-                    console.error("Signup action error:", err);
-                    setSignupMessage({
-                      success: false,
-                      message: "Operation failed",
-                    });
+                    setSignupMessage({ success: false, message: "Operation failed" });
                   } finally {
                     setSignupLoading(false);
                   }
                 }}
-                disabled={signupLoading}
               >
                 {signupLoading
-                  ? signupAction === "signup"
-                    ? "Signing up..."
-                    : "Cancelling..."
-                  : signupAction === "signup"
-                    ? "Yes, Sign Up"
-                    : "Yes, Cancel"}
+                  ? signupAction === "signup" ? "Signing up..." : "Cancelling..."
+                  : signupAction === "signup" ? "Yes, Sign Me Up" : "Yes, Cancel"}
               </button>
             </div>
           </div>
@@ -405,277 +439,155 @@ const OfficialAnnouncements = () => {
         document.body
       )}
 
-      {/* EVENT DETAILS MODAL */}
+      {/* ── EVENT DETAILS MODAL ── */}
       {showDetailsModal && selectedAnnouncement && createPortal(
-        <div
-          className="modal-overlay-official"
-          onClick={() => setShowDetailsModal(false)}
-        >
+        <div className="ann-modal-overlay" onClick={() => setShowDetailsModal(false)}>
           <div
-            className="modal-content-official"
+            className="ann-modal-box ann-modal-details"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: 520, maxHeight: "80vh", overflow: "auto" }}
           >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                marginBottom: "16px",
-              }}
-            >
-              <div>
-                <h3 className="modal-title-official">
-                  {selectedAnnouncement.title}
-                </h3>
-                <p
-                  style={{
-                    fontSize: "13px",
-                    color: "#6b7280",
-                    margin: "4px 0 0",
-                  }}
+            {/* Modal Header */}
+            <div className="ann-details-modal-header">
+              {announcementImages[selectedAnnouncement.id] && (
+                <img
+                  src={announcementImages[selectedAnnouncement.id]}
+                  alt={selectedAnnouncement.title}
+                  className="ann-details-modal-img"
+                />
+              )}
+              <div className="ann-details-modal-header-text">
+                <span
+                  className="ann-details-modal-cat"
+                  style={{ background: getCategoryConfig(selectedAnnouncement.category).color }}
                 >
-                  Event Details & Requirements
+                  {getCategoryConfig(selectedAnnouncement.category).label}
+                </span>
+                <h3 className="ann-details-modal-title">{selectedAnnouncement.title}</h3>
+                <p className="ann-details-modal-meta">
+                  By {selectedAnnouncement.author || "Barangay"} · {formatDate(selectedAnnouncement.created_at)}
                 </p>
               </div>
-              <button
-                onClick={() => setShowDetailsModal(false)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: "4px",
-                  color: "#9ca3af",
-                  borderRadius: "6px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  width="20"
-                  height="20"
-                >
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
+              <button className="ann-details-modal-close" onClick={() => setShowDetailsModal(false)}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
               </button>
             </div>
-            <div
-              style={{ display: "flex", flexDirection: "column", gap: "16px" }}
-            >
-              <div>
-                <div
-                  style={{
-                    fontSize: "13px",
-                    fontWeight: "600",
-                    color: "#6b7280",
-                    marginBottom: "6px",
-                  }}
-                >
-                  Description
-                </div>
-                <p
-                  style={{
-                    fontSize: "14px",
-                    color: "#374151",
-                    lineHeight: "1.6",
-                    margin: 0,
-                  }}
-                >
-                  {selectedAnnouncement.content}
-                </p>
+
+            {/* Modal Scroll Body */}
+            <div className="ann-details-modal-body">
+              {/* Description */}
+              <div className="ann-details-section">
+                <div className="ann-details-section-label">Description</div>
+                <p className="ann-details-section-text">{selectedAnnouncement.content}</p>
               </div>
 
+              {/* Schedule */}
               {selectedAnnouncement.event_start && (
-                <div>
-                  <div
-                    style={{
-                      fontSize: "13px",
-                      fontWeight: "600",
-                      color: "#6b7280",
-                      marginBottom: "6px",
-                    }}
-                  >
-                    Event Schedule
-                  </div>
-                  <div style={{ fontSize: "14px", color: "#374151" }}>
-                    <div>
-                      <strong>Start:</strong>{" "}
-                      {new Date(
-                        selectedAnnouncement.event_start,
-                      ).toLocaleString()}
+                <div className="ann-details-section">
+                  <div className="ann-details-section-label">Event Schedule</div>
+                  <div className="ann-details-schedule-grid">
+                    <div className="ann-details-schedule-item">
+                      <span className="ann-details-schedule-key">Start</span>
+                      <span className="ann-details-schedule-val">
+                        {new Date(selectedAnnouncement.event_start).toLocaleString()}
+                      </span>
                     </div>
                     {selectedAnnouncement.event_end && (
-                      <div>
-                        <strong>End:</strong>{" "}
-                        {new Date(
-                          selectedAnnouncement.event_end,
-                        ).toLocaleString()}
+                      <div className="ann-details-schedule-item">
+                        <span className="ann-details-schedule-key">End</span>
+                        <span className="ann-details-schedule-val">
+                          {new Date(selectedAnnouncement.event_end).toLocaleString()}
+                        </span>
                       </div>
                     )}
                   </div>
                 </div>
               )}
 
+              {/* Participants */}
               {selectedAnnouncement.max_participants && (
-                <div>
-                  <div
-                    style={{
-                      fontSize: "13px",
-                      fontWeight: "600",
-                      color: "#6b7280",
-                      marginBottom: "6px",
-                    }}
-                  >
-                    Participants
-                  </div>
-                  <div style={{ fontSize: "14px", color: "#374151" }}>
-                    {(participantCounts &&
-                      participantCounts[selectedAnnouncement.id]) ||
-                      0}{" "}
-                    / {selectedAnnouncement.max_participants} slots filled
+                <div className="ann-details-section">
+                  <div className="ann-details-section-label">Slots</div>
+                  <div className="ann-details-slots">
+                    <div className="ann-details-slots-numbers">
+                      <span className="ann-details-slots-filled">
+                        {(participantCounts && participantCounts[selectedAnnouncement.id]) || 0}
+                      </span>
+                      <span className="ann-details-slots-sep"> / </span>
+                      <span className="ann-details-slots-total">{selectedAnnouncement.max_participants}</span>
+                      <span className="ann-details-slots-label"> slots filled</span>
+                    </div>
+                    <div className="ann-card-bar-track" style={{ marginTop: 8 }}>
+                      <div
+                        className="ann-card-bar-fill"
+                        style={{
+                          width: `${Math.min(100, Math.round(((participantCounts?.[selectedAnnouncement.id] || 0) / selectedAnnouncement.max_participants) * 100))}%`,
+                          background: "#10b981",
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               )}
 
-              {(selectedAnnouncement.age_group ||
-                selectedAnnouncement.voter_status ||
-                selectedAnnouncement.occupation ||
-                selectedAnnouncement.religion ||
-                selectedAnnouncement.civil_status ||
-                selectedAnnouncement.sex) && (
-                <div>
-                  <div
-                    style={{
-                      fontSize: "13px",
-                      fontWeight: "600",
-                      color: "#6b7280",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    Requirements
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "6px",
-                      padding: "12px",
-                      background: "#f9fafb",
-                      borderRadius: "8px",
-                      border: "1px solid #e5e7eb",
-                    }}
-                  >
-                    {selectedAnnouncement.age_group &&
-                      (Array.isArray(selectedAnnouncement.age_group)
-                        ? selectedAnnouncement.age_group.length > 0
-                        : selectedAnnouncement.age_group) && (
-                        <div style={{ fontSize: "13px", color: "#374151" }}>
-                          <strong>Age Group:</strong>{" "}
-                          {Array.isArray(selectedAnnouncement.age_group)
-                            ? selectedAnnouncement.age_group.join(", ")
-                            : selectedAnnouncement.age_group}
-                        </div>
-                      )}
-                    {selectedAnnouncement.voter_status &&
-                      (Array.isArray(selectedAnnouncement.voter_status)
-                        ? selectedAnnouncement.voter_status.length > 0
-                        : selectedAnnouncement.voter_status) && (
-                        <div style={{ fontSize: "13px", color: "#374151" }}>
-                          <strong>Voter Status:</strong>{" "}
-                          {Array.isArray(selectedAnnouncement.voter_status)
-                            ? selectedAnnouncement.voter_status.join(", ")
-                            : selectedAnnouncement.voter_status}
-                        </div>
-                      )}
-                    {selectedAnnouncement.occupation &&
-                      (Array.isArray(selectedAnnouncement.occupation)
-                        ? selectedAnnouncement.occupation.length > 0
-                        : selectedAnnouncement.occupation) && (
-                        <div style={{ fontSize: "13px", color: "#374151" }}>
-                          <strong>Occupation:</strong>{" "}
-                          {Array.isArray(selectedAnnouncement.occupation)
-                            ? selectedAnnouncement.occupation.join(", ")
-                            : selectedAnnouncement.occupation}
-                        </div>
-                      )}
-                    {selectedAnnouncement.religion &&
-                      (Array.isArray(selectedAnnouncement.religion)
-                        ? selectedAnnouncement.religion.length > 0
-                        : selectedAnnouncement.religion) && (
-                        <div style={{ fontSize: "13px", color: "#374151" }}>
-                          <strong>Religion:</strong>{" "}
-                          {Array.isArray(selectedAnnouncement.religion)
-                            ? selectedAnnouncement.religion.join(", ")
-                            : selectedAnnouncement.religion}
-                        </div>
-                      )}
-                    {selectedAnnouncement.civil_status &&
-                      (Array.isArray(selectedAnnouncement.civil_status)
-                        ? selectedAnnouncement.civil_status.length > 0
-                        : selectedAnnouncement.civil_status) && (
-                        <div style={{ fontSize: "13px", color: "#374151" }}>
-                          <strong>Civil Status:</strong>{" "}
-                          {Array.isArray(selectedAnnouncement.civil_status)
-                            ? selectedAnnouncement.civil_status.join(", ")
-                            : selectedAnnouncement.civil_status}
-                        </div>
-                      )}
-                    {selectedAnnouncement.sex && (
-                      <div style={{ fontSize: "13px", color: "#374151" }}>
-                        <strong>Sex:</strong>{" "}
-                        {selectedAnnouncement.sex === "M"
-                          ? "Male"
-                          : selectedAnnouncement.sex === "F"
-                            ? "Female"
-                            : selectedAnnouncement.sex}
+              {/* Requirements */}
+              {(selectedAnnouncement.age_group || selectedAnnouncement.voter_status ||
+                selectedAnnouncement.occupation || selectedAnnouncement.religion ||
+                selectedAnnouncement.civil_status || selectedAnnouncement.sex) && (
+                <div className="ann-details-section">
+                  <div className="ann-details-section-label">Requirements</div>
+                  <div className="ann-details-reqs">
+                    {[
+                      { key: "Age Group", val: selectedAnnouncement.age_group },
+                      { key: "Voter Status", val: selectedAnnouncement.voter_status },
+                      { key: "Occupation", val: selectedAnnouncement.occupation },
+                      { key: "Religion", val: selectedAnnouncement.religion },
+                      { key: "Civil Status", val: selectedAnnouncement.civil_status },
+                      { key: "Sex", val: selectedAnnouncement.sex === "M" ? "Male" : selectedAnnouncement.sex === "F" ? "Female" : selectedAnnouncement.sex },
+                    ].filter(r => r.val && (Array.isArray(r.val) ? r.val.length > 0 : true)).map((req) => (
+                      <div key={req.key} className="ann-details-req-row">
+                        <span className="ann-details-req-key">{req.key}</span>
+                        <span className="ann-details-req-val">
+                          {Array.isArray(req.val) ? req.val.join(", ") : req.val}
+                        </span>
                       </div>
-                    )}
+                    ))}
                   </div>
                 </div>
               )}
+            </div>
 
-              <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
-                {userSignups && userSignups[selectedAnnouncement.id] ? (
-                  <button
-                    className="ann-signup-btn cancel"
-                    style={{ flex: 1, padding: "12px" }}
-                    onClick={() => {
-                      setShowDetailsModal(false);
-                      setSignupMessage(null);
-                      setSignupAction("cancel");
-                      setShowSignupModal(true);
-                    }}
-                  >
-                    Cancel Signup
-                  </button>
-                ) : (
-                  <button
-                    className="ann-signup-btn"
-                    style={{ flex: 1, padding: "12px" }}
-                    onClick={() => {
-                      setShowDetailsModal(false);
-                      setSignupMessage(null);
-                      setSignupAction("signup");
-                      setShowSignupModal(true);
-                    }}
-                  >
-                    Sign Up for Event
-                  </button>
-                )}
+            {/* Modal Footer */}
+            <div className="ann-details-modal-footer">
+              <button className="ann-modal-btn-cancel" onClick={() => setShowDetailsModal(false)}>
+                Close
+              </button>
+              {userSignups && userSignups[selectedAnnouncement.id] ? (
                 <button
-                  className="modal-btn-official cancel"
-                  style={{ flex: 1, padding: "12px" }}
-                  onClick={() => setShowDetailsModal(false)}
+                  className="ann-modal-btn-confirm danger"
+                  onClick={() => {
+                    setShowDetailsModal(false);
+                    setSignupMessage(null);
+                    setSignupAction("cancel");
+                    setShowSignupModal(true);
+                  }}
                 >
-                  Close
+                  Cancel Signup
                 </button>
-              </div>
+              ) : (
+                <button
+                  className="ann-modal-btn-confirm"
+                  onClick={() => {
+                    setShowDetailsModal(false);
+                    setSignupMessage(null);
+                    setSignupAction("signup");
+                    setShowSignupModal(true);
+                  }}
+                >
+                  Sign Up for Event
+                </button>
+              )}
             </div>
           </div>
         </div>,

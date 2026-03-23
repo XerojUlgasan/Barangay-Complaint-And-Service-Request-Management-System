@@ -89,7 +89,6 @@ const RequestDetail = ({
     { value: "FOR_VALIDATION", label: "For Validation" },
   ];
 
-  // Status colors used for history badges
   const statusColorMap = {
     PENDING: "#F59E0B",
     IN_PROGRESS: "#0EA5E9",
@@ -176,6 +175,7 @@ const RequestDetail = ({
                 <span>{request.submittedBy}</span>
               </div>
             </div>
+
             <div className="detail-section">
               <label className="detail-label">SUBMISSION DATE</label>
               <div className="detail-value">
@@ -183,6 +183,30 @@ const RequestDetail = ({
                 <span>{request.submissionDate}</span>
               </div>
             </div>
+
+            {/* ── Certificate Type (requests only) ── */}
+            {itemType === "request" && request.type && (
+              <div className="detail-section">
+                <label className="detail-label">CERTIFICATE TYPE</label>
+                <div className="detail-value">
+                  <span className="cert-icon">📄</span>
+                  <span>{request.type}</span>
+                </div>
+              </div>
+            )}
+
+            {/* ── Complaint Type (complaints only) ── */}
+            {itemType === "complaint" && request.title && (
+              <div className="detail-section">
+                <label className="detail-label">COMPLAINT TYPE</label>
+                <div className="detail-value">
+                  <span className="cert-icon">📋</span>
+                  <span>{request.title}</span>
+                </div>
+              </div>
+            )}
+
+            {/* ── Respondent(s) (complaints only) ── */}
             {itemType === "complaint" &&
               (request.respondents || request.respondent_id) && (
                 <div className="detail-section">
@@ -292,11 +316,10 @@ const RequestDetail = ({
                   const dotColor = statusColorMap[rawStatus] || "#6B7280";
 
                   return (
-                    <li
-                      key={idx}
-                      className="history-item"
-                      style={{ "--dot-color": dotColor }}
-                    >
+                    <li key={idx} className="history-item">
+                      {/* Timeline dot — required for the vertical line + circle */}
+                      <div className="history-dot" />
+
                       <div className="history-row">
                         <div className="history-row-top">
                           <span
