@@ -862,6 +862,9 @@ const MyRequests = () => {
               <div className="mr-grid">
                 {filtered.map((req) => (
                   <div className="mr-card" key={req.id}>
+                    <div className="mr-card-type">
+                      {req.certificate_type || req.request_type || "Request"}
+                    </div>
                     <div className="mr-card-header">
                       <div className="mr-card-title-block">
                         {normalize(req.request_status) === "completed" ? (
@@ -892,7 +895,6 @@ const MyRequests = () => {
                         )}
                         <div>
                           <div className="mr-card-title">{req.subject}</div>
-                          <div className="mr-card-type">{req.request_type}</div>
                         </div>
                       </div>
                       <span className={getBadgeClass(req.request_status)}>
