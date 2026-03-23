@@ -35,9 +35,16 @@ const Announcements = () => {
     const fetchData = async () => {
       const result = await getAnnouncements();
       if (result.success) {
-        setAnnouncements(result.data);
+        const residentAnnouncements = (result.data || []).filter(
+          (announcement) =>
+            String(announcement.audience || "")
+              .trim()
+              .toLowerCase() === "residents",
+        );
+
+        setAnnouncements(residentAnnouncements);
         const imageMap = {};
-        const imagePromises = result.data.map(async (ann) => {
+        const imagePromises = residentAnnouncements.map(async (ann) => {
           const imageResult = await fetchAnnouncementImages(ann.id);
           if (imageResult.success && imageResult.images.length > 0) {
             imageMap[ann.id] = imageResult.images[0].url;
@@ -47,7 +54,7 @@ const Announcements = () => {
         setAnnouncementImages(imageMap);
 
         // Use participant_count from vw_events_with_participant_count
-        const eventAnns = result.data.filter(
+        const eventAnns = residentAnnouncements.filter(
           (a) => a.category && String(a.category).toLowerCase() === "event",
         );
         const counts = {};
@@ -119,6 +126,107 @@ const Announcements = () => {
         <line x1="12" y1="16" x2="12.01" y2="16" />
       </svg>
     );
+  };
+
+  const formatDateTimeReadable = (value) => {
+    if (!value) return "—";
+    return new Date(value).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const toReadableLabel = (value) => {
+    if (!value) return "—";
+    return String(value)
+      .replace(/[_-]/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
+  const toArray = (value) => (Array.isArray(value) ? value : []);
+
+  const getEventStatus = (announcement) => {
+    if (!announcement?.event_start) return "No Schedule";
+    const now = new Date();
+    const start = new Date(announcement.event_start);
+    const end = announcement.event_end ? new Date(announcement.event_end) : null;
+
+    if (now < start) return "Upcoming";
+    if (end && now > end) return "Completed";
+    return "Ongoing";
+  };
+
+  const getEventDuration = (announcement) => {
+    if (!announcement?.event_start || !announcement?.event_end) return "Open-ended";
+    const start = new Date(announcement.event_start);
+    const end = new Date(announcement.event_end);
+    const ms = end - start;
+    if (Number.isNaN(ms) || ms <= 0) return "—";
+    const hours = Math.floor(ms / (1000 * 60 * 60));
+    const days = Math.floor(hours / 24);
+    if (days > 0) return `${days} day${days > 1 ? "s" : ""}`;
+    return `${hours} hour${hours !== 1 ? "s" : ""}`;
+  };
+
+  const getTargetingChips = (announcement) => {
+    const chips = [];
+    const ageMin = announcement?.min_age;
+    const ageMax = announcement?.max_age;
+    const stayMin = announcement?.minimum_year_of_stay;
+    const stayMax = announcement?.maximum_year_of_stay;
+
+    if (toArray(announcement?.purok).length > 0) {
+      chips.push(`Purok: ${toArray(announcement.purok).join(", ")}`);
+    }
+
+    if (announcement?.sex) {
+      chips.push(
+        `Sex: ${announcement.sex === "M" ? "Male" : announcement.sex === "F" ? "Female" : announcement.sex}`,
+      );
+    }
+
+    if (ageMin !== null && ageMin !== undefined && ageMin !== "") {
+      chips.push(`Min Age: ${ageMin}`);
+    }
+    if (ageMax !== null && ageMax !== undefined && ageMax !== "") {
+      chips.push(`Max Age: ${ageMax}`);
+    }
+
+    if (toArray(announcement?.voter_status).length > 0) {
+      chips.push(
+        `Voter Status: ${toArray(announcement.voter_status)
+          .map((v) => toReadableLabel(v))
+          .join(", ")}`,
+      );
+    }
+
+    if (toArray(announcement?.occupation).length > 0) {
+      chips.push(`Occupation: ${toArray(announcement.occupation).join(", ")}`);
+    }
+
+    if (toArray(announcement?.religion).length > 0) {
+      chips.push(`Religion: ${toArray(announcement.religion).join(", ")}`);
+    }
+
+    if (toArray(announcement?.civil_status).length > 0) {
+      chips.push(
+        `Civil Status: ${toArray(announcement.civil_status)
+          .map((status) => toReadableLabel(status))
+          .join(", ")}`,
+      );
+    }
+
+    if (stayMin !== null && stayMin !== undefined && stayMin !== "") {
+      chips.push(`Minimum Years of Stay: ${stayMin}`);
+    }
+    if (stayMax !== null && stayMax !== undefined && stayMax !== "") {
+      chips.push(`Maximum Years of Stay: ${stayMax}`);
+    }
+
+    return chips;
   };
 
   return (
@@ -306,6 +414,16 @@ const Announcements = () => {
                           {ann.category?.toUpperCase() || "ANNOUNCEMENT"}
                         </div>
 
+                        <button
+                          className="ann-signup-btn"
+                          onClick={() => {
+                            setSelectedAnnouncement(ann);
+                            setShowDetailsModal(true);
+                          }}
+                        >
+                          View Details
+                        </button>
+
                         {ann.category &&
                           ann.category.toLowerCase() === "event" && (
                             <>
@@ -319,16 +437,6 @@ const Announcements = () => {
                                       ann.max_participants}
                                   </span>
                                 )}
-
-                              <button
-                                className="ann-signup-btn"
-                                onClick={() => {
-                                  setSelectedAnnouncement(ann);
-                                  setShowDetailsModal(true);
-                                }}
-                              >
-                                View Details
-                              </button>
 
                               {userSignups && userSignups[ann.id] && (
                                 <button
@@ -462,21 +570,29 @@ const Announcements = () => {
         {/* EVENT DETAILS MODAL */}
         {showDetailsModal && selectedAnnouncement && (
           <div
-            className="logout-modal-overlay"
+            className="logout-modal-overlay resident-ann-details-overlay"
             onClick={() => setShowDetailsModal(false)}
           >
             <div
-              className="history-modal"
+              className="history-modal resident-ann-details-shell"
               onClick={(e) => e.stopPropagation()}
-              style={{ maxWidth: 520 }}
             >
-              <div className="history-modal-header">
-                <div>
-                  <h3 className="history-modal-title">
+              <div className="history-modal-header resident-ann-details-header">
+                <div className="resident-ann-details-header-left">
+                  <div className="resident-ann-details-badges">
+                    <span className="resident-ann-chip resident-ann-chip-category">
+                      {selectedAnnouncement.category?.toUpperCase() ||
+                        "ANNOUNCEMENT"}
+                    </span>
+                    <span className="resident-ann-chip resident-ann-chip-priority">
+                      {(selectedAnnouncement.priority || "normal").toUpperCase()}
+                    </span>
+                  </div>
+                  <h3 className="history-modal-title resident-ann-details-title">
                     {selectedAnnouncement.title}
                   </h3>
-                  <p className="history-modal-sub">
-                    Event Details & Requirements
+                  <p className="history-modal-sub resident-ann-details-sub">
+                    Posted {formatDateTimeReadable(selectedAnnouncement.created_at)}
                   </p>
                 </div>
                 <button
@@ -496,190 +612,90 @@ const Announcements = () => {
                   </svg>
                 </button>
               </div>
-              <div className="history-modal-body">
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "16px",
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{
-                        fontSize: "13px",
-                        fontWeight: "600",
-                        color: "#6b7280",
-                        marginBottom: "6px",
-                      }}
-                    >
-                      Description
-                    </div>
-                    <p
-                      style={{
-                        fontSize: "14px",
-                        color: "#374151",
-                        lineHeight: "1.6",
-                        margin: 0,
-                      }}
-                    >
-                      {selectedAnnouncement.content}
-                    </p>
+              <div className="history-modal-body resident-ann-details-body">
+                <div className="resident-ann-kpi-grid">
+                  <div className="resident-ann-kpi-card">
+                    <span className="resident-ann-kpi-label">Audience</span>
+                    <span className="resident-ann-kpi-value" style={{ textTransform: "capitalize" }}>
+                      {selectedAnnouncement.audience || "Residents"}
+                    </span>
                   </div>
+                  <div className="resident-ann-kpi-card">
+                    <span className="resident-ann-kpi-label">SMS Notification</span>
+                    <span className="resident-ann-kpi-value">
+                      {selectedAnnouncement.send_sms ? "Enabled" : "Disabled"}
+                    </span>
+                  </div>
+                  <div className="resident-ann-kpi-card">
+                    <span className="resident-ann-kpi-label">Event Status</span>
+                    <span className="resident-ann-kpi-value">
+                      {selectedAnnouncement.category?.toLowerCase() === "event"
+                        ? getEventStatus(selectedAnnouncement)
+                        : "N/A"}
+                    </span>
+                  </div>
+                  <div className="resident-ann-kpi-card">
+                    <span className="resident-ann-kpi-label">Target Rules</span>
+                    <span className="resident-ann-kpi-value">
+                      {getTargetingChips(selectedAnnouncement).length}
+                    </span>
+                  </div>
+                </div>
 
-                  {selectedAnnouncement.event_start && (
-                    <div>
-                      <div
-                        style={{
-                          fontSize: "13px",
-                          fontWeight: "600",
-                          color: "#6b7280",
-                          marginBottom: "6px",
-                        }}
-                      >
-                        Event Schedule
+                <div className="resident-ann-section">
+                  <div className="resident-ann-section-title">Description</div>
+                  <p className="resident-ann-desc">{selectedAnnouncement.content}</p>
+                </div>
+
+                {selectedAnnouncement.category?.toLowerCase() === "event" && (
+                  <div className="resident-ann-section">
+                    <div className="resident-ann-section-title">Event Schedule</div>
+                    <div className="resident-ann-info-grid">
+                      <div className="resident-ann-info-item">
+                        <span>Start</span>
+                        <strong>{formatDateTimeReadable(selectedAnnouncement.event_start)}</strong>
                       </div>
-                      <div style={{ fontSize: "14px", color: "#374151" }}>
-                        <div>
-                          <strong>Start:</strong>{" "}
-                          {new Date(
-                            selectedAnnouncement.event_start,
-                          ).toLocaleString()}
-                        </div>
-                        {selectedAnnouncement.event_end && (
-                          <div>
-                            <strong>End:</strong>{" "}
-                            {new Date(
-                              selectedAnnouncement.event_end,
-                            ).toLocaleString()}
-                          </div>
-                        )}
+                      <div className="resident-ann-info-item">
+                        <span>End</span>
+                        <strong>{formatDateTimeReadable(selectedAnnouncement.event_end)}</strong>
+                      </div>
+                      <div className="resident-ann-info-item">
+                        <span>Duration</span>
+                        <strong>{getEventDuration(selectedAnnouncement)}</strong>
+                      </div>
+                      <div className="resident-ann-info-item">
+                        <span>Participants</span>
+                        <strong>
+                          {(participantCounts && participantCounts[selectedAnnouncement.id]) || 0}
+                          {selectedAnnouncement.max_participants
+                            ? ` / ${selectedAnnouncement.max_participants}`
+                            : " / Unlimited"}
+                        </strong>
                       </div>
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  {selectedAnnouncement.max_participants && (
-                    <div>
-                      <div
-                        style={{
-                          fontSize: "13px",
-                          fontWeight: "600",
-                          color: "#6b7280",
-                          marginBottom: "6px",
-                        }}
-                      >
-                        Participants
-                      </div>
-                      <div style={{ fontSize: "14px", color: "#374151" }}>
-                        {(participantCounts &&
-                          participantCounts[selectedAnnouncement.id]) ||
-                          0}{" "}
-                        / {selectedAnnouncement.max_participants} slots filled
-                      </div>
+                <div className="resident-ann-section">
+                  <div className="resident-ann-section-title">Requirements</div>
+                  {getTargetingChips(selectedAnnouncement).length > 0 ? (
+                    <div className="resident-ann-chip-wrap">
+                      {getTargetingChips(selectedAnnouncement).map((chip) => (
+                        <span key={chip} className="resident-ann-filter-chip">
+                          {chip}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="resident-ann-empty">
+                      No specific requirements. Open to the selected audience.
                     </div>
                   )}
+                </div>
 
-                  {(selectedAnnouncement.age_group ||
-                    selectedAnnouncement.voter_status ||
-                    selectedAnnouncement.occupation ||
-                    selectedAnnouncement.religion ||
-                    selectedAnnouncement.civil_status ||
-                    selectedAnnouncement.sex) && (
-                    <div>
-                      <div
-                        style={{
-                          fontSize: "13px",
-                          fontWeight: "600",
-                          color: "#6b7280",
-                          marginBottom: "8px",
-                        }}
-                      >
-                        Requirements
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "6px",
-                          padding: "12px",
-                          background: "#f9fafb",
-                          borderRadius: "8px",
-                          border: "1px solid #e5e7eb",
-                        }}
-                      >
-                        {selectedAnnouncement.age_group &&
-                          (Array.isArray(selectedAnnouncement.age_group)
-                            ? selectedAnnouncement.age_group.length > 0
-                            : selectedAnnouncement.age_group) && (
-                            <div style={{ fontSize: "13px", color: "#374151" }}>
-                              <strong>Age Group:</strong>{" "}
-                              {Array.isArray(selectedAnnouncement.age_group)
-                                ? selectedAnnouncement.age_group.join(", ")
-                                : selectedAnnouncement.age_group}
-                            </div>
-                          )}
-                        {selectedAnnouncement.voter_status &&
-                          (Array.isArray(selectedAnnouncement.voter_status)
-                            ? selectedAnnouncement.voter_status.length > 0
-                            : selectedAnnouncement.voter_status) && (
-                            <div style={{ fontSize: "13px", color: "#374151" }}>
-                              <strong>Voter Status:</strong>{" "}
-                              {Array.isArray(selectedAnnouncement.voter_status)
-                                ? selectedAnnouncement.voter_status.join(", ")
-                                : selectedAnnouncement.voter_status}
-                            </div>
-                          )}
-                        {selectedAnnouncement.occupation &&
-                          (Array.isArray(selectedAnnouncement.occupation)
-                            ? selectedAnnouncement.occupation.length > 0
-                            : selectedAnnouncement.occupation) && (
-                            <div style={{ fontSize: "13px", color: "#374151" }}>
-                              <strong>Occupation:</strong>{" "}
-                              {Array.isArray(selectedAnnouncement.occupation)
-                                ? selectedAnnouncement.occupation.join(", ")
-                                : selectedAnnouncement.occupation}
-                            </div>
-                          )}
-                        {selectedAnnouncement.religion &&
-                          (Array.isArray(selectedAnnouncement.religion)
-                            ? selectedAnnouncement.religion.length > 0
-                            : selectedAnnouncement.religion) && (
-                            <div style={{ fontSize: "13px", color: "#374151" }}>
-                              <strong>Religion:</strong>{" "}
-                              {Array.isArray(selectedAnnouncement.religion)
-                                ? selectedAnnouncement.religion.join(", ")
-                                : selectedAnnouncement.religion}
-                            </div>
-                          )}
-                        {selectedAnnouncement.civil_status &&
-                          (Array.isArray(selectedAnnouncement.civil_status)
-                            ? selectedAnnouncement.civil_status.length > 0
-                            : selectedAnnouncement.civil_status) && (
-                            <div style={{ fontSize: "13px", color: "#374151" }}>
-                              <strong>Civil Status:</strong>{" "}
-                              {Array.isArray(selectedAnnouncement.civil_status)
-                                ? selectedAnnouncement.civil_status.join(", ")
-                                : selectedAnnouncement.civil_status}
-                            </div>
-                          )}
-                        {selectedAnnouncement.sex && (
-                          <div style={{ fontSize: "13px", color: "#374151" }}>
-                            <strong>Sex:</strong>{" "}
-                            {selectedAnnouncement.sex === "M"
-                              ? "Male"
-                              : selectedAnnouncement.sex === "F"
-                                ? "Female"
-                                : selectedAnnouncement.sex}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  <div
-                    style={{ display: "flex", gap: "10px", marginTop: "8px" }}
-                  >
-                    {userSignups && userSignups[selectedAnnouncement.id] ? (
+                <div className="resident-ann-actions">
+                  {selectedAnnouncement.category?.toLowerCase() === "event" &&
+                    (userSignups && userSignups[selectedAnnouncement.id] ? (
                       <button
                         className="ann-signup-btn cancel"
                         style={{ flex: 1, padding: "12px" }}
@@ -705,15 +721,14 @@ const Announcements = () => {
                       >
                         Sign Up for Event
                       </button>
-                    )}
-                    <button
-                      className="logout-modal-no"
-                      style={{ flex: 1, padding: "12px" }}
-                      onClick={() => setShowDetailsModal(false)}
-                    >
-                      Close
-                    </button>
-                  </div>
+                    ))}
+                  <button
+                    className="logout-modal-no"
+                    style={{ flex: 1, padding: "12px" }}
+                    onClick={() => setShowDetailsModal(false)}
+                  >
+                    Close
+                  </button>
                 </div>
               </div>
             </div>

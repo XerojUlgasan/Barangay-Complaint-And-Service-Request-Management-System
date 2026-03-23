@@ -40,7 +40,8 @@ const ForgotPassword = () => {
       // PKCE recovery links return an auth code in query params.
       const code = searchParams.get("code") || "";
       if (code) {
-        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        const { error: exchangeError } =
+          await supabase.auth.exchangeCodeForSession(code);
         if (!exchangeError) {
           setRecoveryReady(true);
           setError("");

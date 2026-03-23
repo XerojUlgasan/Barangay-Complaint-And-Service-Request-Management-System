@@ -123,6 +123,109 @@ export default function AdminAnnouncements() {
     return !errors.start && !errors.end;
   };
 
+  const formatDateTimeReadable = (value) => {
+    if (!value) return "—";
+    return new Date(value).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const toArray = (value) => (Array.isArray(value) ? value : []);
+
+  const toReadableLabel = (value) => {
+    if (!value) return "—";
+    return String(value)
+      .replace(/[_-]/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
+  const getEventStatus = (announcement) => {
+    if (!announcement?.event_start) return "No Schedule";
+    const now = new Date();
+    const start = new Date(announcement.event_start);
+    const end = announcement.event_end
+      ? new Date(announcement.event_end)
+      : null;
+
+    if (now < start) return "Upcoming";
+    if (end && now > end) return "Completed";
+    return "Ongoing";
+  };
+
+  const getEventDuration = (announcement) => {
+    if (!announcement?.event_start || !announcement?.event_end)
+      return "Open-ended";
+    const start = new Date(announcement.event_start);
+    const end = new Date(announcement.event_end);
+    const ms = end - start;
+    if (Number.isNaN(ms) || ms <= 0) return "—";
+
+    const hours = Math.floor(ms / (1000 * 60 * 60));
+    const days = Math.floor(hours / 24);
+    if (days > 0) return `${days} day${days > 1 ? "s" : ""}`;
+    return `${hours} hour${hours !== 1 ? "s" : ""}`;
+  };
+
+  const getTargetingChips = (announcement) => {
+    const chips = [];
+    const ageMin = announcement?.min_age;
+    const ageMax = announcement?.max_age;
+    const stayMin = announcement?.minimum_year_of_stay;
+    const stayMax = announcement?.maximum_year_of_stay;
+
+    if (toArray(announcement?.purok).length > 0) {
+      chips.push(`Purok: ${toArray(announcement.purok).join(", ")}`);
+    }
+
+    if (announcement?.sex) {
+      chips.push(`Sex: ${mapSexToUi(announcement.sex) || announcement.sex}`);
+    }
+
+    if (ageMin !== null && ageMin !== undefined && ageMin !== "") {
+      chips.push(`Min Age: ${ageMin}`);
+    }
+    if (ageMax !== null && ageMax !== undefined && ageMax !== "") {
+      chips.push(`Max Age: ${ageMax}`);
+    }
+
+    if (toArray(announcement?.voter_status).length > 0) {
+      chips.push(
+        `Voter Status: ${toArray(announcement.voter_status)
+          .map((v) => toReadableLabel(v))
+          .join(", ")}`,
+      );
+    }
+
+    if (toArray(announcement?.occupation).length > 0) {
+      chips.push(`Occupation: ${toArray(announcement.occupation).join(", ")}`);
+    }
+
+    if (toArray(announcement?.religion).length > 0) {
+      chips.push(`Religion: ${toArray(announcement.religion).join(", ")}`);
+    }
+
+    if (toArray(announcement?.civil_status).length > 0) {
+      chips.push(
+        `Civil Status: ${toArray(announcement.civil_status)
+          .map((status) => toReadableLabel(status))
+          .join(", ")}`,
+      );
+    }
+
+    if (stayMin !== null && stayMin !== undefined && stayMin !== "") {
+      chips.push(`Minimum Years of Stay: ${stayMin}`);
+    }
+    if (stayMax !== null && stayMax !== undefined && stayMax !== "") {
+      chips.push(`Maximum Years of Stay: ${stayMax}`);
+    }
+
+    return chips;
+  };
+
   const minStartDateTime = formatDateTimeLocal(getMinAllowedDateTime());
   const minEndDateTime = formData.event_start
     ? (() => {
@@ -746,6 +849,42 @@ export default function AdminAnnouncements() {
 
               {/* Scrollable body */}
               <div className="ann-details-content">
+                <div className="ann-details-kpi-grid">
+                  <div className="ann-details-kpi-card">
+                    <span className="ann-details-kpi-label">Audience</span>
+                    <span
+                      className="ann-details-kpi-value"
+                      style={{ textTransform: "capitalize" }}
+                    >
+                      {selectedAnnouncement.audience || "Residents"}
+                    </span>
+                  </div>
+                  <div className="ann-details-kpi-card">
+                    <span className="ann-details-kpi-label">
+                      SMS Notification
+                    </span>
+                    <span className="ann-details-kpi-value">
+                      {selectedAnnouncement.send_sms ? "Enabled" : "Disabled"}
+                    </span>
+                  </div>
+                  <div className="ann-details-kpi-card">
+                    <span className="ann-details-kpi-label">
+                      Targeting Rules
+                    </span>
+                    <span className="ann-details-kpi-value">
+                      {getTargetingChips(selectedAnnouncement).length}
+                    </span>
+                  </div>
+                  <div className="ann-details-kpi-card">
+                    <span className="ann-details-kpi-label">
+                      Announcement ID
+                    </span>
+                    <span className="ann-details-kpi-value">
+                      #{selectedAnnouncement.id}
+                    </span>
+                  </div>
+                </div>
+
                 {/* Full content */}
                 <div className="ann-details-section">
                   <div className="ann-details-section-header">
@@ -768,21 +907,19 @@ export default function AdminAnnouncements() {
                       </div>
                       <div className="ann-details-info-grid">
                         <div className="ann-details-info-row">
+                          <span className="ann-details-info-label">Status</span>
+                          <span className="ann-details-info-value">
+                            {getEventStatus(selectedAnnouncement)}
+                          </span>
+                        </div>
+                        <div className="ann-details-info-row">
                           <span className="ann-details-info-label">
                             Event Start
                           </span>
                           <span className="ann-details-info-value">
-                            {selectedAnnouncement.event_start
-                              ? new Date(
-                                  selectedAnnouncement.event_start,
-                                ).toLocaleDateString("en-US", {
-                                  year: "numeric",
-                                  month: "long",
-                                  day: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })
-                              : "—"}
+                            {formatDateTimeReadable(
+                              selectedAnnouncement.event_start,
+                            )}
                           </span>
                         </div>
                         <div className="ann-details-info-row">
@@ -790,17 +927,17 @@ export default function AdminAnnouncements() {
                             Event End
                           </span>
                           <span className="ann-details-info-value">
-                            {selectedAnnouncement.event_end
-                              ? new Date(
-                                  selectedAnnouncement.event_end,
-                                ).toLocaleDateString("en-US", {
-                                  year: "numeric",
-                                  month: "long",
-                                  day: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })
-                              : "—"}
+                            {formatDateTimeReadable(
+                              selectedAnnouncement.event_end,
+                            )}
+                          </span>
+                        </div>
+                        <div className="ann-details-info-row">
+                          <span className="ann-details-info-label">
+                            Duration
+                          </span>
+                          <span className="ann-details-info-value">
+                            {getEventDuration(selectedAnnouncement)}
                           </span>
                         </div>
                         <div className="ann-details-info-row">
@@ -928,6 +1065,29 @@ export default function AdminAnnouncements() {
                     </div>
                   </>
                 )}
+
+                <div className="ann-details-section">
+                  <div className="ann-details-section-header">
+                    <Users size={15} />
+                    Audience Targeting
+                  </div>
+
+                  {getTargetingChips(selectedAnnouncement).length > 0 ? (
+                    <div className="ann-targeting-chip-wrap">
+                      {getTargetingChips(selectedAnnouncement).map((chip) => (
+                        <span key={chip} className="ann-targeting-chip">
+                          {chip}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="ann-details-empty">
+                      <AlertCircle size={18} />
+                      No targeting filters applied. This announcement is broadly
+                      visible to the selected audience.
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>,
