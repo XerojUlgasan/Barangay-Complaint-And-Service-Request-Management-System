@@ -20,15 +20,15 @@ import '../styles/Sidebar.css';
  */
 const Sidebar = ({ activeMenu = 'dashboard', menuItems = [] }) => {
   // State to track if sidebar is open on mobile devices
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
 
 
   return (
     <>
       {/* Mobile Menu Toggle Button - only visible on small screens */}
-      <button className={`mobile-menu-toggle ${isOpen ? 'hidden' : ''}`} onClick={() => setIsOpen(!isOpen)}>
-        {isOpen ? <Menu size={24} /> : <Menu size={24} />}
+      <button className={`mobile-menu-toggle ${isOpen ? 'hidden' : ''}`} onClick={() => setIsOpen(true)}>
+        <Menu size={24} />
       </button>
 
       {/* Sidebar Container - main navigation panel */}
