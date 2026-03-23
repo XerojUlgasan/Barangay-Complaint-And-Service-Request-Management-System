@@ -1163,7 +1163,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10000;
+  z-index: 999999 !important;
   backdrop-filter: blur(4px);
 }
 
@@ -1174,7 +1174,7 @@
   max-width: 480px;
   width: 90%;
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.16);
-  z-index: 10001;
+  z-index: 1000000 !important;
   position: relative;
 }
 
