@@ -190,10 +190,8 @@ export default function OfficialComplaints() {
   };
 
   return (
-    <div className="admin-page">
-      <div
-        className={`ar-page-content${isModalOpen ? " modal-open-blur" : ""}`}
-      >
+    <div className={`admin-page${isModalOpen ? " modal-open-blur" : ""}`}>
+      <div className="ar-page-content">
         <div
           className="page-actions"
           style={{ alignItems: "flex-start", marginBottom: 12 }}

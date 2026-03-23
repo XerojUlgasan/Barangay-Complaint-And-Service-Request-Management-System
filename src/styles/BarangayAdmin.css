@@ -896,9 +896,6 @@
 
 /* ── Blur when modal open ────────────────────────── */
 .modal-open-blur {
-  filter: blur(6px) saturate(0.75);
-  -webkit-filter: blur(6px) saturate(0.75);
-  transition: filter 0.25s ease;
   pointer-events: none;
   user-select: none;
 }
