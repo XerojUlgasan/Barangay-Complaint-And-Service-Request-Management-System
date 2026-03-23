@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import "../../styles/BarangayAdmin.css";
 import "../../styles/AdminAnnouncements.css";
+import "../../styles/BarangayOfficial.css";
 import {
   getAnnouncements,
   postAnnouncement,
@@ -70,6 +71,10 @@ export default function AdminAnnouncements() {
   const modalRef = useRef(null);
   const fileInputRef = useRef(null);
 
+  // Search and filter state
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+
   // Enum value mappings from database (occupation_types_v2)
   const occupationOptions = [
     { display: "Unemployed", value: "Unemployed" },
@@ -95,6 +100,36 @@ export default function AdminAnnouncements() {
       date.getDate(),
     )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
   };
+
+  const formatDateShort = (dateStr) => {
+    if (!dateStr) return "";
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const getCategoryConfig = (category) => {
+    const cat = (category || "").toLowerCase();
+    if (cat === "event") return { label: "Event", color: "#8b5cf6", bg: "#f5f3ff", icon: "📅" };
+    if (cat === "alert") return { label: "Alert", color: "#ef4444", bg: "#fef2f2", icon: "🚨" };
+    return { label: "General", color: "#10b981", bg: "#f0fdf4", icon: "📢" };
+  };
+
+  const getPriorityConfig = (priority) => {
+    const p = (priority || "").toLowerCase();
+    if (p === "high") return { label: "HIGH", color: "#dc2626", bg: "#fef2f2" };
+    if (p === "urgent") return { label: "URGENT", color: "#9f1239", bg: "#fff1f2" };
+    if (p === "medium") return { label: "MED", color: "#d97706", bg: "#fffbeb" };
+    return null;
+  };
+
+  const filterOptions = [
+    { key: "all", label: "All" },
+    { key: "event", label: "Events" },
+    { key: "general", label: "General" },
+    { key: "alert", label: "Alerts" },
+  ];
 
   const getMinAllowedDateTime = () => {
     const minDate = new Date();
@@ -238,6 +273,19 @@ export default function AdminAnnouncements() {
         );
       })()
     : minStartDateTime;
+
+  // Filtered announcements for search and filter
+  const filteredAnnouncements = announcements.filter((ann) => {
+    const cat = (ann.category || "general").toLowerCase();
+    const matchesFilter = activeFilter === "all" || cat === activeFilter;
+    const matchesSearch =
+      !searchQuery ||
+      ann.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ann.content?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
+
+  const eventCount = announcements.filter(a => (a.category || "").toLowerCase() === "event").length;
 
   console.log("AdminAnnouncements render, showModal=", showModal);
 
@@ -705,8 +753,9 @@ export default function AdminAnnouncements() {
         setShowAdvanced(false);
         closeModal();
 
-        // Refresh announcements list
-        const refreshResult = await getAnnouncements();
+        // Force refresh of announcements list (bypass cache)
+        console.log("Force refreshing announcements after update/post");
+        const refreshResult = await getAnnouncements(true);
         if (refreshResult.success && Array.isArray(refreshResult.data)) {
           setAnnouncements(refreshResult.data);
 
@@ -758,151 +807,192 @@ export default function AdminAnnouncements() {
   };
 
   return (
-    <div className="admin-page announcements-wrap">
-      {/* subtitle & action button moved below shared header */}
-      <div style={{ marginBottom: "18px" }}>
-        <p className="muted">Create and monitor official barangay updates</p>
+    <div className="ann-page-root">
+      {/* ── Page Header ── */}
+      <div className="ann-page-header">
+        <div className="ann-page-header-left">
+          <h1 className="ann-page-title">Announcements</h1>
+          <p className="ann-page-subtitle">Create and monitor official barangay updates</p>
+        </div>
+        <div className="ann-summary-chips">
+          <div className="ann-summary-chip">
+            <span className="ann-summary-chip-num">{announcements.length}</span>
+            <span className="ann-summary-chip-label">Total</span>
+          </div>
+          <div className="ann-summary-chip accent-purple">
+            <span className="ann-summary-chip-num">{eventCount}</span>
+            <span className="ann-summary-chip-label">Events</span>
+          </div>
+        </div>
       </div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          marginBottom: "18px",
-        }}
-      >
+
+      {/* ── Add New Announcement Button ── */}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "24px" }}>
         <button className="btn-new-ann" onClick={openModal}>
           + New Announcement
         </button>
       </div>
 
-      {loading && (
-        <div style={{ padding: "2rem", textAlign: "center" }}>
-          <div className="loading-wrap">
-            <div className="loading-spinner" aria-hidden="true"></div>
-            <div className="loading-text">Loading announcements...</div>
-          </div>
+      {/* ── Search & Filter Bar ── */}
+      <div className="ann-toolbar">
+        <div className="ann-search-wrap">
+          <svg className="ann-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            className="ann-search-input"
+            type="text"
+            placeholder="Search announcements..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
-      )}
-
-      {error && (
-        <div
-          style={{
-            padding: "1rem",
-            marginBottom: "1.5rem",
-            backgroundColor: "#fee2e2",
-            borderRadius: "0.5rem",
-            color: "#991b1b",
-          }}
-        >
-          Error: {error}
+        <div className="ann-filter-pills">
+          {filterOptions.map((f) => (
+            <button
+              key={f.key}
+              className={`ann-filter-pill${activeFilter === f.key ? " active" : ""}`}
+              onClick={() => setActiveFilter(f.key)}
+            >
+              {f.label}
+            </button>
+          ))}
         </div>
-      )}
-
-      <div className="announcements-list">
-        {announcements && announcements.length > 0
-          ? announcements.map((it) => (
-              <div key={it.id} className={`announcement-card`}>
-                <div className="announcement-left">
-                  {imageLoadingMap[it.id] ? (
-                    <div
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        background: "#f3f4f6",
-                      }}
-                    >
-                      <div
-                        className="loading-spinner"
-                        style={{ width: "24px", height: "24px" }}
-                      />
-                    </div>
-                  ) : (
-                    <img
-                      src={
-                        announcementImages[it.id] ||
-                        "https://via.placeholder.com/160x100?text=Announcement"
-                      }
-                      alt={it.title}
-                      loading="lazy"
-                      onError={(e) => {
-                        e.target.src =
-                          "https://via.placeholder.com/160x100?text=Announcement";
-                      }}
-                    />
-                  )}
-                </div>
-
-                <div className="announcement-right">
-                  <div className="announcement-right-top">
-                    <div className="ann-icon">
-                      <Calendar size={18} />
-                    </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        flex: 1,
-                      }}
-                    >
-                      <div className="ann-title">{it.title}</div>
-                      {it.priority && (
-                        <div
-                          className={`priority-pill priority-${it.priority.toLowerCase()}`}
-                        >
-                          {it.priority.toUpperCase()}
-                        </div>
-                      )}
-                    </div>
-                    <div className="ann-actions">
-                      <button
-                        className="ann-view-btn"
-                        title="View Details"
-                        onClick={() => openAnnDetails(it)}
-                      >
-                        <Eye size={16} />
-                      </button>
-                      <button
-                        className="ann-view-btn"
-                        title="Edit"
-                        onClick={() => openEditModal(it)}
-                      >
-                        <Edit size={16} />
-                      </button>
-                      <button
-                        className="ann-trash"
-                        title="Delete"
-                        onClick={() => handleDeleteAnnouncement(it.id)}
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="ann-meta">
-                    Posted by Barangay •{" "}
-                    {new Date(it.created_at).toLocaleDateString()}
-                  </div>
-                  <div className="ann-desc">{it.content}</div>
-                  <div className="ann-foot">
-                    <div className="ann-tag">
-                      {it.category?.toUpperCase() || "ANNOUNCEMENT"}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))
-          : !loading && (
-              <div
-                style={{ padding: "2rem", textAlign: "center", color: "#999" }}
-              >
-                <p>No announcements yet. Create one to get started!</p>
-              </div>
-            )}
       </div>
+
+      {/* ── Count Label ── */}
+      <div className="ann-count-label">
+        Showing {filteredAnnouncements.length} of {announcements.length} announcements
+      </div>
+
+      {/* ── Loading State ── */}
+      {loading && (
+        <div className="ann-loading-state">
+          <div className="ann-loading-spinner" />
+          <span>Loading announcements...</span>
+        </div>
+      )}
+
+      {/* ── Error State ── */}
+      {error && (
+        <div className="ann-error-state">
+          <div className="ann-error-icon">⚠️</div>
+          <p className="ann-error-text">Error: {error}</p>
+        </div>
+      )}
+
+      {/* ── Cards Grid ── */}
+      {!loading && !error && (
+        filteredAnnouncements.length === 0 ? (
+          <div className="ann-empty-state">
+            <div className="ann-empty-icon">📭</div>
+            <p className="ann-empty-text">No announcements found</p>
+            <p className="ann-empty-sub">Try adjusting your search or filter</p>
+          </div>
+        ) : (
+          <div className="ann-cards-grid">
+            {filteredAnnouncements.map((ann, idx) => {
+              const catConfig = getCategoryConfig(ann.category);
+              const priorityConfig = getPriorityConfig(ann.priority);
+              const isEvent = (ann.category || "").toLowerCase() === "event";
+              const hasImage = !!announcementImages[ann.id];
+
+              return (
+                <div
+                  className="ann-card-new"
+                  key={ann.id}
+                  style={{ animationDelay: `${idx * 0.05}s` }}
+                >
+                  {/* Image / Placeholder */}
+                  <div className="ann-card-img-wrap">
+                    {imageLoadingMap[ann.id] ? (
+                      <div className="ann-card-img-placeholder" style={{ background: "#f3f4f6" }}>
+                        <div className="loading-spinner" style={{ width: "24px", height: "24px" }} />
+                      </div>
+                    ) : hasImage ? (
+                      <img src={announcementImages[ann.id]} alt={ann.title} className="ann-card-img" />
+                    ) : (
+                      <div className="ann-card-img-placeholder" style={{ background: catConfig.bg }}>
+                        <span className="ann-card-img-emoji">{catConfig.icon}</span>
+                      </div>
+                    )}
+
+                    {/* Category badge overlaid on image */}
+                    <span
+                      className="ann-card-cat-badge"
+                      style={{ background: catConfig.color }}
+                    >
+                      {catConfig.label}
+                    </span>
+
+                    {/* Priority badge */}
+                    {priorityConfig && (
+                      <span
+                        className="ann-card-priority-badge"
+                        style={{ color: priorityConfig.color, background: priorityConfig.bg }}
+                      >
+                        {priorityConfig.label}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Card Body */}
+                  <div className="ann-card-body">
+                    <div className="ann-card-meta">
+                      <span className="ann-card-author">
+                        {ann.author || "Barangay"}
+                      </span>
+                      <span className="ann-card-dot">·</span>
+                      <span className="ann-card-date">{formatDateShort(ann.created_at)}</span>
+                    </div>
+
+                    <h3 className="ann-card-title">{ann.title}</h3>
+                    <p className="ann-card-desc">{ann.content}</p>
+
+                    {/* Event details */}
+                    {isEvent && ann.event_start && (
+                      <div className="ann-card-event-row">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
+                          <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+                        </svg>
+                        <span>{new Date(ann.event_start).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                      </div>
+                    )}
+
+                    {/* Admin Actions */}
+                    <div className="ann-card-admin-actions">
+                      <button
+                        className="ann-admin-btn-view"
+                        onClick={() => openAnnDetails(ann)}
+                        title="View Details"
+                      >
+                        <Eye size={14} />
+                        View
+                      </button>
+                      <button
+                        className="ann-admin-btn-edit"
+                        onClick={() => openEditModal(ann)}
+                        title="Edit"
+                      >
+                        <Edit size={14} />
+                        Edit
+                      </button>
+                      <button
+                        className="ann-admin-btn-delete"
+                        onClick={() => handleDeleteAnnouncement(ann.id)}
+                        title="Delete"
+                      >
+                        <Trash2 size={14} />
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )
+      )}
 
       {/* Announcement Details Modal */}
       {selectedAnnouncement &&

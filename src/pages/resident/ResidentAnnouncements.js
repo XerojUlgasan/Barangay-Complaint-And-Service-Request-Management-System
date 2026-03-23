@@ -1,23 +1,29 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import {
-  getAnnouncements,
-  signupForEvent,
-  cancelSignup,
-} from "../../supabse_db/announcement/announcement";
+import { signupForEvent, cancelSignup } from "../../supabse_db/announcement/announcement";
 import { logout } from "../../supabse_db/auth/auth";
-import { fetchAnnouncementImages } from "../../supabse_db/uploadImages";
+import supabase from "../../supabse_db/supabase_client";
 import { useAuth } from "../../context/AuthContext";
+import { useAnnouncementsForRole } from "../../hooks/useAnnouncementsForRole";
 import ResidentSidebar from "../../components/ResidentSidebar";
 import ResidentSettings from "../../components/ResidentSettings";
 import "../../styles/UserPages.css";
+import "../../styles/BarangayOfficial.css";
 
 const Announcements = () => {
   const navigate = useNavigate();
   const { authUser, userLoading, userName } = useAuth();
-  const [announcements, setAnnouncements] = useState([]);
-  const [announcementImages, setAnnouncementImages] = useState({});
-  const [loading, setLoading] = useState(true);
+
+  // Use the centralized announcement hook for role-based data
+  const {
+    announcements,
+    announcementImages,
+    participantCounts,
+    loading,
+    refresh,
+  } = useAnnouncementsForRole("residents");
+
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSignupModal, setShowSignupModal] = useState(false);
@@ -27,48 +33,43 @@ const Announcements = () => {
   const [signupMessage, setSignupMessage] = useState(null);
   const [signupAction, setSignupAction] = useState("signup");
   const [userSignups, setUserSignups] = useState({});
-  const [participantCounts, setParticipantCounts] = useState({});
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [userProfile, setUserProfile] = useState(null);
 
+  // Load user signups for events
   useEffect(() => {
     if (userLoading || !authUser) return;
 
-    const fetchData = async () => {
-      const result = await getAnnouncements();
-      if (result.success) {
-        const residentAnnouncements = (result.data || []).filter(
-          (announcement) =>
-            String(announcement.audience || "")
-              .trim()
-              .toLowerCase() === "residents",
-        );
+    const loadUserSignups = async () => {
+      const eventAnns = announcements.filter(
+        (a) => a.category && String(a.category).toLowerCase() === "event"
+      );
 
-        setAnnouncements(residentAnnouncements);
-        const imageMap = {};
-        const imagePromises = residentAnnouncements.map(async (ann) => {
-          const imageResult = await fetchAnnouncementImages(ann.id);
-          if (imageResult.success && imageResult.images.length > 0) {
-            imageMap[ann.id] = imageResult.images[0].url;
+      if (eventAnns.length > 0) {
+        try {
+          const annIds = eventAnns.map((a) => a.id);
+          const { data: signupRows, error: signupError } = await supabase
+            .from("event_participants")
+            .select("announcement_id")
+            .in("announcement_id", annIds)
+            .eq("user_uid", authUser.id);
+
+          if (!signupError && Array.isArray(signupRows)) {
+            const signups = {};
+            signupRows.forEach((r) => {
+              signups[r.announcement_id] = true;
+            });
+            setUserSignups(signups);
           }
-        });
-        await Promise.all(imagePromises);
-        setAnnouncementImages(imageMap);
-
-        // Use participant_count from vw_events_with_participant_count
-        const eventAnns = residentAnnouncements.filter(
-          (a) => a.category && String(a.category).toLowerCase() === "event",
-        );
-        const counts = {};
-        eventAnns.forEach((a) => {
-          counts[a.id] = Number(a.participant_count) || 0;
-        });
-        setParticipantCounts(counts);
+        } catch (err) {
+          console.error("Error loading user signups:", err);
+        }
       }
-
-      setLoading(false);
     };
 
-    fetchData();
-  }, [authUser, userLoading]);
+    loadUserSignups();
+  }, [authUser, userLoading, announcements]);
 
   const handleLogoutConfirm = async () => {
     try {
@@ -89,43 +90,27 @@ const Announcements = () => {
     });
   };
 
-  const getPriorityClass = (priority) => {
-    if (!priority) return "";
-    if (priority.toLowerCase() === "high") return "ann-priority high";
-    if (priority.toLowerCase() === "medium") return "ann-priority medium";
-    return "ann-priority normal";
+  const formatDateShort = (dateStr) => {
+    if (!dateStr) return "";
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
   };
 
-  const getCategoryIcon = (category) => {
-    if (!category) return null;
-    if (category.toLowerCase() === "event")
-      return (
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          width="15"
-          height="15"
-        >
-          <rect x="3" y="4" width="18" height="18" rx="2" />
-          <path d="M16 2v4M8 2v4M3 10h18" />
-        </svg>
-      );
-    return (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        width="15"
-        height="15"
-      >
-        <circle cx="12" cy="12" r="10" />
-        <line x1="12" y1="8" x2="12" y2="12" />
-        <line x1="12" y1="16" x2="12.01" y2="16" />
-      </svg>
-    );
+  const getCategoryConfig = (category) => {
+    const cat = (category || "").toLowerCase();
+    if (cat === "event") return { label: "Event", color: "#8b5cf6", bg: "#f5f3ff", icon: "📅" };
+    if (cat === "alert") return { label: "Alert", color: "#ef4444", bg: "#fef2f2", icon: "🚨" };
+    return { label: "General", color: "#10b981", bg: "#f0fdf4", icon: "📢" };
+  };
+
+  const getPriorityConfig = (priority) => {
+    const p = (priority || "").toLowerCase();
+    if (p === "high") return { label: "HIGH", color: "#dc2626", bg: "#fef2f2" };
+    if (p === "urgent") return { label: "URGENT", color: "#9f1239", bg: "#fff1f2" };
+    if (p === "medium") return { label: "MED", color: "#d97706", bg: "#fffbeb" };
+    return null;
   };
 
   const formatDateTimeReadable = (value) => {
@@ -139,11 +124,10 @@ const Announcements = () => {
     });
   };
 
-  const toReadableLabel = (value) => {
-    if (!value) return "—";
-    return String(value)
-      .replace(/[_-]/g, " ")
-      .replace(/\b\w/g, (char) => char.toUpperCase());
+  const mapSexToUi = (value) => {
+    if (value === "M" || value === "Male") return "Male";
+    if (value === "F" || value === "Female") return "Female";
+    return "";
   };
 
   const toArray = (value) => (Array.isArray(value) ? value : []);
@@ -152,9 +136,7 @@ const Announcements = () => {
     if (!announcement?.event_start) return "No Schedule";
     const now = new Date();
     const start = new Date(announcement.event_start);
-    const end = announcement.event_end
-      ? new Date(announcement.event_end)
-      : null;
+    const end = announcement.event_end ? new Date(announcement.event_end) : null;
 
     if (now < start) return "Upcoming";
     if (end && now > end) return "Completed";
@@ -162,12 +144,12 @@ const Announcements = () => {
   };
 
   const getEventDuration = (announcement) => {
-    if (!announcement?.event_start || !announcement?.event_end)
-      return "Open-ended";
+    if (!announcement?.event_start || !announcement?.event_end) return "Open-ended";
     const start = new Date(announcement.event_start);
     const end = new Date(announcement.event_end);
     const ms = end - start;
     if (Number.isNaN(ms) || ms <= 0) return "—";
+
     const hours = Math.floor(ms / (1000 * 60 * 60));
     const days = Math.floor(hours / 24);
     if (days > 0) return `${days} day${days > 1 ? "s" : ""}`;
@@ -186,9 +168,7 @@ const Announcements = () => {
     }
 
     if (announcement?.sex) {
-      chips.push(
-        `Sex: ${announcement.sex === "M" ? "Male" : announcement.sex === "F" ? "Female" : announcement.sex}`,
-      );
+      chips.push(`Sex: ${mapSexToUi(announcement.sex) || announcement.sex}`);
     }
 
     if (ageMin !== null && ageMin !== undefined && ageMin !== "") {
@@ -199,11 +179,7 @@ const Announcements = () => {
     }
 
     if (toArray(announcement?.voter_status).length > 0) {
-      chips.push(
-        `Voter Status: ${toArray(announcement.voter_status)
-          .map((v) => toReadableLabel(v))
-          .join(", ")}`,
-      );
+      chips.push(`Voter Status: ${toArray(announcement.voter_status).map((v) => v.toString().replace(/[_-]/g, " ").replace(/\b\w/g, (char) => char.toUpperCase())).join(", ")}`);
     }
 
     if (toArray(announcement?.occupation).length > 0) {
@@ -215,11 +191,7 @@ const Announcements = () => {
     }
 
     if (toArray(announcement?.civil_status).length > 0) {
-      chips.push(
-        `Civil Status: ${toArray(announcement.civil_status)
-          .map((status) => toReadableLabel(status))
-          .join(", ")}`,
-      );
+      chips.push(`Civil Status: ${toArray(announcement.civil_status).map((status) => status.toString().replace(/[_-]/g, " ").replace(/\b\w/g, (char) => char.toUpperCase())).join(", ")}`);
     }
 
     if (stayMin !== null && stayMin !== undefined && stayMin !== "") {
@@ -231,6 +203,26 @@ const Announcements = () => {
 
     return chips;
   };
+
+  const filterOptions = [
+    { key: "all", label: "All" },
+    { key: "event", label: "Events" },
+    { key: "general", label: "General" },
+    { key: "alert", label: "Alerts" },
+  ];
+
+  const filteredAnnouncements = announcements.filter((ann) => {
+    const cat = (ann.category || "general").toLowerCase();
+    const matchesFilter = activeFilter === "all" || cat === activeFilter;
+    const matchesSearch =
+      !searchQuery ||
+      ann.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ann.content?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
+
+  const eventCount = announcements.filter(a => (a.category || "").toLowerCase() === "event").length;
+  const signedUpCount = Object.keys(userSignups).length;
 
   return (
     <div className="user-landing-page">
@@ -340,126 +332,212 @@ const Announcements = () => {
           </div>
 
           {/* CONTENT */}
-          <div className="ann-content">
-            <h1 className="ann-page-title">Announcements</h1>
-            <p className="ann-page-sub">
-              Stay updated with official barangay announcements
-            </p>
+          <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            {/* Page Header */}
+            <div className="ann-page-header">
+              <div className="ann-page-header-left">
+                <h1 className="ann-page-title">Announcements</h1>
+                <p className="ann-page-subtitle">Stay updated with official barangay announcements</p>
+              </div>
+              <div className="ann-summary-chips">
+                <div className="ann-summary-chip">
+                  <span className="ann-summary-chip-num">{announcements.length}</span>
+                  <span className="ann-summary-chip-label">Total</span>
+                </div>
+                <div className="ann-summary-chip accent-purple">
+                  <span className="ann-summary-chip-num">{eventCount}</span>
+                  <span className="ann-summary-chip-label">Events</span>
+                </div>
+                <div className="ann-summary-chip accent-green">
+                  <span className="ann-summary-chip-num">{signedUpCount}</span>
+                  <span className="ann-summary-chip-label">Joined</span>
+                </div>
+              </div>
+            </div>
 
-            {loading ? (
-              <p style={{ color: "#888" }}>Loading announcements...</p>
-            ) : announcements.length === 0 ? (
-              <p style={{ color: "#888" }}>No announcements yet.</p>
-            ) : (
-              <div className="ann-grid">
-                {announcements.map((ann) => (
-                  <div className="ann-card" key={ann.id}>
-                    {/* LEFT: IMAGE */}
-                    <div className="ann-image">
-                      {announcementImages[ann.id] ? (
-                        <img src={announcementImages[ann.id]} alt={ann.title} />
-                      ) : (
-                        <div className="ann-image-placeholder">
-                          <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            width="40"
-                            height="40"
-                          >
-                            <rect x="3" y="3" width="18" height="18" rx="3" />
-                            <circle cx="8.5" cy="8.5" r="1.5" />
-                            <polyline points="21 15 16 10 5 21" />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* RIGHT: CONTENT */}
-                    <div className="ann-body">
-                      {/* TOP ROW */}
-                      <div className="ann-meta-top">
-                        <div className="ann-category-icon">
-                          {getCategoryIcon(ann.category)}
-                        </div>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 10,
-                            flex: 1,
-                          }}
-                        >
-                          <div className="ann-title">{ann.title}</div>
-                          {ann.priority &&
-                            ann.priority.toLowerCase() !== "normal" &&
-                            ann.priority.toLowerCase() !== "low" && (
-                              <div className={getPriorityClass(ann.priority)}>
-                                {ann.priority.toUpperCase()}
-                              </div>
-                            )}
-                        </div>
-                      </div>
-
-                      {/* METADATA */}
-                      <div className="ann-meta-left">
-                        Posted by {ann.author || "Barangay"} •{" "}
-                        {formatDate(ann.created_at)}
-                      </div>
-
-                      {/* DESCRIPTION */}
-                      <div className="ann-description">{ann.content}</div>
-
-                      {/* FOOTER */}
-                      <div className="ann-footer">
-                        <div className="ann-category">
-                          {ann.category?.toUpperCase() || "ANNOUNCEMENT"}
-                        </div>
-
-                        <button
-                          className="ann-signup-btn"
-                          onClick={() => {
-                            setSelectedAnnouncement(ann);
-                            setShowDetailsModal(true);
-                          }}
-                        >
-                          View Details
-                        </button>
-
-                        {ann.category &&
-                          ann.category.toLowerCase() === "event" && (
-                            <>
-                              {typeof ann.max_participants !== "undefined" &&
-                                ann.max_participants !== null && (
-                                  <span className="ann-slots">
-                                    {((participantCounts &&
-                                      participantCounts[ann.id]) ||
-                                      0) +
-                                      " / " +
-                                      ann.max_participants}
-                                  </span>
-                                )}
-
-                              {userSignups && userSignups[ann.id] && (
-                                <button
-                                  className="ann-signup-btn cancel"
-                                  onClick={() => {
-                                    setSelectedAnnouncement(ann);
-                                    setSignupMessage(null);
-                                    setSignupAction("cancel");
-                                    setShowSignupModal(true);
-                                  }}
-                                >
-                                  Cancel Signup
-                                </button>
-                              )}
-                            </>
-                          )}
-                      </div>
-                    </div>
-                  </div>
+            {/* Toolbar */}
+            <div className="ann-toolbar">
+              <div className="ann-search-wrap">
+                <svg className="ann-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input
+                  className="ann-search-input"
+                  type="text"
+                  placeholder="Search announcements..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <div className="ann-filter-pills">
+                {filterOptions.map((f) => (
+                  <button
+                    key={f.key}
+                    className={`ann-filter-pill${activeFilter === f.key ? " active" : ""}`}
+                    onClick={() => setActiveFilter(f.key)}
+                  >
+                    {f.label}
+                  </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Count Label */}
+            <div className="ann-count-label">
+              Showing {filteredAnnouncements.length} of {announcements.length} announcements
+            </div>
+
+            {/* Cards Grid */}
+            {filteredAnnouncements.length === 0 ? (
+              <div className="ann-empty-state">
+                <div className="ann-empty-icon">📭</div>
+                <p className="ann-empty-text">No announcements found</p>
+                <p className="ann-empty-sub">Try adjusting your search or filter</p>
+              </div>
+            ) : (
+              <div className="ann-cards-grid">
+                {filteredAnnouncements.map((ann, idx) => {
+                  const catConfig = getCategoryConfig(ann.category);
+                  const priorityConfig = getPriorityConfig(ann.priority);
+                  const isEvent = (ann.category || "").toLowerCase() === "event";
+                  const isSignedUp = userSignups && userSignups[ann.id];
+                  const participantCount = (participantCounts && participantCounts[ann.id]) || 0;
+                  const hasImage = !!announcementImages[ann.id];
+                  const isEventFull = isEvent && ann.max_participants && participantCount >= ann.max_participants;
+                  const fillPct = ann.max_participants
+                    ? Math.min(100, Math.round((participantCount / ann.max_participants) * 100))
+                    : 0;
+
+                  return (
+                    <div
+                      className="ann-card-new"
+                      key={ann.id}
+                      style={{ animationDelay: `${idx * 0.05}s` }}
+                    >
+                      {/* Image / Placeholder */}
+                      <div className="ann-card-img-wrap">
+                        {hasImage ? (
+                          <img src={announcementImages[ann.id]} alt={ann.title} className="ann-card-img" />
+                        ) : (
+                          <div className="ann-card-img-placeholder" style={{ background: catConfig.bg }}>
+                            <span className="ann-card-img-emoji">{catConfig.icon}</span>
+                          </div>
+                        )}
+
+                        {/* Category badge overlaid on image */}
+                        <span
+                          className="ann-card-cat-badge"
+                          style={{ background: catConfig.color }}
+                        >
+                          {catConfig.label}
+                        </span>
+
+                        {/* Priority badge */}
+                        {priorityConfig && (
+                          <span
+                            className="ann-card-priority-badge"
+                            style={{ color: priorityConfig.color, background: priorityConfig.bg }}
+                          >
+                            {priorityConfig.label}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Card Body */}
+                      <div className="ann-card-body">
+                        <div className="ann-card-meta">
+                          <span className="ann-card-author">
+                            {ann.author || "Barangay"}
+                          </span>
+                          <span className="ann-card-dot">·</span>
+                          <span className="ann-card-date">{formatDateShort(ann.created_at)}</span>
+                        </div>
+
+                        <h3 className="ann-card-title">{ann.title}</h3>
+                        <p className="ann-card-desc">{ann.content}</p>
+
+                        {/* Event details */}
+                        {isEvent && ann.event_start && (
+                          <div className="ann-card-event-row">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
+                              <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+                            </svg>
+                            <span>{new Date(ann.event_start).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                          </div>
+                        )}
+
+                        {/* Participant bar */}
+                        {isEvent && ann.max_participants && (
+                          <div className="ann-card-participants">
+                            <div className="ann-card-participants-label">
+                              <span>{participantCount} / {ann.max_participants} joined</span>
+                              <span>{fillPct}%</span>
+                            </div>
+                            <div className="ann-card-bar-track">
+                              <div
+                                className="ann-card-bar-fill"
+                                style={{
+                                  width: `${fillPct}%`,
+                                  background: fillPct >= 90 ? "#ef4444" : fillPct >= 60 ? "#f59e0b" : "#10b981",
+                                }}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Footer actions */}
+                        <div className="ann-card-footer">
+                          <button
+                            className="ann-card-btn-outline"
+                            onClick={() => { setSelectedAnnouncement(ann); setShowDetailsModal(true); }}
+                          >
+                            View Details
+                          </button>
+                          {isEvent ? (
+                            isSignedUp ? (
+                              <button
+                                className="ann-card-btn-cancel"
+                                onClick={() => {
+                                  setSelectedAnnouncement(ann);
+                                  setSignupMessage(null);
+                                  setSignupAction("cancel");
+                                  setShowSignupModal(true);
+                                }}
+                              >
+                                ✓ Signed Up
+                              </button>
+                            ) : isEventFull ? (
+                              <button
+                                className="ann-card-btn-primary"
+                                disabled
+                                title="Event is at maximum capacity"
+                                style={{ opacity: 0.5, cursor: "not-allowed" }}
+                              >
+                                Event Full
+                              </button>
+                            ) : (
+                              <button
+                                className="ann-card-btn-primary"
+                                onClick={() => {
+                                  setSelectedAnnouncement(ann);
+                                  setSignupMessage(null);
+                                  setSignupAction("signup");
+                                  setShowSignupModal(true);
+                                }}
+                              >
+                                Sign Up
+                              </button>
+                            )
+                          ) : (
+                            <span className="ann-card-posted" style={{ marginLeft: "auto" }}>
+                              Posted {formatDate(ann.created_at)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -515,11 +593,7 @@ const Announcements = () => {
                             ...s,
                             [selectedAnnouncement.id]: true,
                           }));
-                          setParticipantCounts((c) => ({
-                            ...c,
-                            [selectedAnnouncement.id]:
-                              (c[selectedAnnouncement.id] || 0) + 1,
-                          }));
+                          // Participant counts will update automatically via real-time subscription
                           setTimeout(() => {
                             setShowSignupModal(false);
                           }, 1000);
@@ -533,13 +607,7 @@ const Announcements = () => {
                             delete n[selectedAnnouncement.id];
                             return n;
                           });
-                          setParticipantCounts((c) => ({
-                            ...c,
-                            [selectedAnnouncement.id]: Math.max(
-                              0,
-                              (c[selectedAnnouncement.id] || 1) - 1,
-                            ),
-                          }));
+                          // Participant counts will update automatically via real-time subscription
                           setTimeout(() => {
                             setShowSignupModal(false);
                           }, 400);

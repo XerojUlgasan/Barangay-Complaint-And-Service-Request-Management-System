@@ -189,12 +189,14 @@ export const postAnnouncement = async (
   return { success: true, data };
 };
 
-export const getAnnouncements = async () => {
-  // Use cache if valid
-  if (isCacheValid()) {
+export const getAnnouncements = async (forceRefresh = false) => {
+  // Use cache if valid and not forcing refresh
+  if (!forceRefresh && isCacheValid()) {
+    console.log("Returning cached announcements");
     return { success: true, data: announcementCache.data || [] };
   }
 
+  console.log("Fetching fresh announcements from database");
   const { data, error } = await supabase
     .from("announcement_tbl")
     .select("*")
@@ -212,6 +214,7 @@ export const getAnnouncements = async () => {
     ttl: announcementCache.ttl,
   };
 
+  console.log("Announcements fetched, count:", announcementCache.data.length);
   return { success: true, data: data || [] };
 };
 
@@ -258,35 +261,31 @@ export const updateAnnouncement = async (
 
   const userId = userData.user.id;
 
-  const { data: superadminData } = await supabase
-    .from("superadmin_tbl")
-    .select("id")
-    .eq("auth_uid", userId)
-    .single();
-
-  if (!superadminData) {
-    return {
-      success: false,
-      message: "Only superadmins can update announcements",
-    };
-  }
-
-  // Ensure the superadmin requesting the update is the original announcer
+  // Verify the announcement exists before attempting to update
   const { data: existingAnn, error: existingAnnError } = await supabase
     .from("announcement_tbl")
-    .select("announcer")
+    .select("id, announcer")
     .eq("id", id)
-    .single();
+    .maybeSingle();
 
-  if (existingAnnError || !existingAnn) {
+  console.log("Announcement lookup result:", { existingAnn, existingAnnError, id });
+
+  if (existingAnnError) {
     console.error("Error fetching announcement to update:", existingAnnError);
-    return { success: false, message: "Announcement not found" };
+    return { success: false, message: "Error verifying announcement: " + existingAnnError.message };
   }
 
+  if (!existingAnn) {
+    console.error("Announcement not found - id does not exist:", id);
+    return { success: false, message: "Announcement with id " + id + " not found in database" };
+  }
+
+  // Verify the superadmin is the announcer
   if (existingAnn.announcer !== userId) {
+    console.error("User is not the announcer. User:", userId, "Announcer:", existingAnn.announcer);
     return {
       success: false,
-      message: "Only the announcer superadmin can update this announcement",
+      message: "Only the announcer can update this announcement",
     };
   }
 
@@ -355,21 +354,51 @@ export const updateAnnouncement = async (
   console.log("Update payload:", updatePayload);
   console.log("EventData passed:", eventData);
 
-  const { data, error } = await supabase
+  // Fetch BEFORE state for comparison
+  const { data: beforeUpdate, error: beforeError } = await supabase
+    .from("announcement_tbl")
+    .select("category, priority, title, content")
+    .eq("id", id)
+    .maybeSingle();
+
+  console.log("BEFORE UPDATE:", beforeUpdate);
+
+  // Perform the update without trying to return the row (avoiding the 406 issue)
+  const { error: updateError } = await supabase
     .from("announcement_tbl")
     .update(updatePayload)
-    .eq("id", id)
-    .select()
-    .single();
+    .eq("id", id);
 
-  if (error) {
-    console.error("Error updating announcement:", error);
-    return { success: false, message: error.message };
+  if (updateError) {
+    console.error("Error updating announcement:", updateError);
+    return { success: false, message: "Update failed: " + updateError.message };
   }
 
-  console.log("Announcement updated successfully, data:", data);
+  console.log("Update appeared to succeed (no error returned)");
+
+  // Fetch the updated announcement separately to verify
+  const { data: updatedAnn, error: fetchError } = await supabase
+    .from("announcement_tbl")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error("Error fetching updated announcement:", fetchError);
+    return { success: false, message: "Update completed but failed to verify" };
+  }
+
+  if (!updatedAnn) {
+    console.error("Updated announcement not found:", id);
+    return { success: false, message: "Update completed but announcement not found" };
+  }
+
+  console.log("AFTER UPDATE:", { title: updatedAnn.title, content: updatedAnn.content, category: updatedAnn.category });
+  console.log("Did title change?", beforeUpdate?.title !== updatedAnn.title);
+  console.log("Did content change?", beforeUpdate?.content !== updatedAnn.content);
+  console.log("Announcement updated successfully, data:", updatedAnn);
   invalidateAnnouncementCache();
-  return { success: true, data, message: "Announcement updated successfully" };
+  return { success: true, data: updatedAnn, message: "Announcement updated successfully" };
 };
 
 export const deleteAnnouncement = async (id) => {
@@ -385,7 +414,7 @@ export const deleteAnnouncement = async (id) => {
     .from("superadmin_tbl")
     .select("id")
     .eq("auth_uid", userId)
-    .single();
+    .maybeSingle();
 
   if (!superadminData) {
     return {
@@ -399,7 +428,7 @@ export const deleteAnnouncement = async (id) => {
     .from("announcement_tbl")
     .select("announcer")
     .eq("id", id)
-    .single();
+    .maybeSingle();
 
   if (existingAnnError || !existingAnn) {
     console.error("Error fetching announcement to delete:", existingAnnError);
@@ -443,7 +472,7 @@ export const signupForEvent = async (announcementId, userProfile = null) => {
       "id, audience, max_participants, purok, min_age, max_age, voter_status, occupation, religion, civil_status, sex",
     )
     .eq("id", announcementId)
-    .single();
+    .maybeSingle();
 
   if (announcementError || !announcement) {
     console.error("Error fetching announcement for signup:", announcementError);
@@ -457,13 +486,13 @@ export const signupForEvent = async (announcementId, userProfile = null) => {
     .from("official_tbl")
     .select("id")
     .eq("auth_uid", userId)
-    .single();
+    .maybeSingle();
 
   const { data: residentData } = await supabase
     .from("registered_residents")
     .select("id")
     .eq("auth_uid", userId)
-    .single();
+    .maybeSingle();
 
   let userRole = null;
   if (officialData && officialData.id) userRole = "officials";

@@ -3,24 +3,29 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import supabase from "../../supabse_db/supabase_client";
 import {
-  getAnnouncements,
   signupForEvent,
   cancelSignup,
 } from "../../supabse_db/announcement/announcement";
-import { fetchAnnouncementImages } from "../../supabse_db/uploadImages";
 import {
   formatResidentFullName,
   getResidentByAuthUid,
 } from "../../supabse_db/resident/resident";
+import { useAnnouncementsForRole } from "../../hooks/useAnnouncementsForRole";
 import "../../styles/BarangayOfficial.css";
 
 const OfficialAnnouncements = () => {
   const navigate = useNavigate();
 
+  // Use the centralized announcement hook for role-based data
+  const {
+    announcements,
+    announcementImages,
+    participantCounts,
+    loading,
+    refresh,
+  } = useAnnouncementsForRole("officials");
+
   const [userName, setUserName] = useState("");
-  const [announcements, setAnnouncements] = useState([]);
-  const [announcementImages, setAnnouncementImages] = useState({});
-  const [loading, setLoading] = useState(true);
   const [showSignupModal, setShowSignupModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
@@ -28,12 +33,12 @@ const OfficialAnnouncements = () => {
   const [signupMessage, setSignupMessage] = useState(null);
   const [signupAction, setSignupAction] = useState("signup");
   const [userSignups, setUserSignups] = useState({});
-  const [participantCounts, setParticipantCounts] = useState({});
   const [activeFilter, setActiveFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Load user name on mount
   useEffect(() => {
-    const fetchData = async () => {
+    const loadUserName = async () => {
       const { data: userData } = await supabase.auth.getUser();
       if (userData?.user) {
         const residentResult = await getResidentByAuthUid(userData.user.id);
@@ -41,63 +46,33 @@ const OfficialAnnouncements = () => {
           setUserName(formatResidentFullName(residentResult.data));
         }
       }
-      const result = await getAnnouncements();
-      if (result.success) {
-        const filteredAnnouncements = result.data.filter(
-          (ann) => ann.audience && String(ann.audience).toLowerCase() === "officials",
-        );
-        setAnnouncements(filteredAnnouncements);
-        const imageMap = {};
-        const imagePromises = result.data.map(async (ann) => {
-          if (!filteredAnnouncements.find((fa) => fa.id === ann.id)) return;
-          const imageResult = await fetchAnnouncementImages(ann.id);
-          if (imageResult.success && imageResult.images.length > 0) {
-            imageMap[ann.id] = imageResult.images[0].url;
+
+      // Load user signups for events
+      const eventAnns = announcements.filter(
+        (a) => a.category && String(a.category).toLowerCase() === "event"
+      );
+      if (eventAnns.length > 0 && userData?.user) {
+        try {
+          const annIds = eventAnns.map((a) => a.id);
+          const { data: signupRows, error: signupError } = await supabase
+            .from("event_participants")
+            .select("announcement_id")
+            .in("announcement_id", annIds)
+            .eq("user_uid", userData.user.id);
+          if (!signupError && Array.isArray(signupRows)) {
+            const signups = {};
+            signupRows.forEach((r) => {
+              signups[r.announcement_id] = true;
+            });
+            setUserSignups(signups);
           }
-        });
-        await Promise.all(imagePromises);
-        setAnnouncementImages(imageMap);
-        const eventAnns = filteredAnnouncements.filter(
-          (a) => a.category && String(a.category).toLowerCase() === "event",
-        );
-        if (eventAnns.length > 0) {
-          const counts = {};
-          await Promise.all(
-            eventAnns.map(async (a) => {
-              try {
-                const { count, error } = await supabase
-                  .from("event_participants")
-                  .select("*", { count: "exact", head: true })
-                  .eq("announcement_id", a.id);
-                if (!error) counts[a.id] = typeof count === "number" ? count : 0;
-                else counts[a.id] = 0;
-              } catch (err) {
-                counts[a.id] = 0;
-              }
-            }),
-          );
-          setParticipantCounts(counts);
-          if (userData && userData.user) {
-            try {
-              const annIds = eventAnns.map((a) => a.id);
-              const { data: signupRows, error: signupError } = await supabase
-                .from("event_participants")
-                .select("announcement_id")
-                .in("announcement_id", annIds)
-                .eq("user_uid", userData.user.id);
-              if (!signupError && Array.isArray(signupRows)) {
-                const signups = {};
-                signupRows.forEach((r) => { signups[r.announcement_id] = true; });
-                setUserSignups(signups);
-              }
-            } catch (err) {}
-          }
+        } catch (err) {
+          console.error("Error loading user signups:", err);
         }
       }
-      setLoading(false);
     };
-    fetchData();
-  }, []);
+    loadUserName();
+  }, [announcements]);
 
   useEffect(() => {
     if (showSignupModal || showDetailsModal) {
@@ -240,6 +215,7 @@ const OfficialAnnouncements = () => {
             const isSignedUp = userSignups && userSignups[ann.id];
             const participantCount = (participantCounts && participantCounts[ann.id]) || 0;
             const hasImage = !!announcementImages[ann.id];
+            const isEventFull = isEvent && ann.max_participants && participantCount >= ann.max_participants;
             const fillPct = ann.max_participants
               ? Math.min(100, Math.round((participantCount / ann.max_participants) * 100))
               : 0;
@@ -323,42 +299,49 @@ const OfficialAnnouncements = () => {
 
                   {/* Footer actions */}
                   <div className="ann-card-footer">
+                    <button
+                      className="ann-card-btn-outline"
+                      onClick={() => { setSelectedAnnouncement(ann); setShowDetailsModal(true); }}
+                    >
+                      View Details
+                    </button>
                     {isEvent ? (
-                      <>
+                      isSignedUp ? (
                         <button
-                          className="ann-card-btn-outline"
-                          onClick={() => { setSelectedAnnouncement(ann); setShowDetailsModal(true); }}
+                          className="ann-card-btn-cancel"
+                          onClick={() => {
+                            setSelectedAnnouncement(ann);
+                            setSignupMessage(null);
+                            setSignupAction("cancel");
+                            setShowSignupModal(true);
+                          }}
                         >
-                          View Details
+                          ✓ Signed Up
                         </button>
-                        {isSignedUp ? (
-                          <button
-                            className="ann-card-btn-cancel"
-                            onClick={() => {
-                              setSelectedAnnouncement(ann);
-                              setSignupMessage(null);
-                              setSignupAction("cancel");
-                              setShowSignupModal(true);
-                            }}
-                          >
-                            ✓ Signed Up
-                          </button>
-                        ) : (
-                          <button
-                            className="ann-card-btn-primary"
-                            onClick={() => {
-                              setSelectedAnnouncement(ann);
-                              setSignupMessage(null);
-                              setSignupAction("signup");
-                              setShowSignupModal(true);
-                            }}
-                          >
-                            Sign Up
-                          </button>
-                        )}
-                      </>
+                      ) : isEventFull ? (
+                        <button
+                          className="ann-card-btn-primary"
+                          disabled
+                          title="Event is at maximum capacity"
+                          style={{ opacity: 0.5, cursor: "not-allowed" }}
+                        >
+                          Event Full
+                        </button>
+                      ) : (
+                        <button
+                          className="ann-card-btn-primary"
+                          onClick={() => {
+                            setSelectedAnnouncement(ann);
+                            setSignupMessage(null);
+                            setSignupAction("signup");
+                            setShowSignupModal(true);
+                          }}
+                        >
+                          Sign Up
+                        </button>
+                      )
                     ) : (
-                      <span className="ann-card-posted">
+                      <span className="ann-card-posted" style={{ marginLeft: "auto" }}>
                         Posted {formatDate(ann.created_at)}
                       </span>
                     )}
@@ -410,7 +393,7 @@ const OfficialAnnouncements = () => {
                       setSignupMessage(res);
                       if (res && res.success) {
                         setUserSignups((s) => ({ ...s, [selectedAnnouncement.id]: true }));
-                        setParticipantCounts((c) => ({ ...c, [selectedAnnouncement.id]: (c[selectedAnnouncement.id] || 0) + 1 }));
+                        // Participant counts will update automatically via real-time subscription
                         setTimeout(() => setShowSignupModal(false), 1000);
                       }
                     } else {
@@ -418,7 +401,7 @@ const OfficialAnnouncements = () => {
                       setSignupMessage(res);
                       if (res && res.success) {
                         setUserSignups((s) => { const n = { ...s }; delete n[selectedAnnouncement.id]; return n; });
-                        setParticipantCounts((c) => ({ ...c, [selectedAnnouncement.id]: Math.max(0, (c[selectedAnnouncement.id] || 1) - 1) }));
+                        // Participant counts will update automatically via real-time subscription
                         setTimeout(() => setShowSignupModal(false), 400);
                       }
                     }
