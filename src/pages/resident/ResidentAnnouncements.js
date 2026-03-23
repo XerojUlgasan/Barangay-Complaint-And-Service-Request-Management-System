@@ -152,7 +152,9 @@ const Announcements = () => {
     if (!announcement?.event_start) return "No Schedule";
     const now = new Date();
     const start = new Date(announcement.event_start);
-    const end = announcement.event_end ? new Date(announcement.event_end) : null;
+    const end = announcement.event_end
+      ? new Date(announcement.event_end)
+      : null;
 
     if (now < start) return "Upcoming";
     if (end && now > end) return "Completed";
@@ -160,7 +162,8 @@ const Announcements = () => {
   };
 
   const getEventDuration = (announcement) => {
-    if (!announcement?.event_start || !announcement?.event_end) return "Open-ended";
+    if (!announcement?.event_start || !announcement?.event_end)
+      return "Open-ended";
     const start = new Date(announcement.event_start);
     const end = new Date(announcement.event_end);
     const ms = end - start;
@@ -585,14 +588,17 @@ const Announcements = () => {
                         "ANNOUNCEMENT"}
                     </span>
                     <span className="resident-ann-chip resident-ann-chip-priority">
-                      {(selectedAnnouncement.priority || "normal").toUpperCase()}
+                      {(
+                        selectedAnnouncement.priority || "normal"
+                      ).toUpperCase()}
                     </span>
                   </div>
                   <h3 className="history-modal-title resident-ann-details-title">
                     {selectedAnnouncement.title}
                   </h3>
                   <p className="history-modal-sub resident-ann-details-sub">
-                    Posted {formatDateTimeReadable(selectedAnnouncement.created_at)}
+                    Posted{" "}
+                    {formatDateTimeReadable(selectedAnnouncement.created_at)}
                   </p>
                 </div>
                 <button
@@ -616,12 +622,17 @@ const Announcements = () => {
                 <div className="resident-ann-kpi-grid">
                   <div className="resident-ann-kpi-card">
                     <span className="resident-ann-kpi-label">Audience</span>
-                    <span className="resident-ann-kpi-value" style={{ textTransform: "capitalize" }}>
+                    <span
+                      className="resident-ann-kpi-value"
+                      style={{ textTransform: "capitalize" }}
+                    >
                       {selectedAnnouncement.audience || "Residents"}
                     </span>
                   </div>
                   <div className="resident-ann-kpi-card">
-                    <span className="resident-ann-kpi-label">SMS Notification</span>
+                    <span className="resident-ann-kpi-label">
+                      SMS Notification
+                    </span>
                     <span className="resident-ann-kpi-value">
                       {selectedAnnouncement.send_sms ? "Enabled" : "Disabled"}
                     </span>
@@ -644,29 +655,45 @@ const Announcements = () => {
 
                 <div className="resident-ann-section">
                   <div className="resident-ann-section-title">Description</div>
-                  <p className="resident-ann-desc">{selectedAnnouncement.content}</p>
+                  <p className="resident-ann-desc">
+                    {selectedAnnouncement.content}
+                  </p>
                 </div>
 
                 {selectedAnnouncement.category?.toLowerCase() === "event" && (
                   <div className="resident-ann-section">
-                    <div className="resident-ann-section-title">Event Schedule</div>
+                    <div className="resident-ann-section-title">
+                      Event Schedule
+                    </div>
                     <div className="resident-ann-info-grid">
                       <div className="resident-ann-info-item">
                         <span>Start</span>
-                        <strong>{formatDateTimeReadable(selectedAnnouncement.event_start)}</strong>
+                        <strong>
+                          {formatDateTimeReadable(
+                            selectedAnnouncement.event_start,
+                          )}
+                        </strong>
                       </div>
                       <div className="resident-ann-info-item">
                         <span>End</span>
-                        <strong>{formatDateTimeReadable(selectedAnnouncement.event_end)}</strong>
+                        <strong>
+                          {formatDateTimeReadable(
+                            selectedAnnouncement.event_end,
+                          )}
+                        </strong>
                       </div>
                       <div className="resident-ann-info-item">
                         <span>Duration</span>
-                        <strong>{getEventDuration(selectedAnnouncement)}</strong>
+                        <strong>
+                          {getEventDuration(selectedAnnouncement)}
+                        </strong>
                       </div>
                       <div className="resident-ann-info-item">
                         <span>Participants</span>
                         <strong>
-                          {(participantCounts && participantCounts[selectedAnnouncement.id]) || 0}
+                          {(participantCounts &&
+                            participantCounts[selectedAnnouncement.id]) ||
+                            0}
                           {selectedAnnouncement.max_participants
                             ? ` / ${selectedAnnouncement.max_participants}`
                             : " / Unlimited"}

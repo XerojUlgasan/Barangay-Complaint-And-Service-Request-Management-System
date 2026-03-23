@@ -244,51 +244,66 @@ export default function AdminAnnouncements() {
   // Fetch announcements on mount
   useEffect(() => {
     let isMounted = true;
-    
+
     const fetchAnnouncements = async () => {
       try {
         setLoading(true);
         setError(null);
         const result = await getAnnouncements();
-        
+
         if (!isMounted) return;
-        
+
         if (result.success && Array.isArray(result.data)) {
           setAnnouncements(result.data);
           setLoading(false);
-          
+
           // Fetch images in parallel after announcements are displayed
           const imagePromises = result.data.map(async (announcement) => {
             if (!isMounted) return null;
-            
-            setImageLoadingMap(prev => ({ ...prev, [announcement.id]: true }));
-            
+
+            setImageLoadingMap((prev) => ({
+              ...prev,
+              [announcement.id]: true,
+            }));
+
             try {
-              const imageResult = await fetchAnnouncementImages(announcement.id);
-              if (isMounted && imageResult.success && imageResult.images.length > 0) {
+              const imageResult = await fetchAnnouncementImages(
+                announcement.id,
+              );
+              if (
+                isMounted &&
+                imageResult.success &&
+                imageResult.images.length > 0
+              ) {
                 return { id: announcement.id, url: imageResult.images[0].url };
               }
             } catch (err) {
-              console.error(`Error fetching image for announcement ${announcement.id}:`, err);
+              console.error(
+                `Error fetching image for announcement ${announcement.id}:`,
+                err,
+              );
             } finally {
               if (isMounted) {
-                setImageLoadingMap(prev => ({ ...prev, [announcement.id]: false }));
+                setImageLoadingMap((prev) => ({
+                  ...prev,
+                  [announcement.id]: false,
+                }));
               }
             }
             return null;
           });
-          
+
           // Update images as they load
-          Promise.all(imagePromises).then(results => {
+          Promise.all(imagePromises).then((results) => {
             if (!isMounted) return;
-            
+
             const imageMap = {};
-            results.forEach(result => {
+            results.forEach((result) => {
               if (result && result.url) {
                 imageMap[result.id] = result.url;
               }
             });
-            
+
             setAnnouncementImages(imageMap);
           });
         } else {
@@ -306,7 +321,7 @@ export default function AdminAnnouncements() {
     };
 
     fetchAnnouncements();
-    
+
     return () => {
       isMounted = false;
     };
@@ -468,8 +483,8 @@ export default function AdminAnnouncements() {
         if (result.success) {
           console.log("Announcement deleted successfully");
           // Optimistically update UI
-          setAnnouncements(prev => prev.filter((ann) => ann.id !== id));
-          setAnnouncementImages(prev => {
+          setAnnouncements((prev) => prev.filter((ann) => ann.id !== id));
+          setAnnouncementImages((prev) => {
             const newImages = { ...prev };
             delete newImages[id];
             return newImages;
@@ -628,7 +643,7 @@ export default function AdminAnnouncements() {
 
       if (result.success) {
         console.log("Announcement saved successfully:", result.data);
-        
+
         // Show success message
         if (isEditMode) {
           alert("Announcement updated successfully!");
@@ -689,33 +704,41 @@ export default function AdminAnnouncements() {
         });
         setShowAdvanced(false);
         closeModal();
-        
+
         // Refresh announcements list
         const refreshResult = await getAnnouncements();
         if (refreshResult.success && Array.isArray(refreshResult.data)) {
           setAnnouncements(refreshResult.data);
-          
+
           // Fetch images only for new/updated announcements in parallel
           const newAnnouncements = refreshResult.data.filter(
-            ann => !announcementImages[ann.id] || isEditMode
+            (ann) => !announcementImages[ann.id] || isEditMode,
           );
-          
+
           if (newAnnouncements.length > 0) {
             const imagePromises = newAnnouncements.map(async (announcement) => {
               try {
-                const imageResult = await fetchAnnouncementImages(announcement.id);
+                const imageResult = await fetchAnnouncementImages(
+                  announcement.id,
+                );
                 if (imageResult.success && imageResult.images.length > 0) {
-                  return { id: announcement.id, url: imageResult.images[0].url };
+                  return {
+                    id: announcement.id,
+                    url: imageResult.images[0].url,
+                  };
                 }
               } catch (err) {
-                console.error(`Error fetching image for announcement ${announcement.id}:`, err);
+                console.error(
+                  `Error fetching image for announcement ${announcement.id}:`,
+                  err,
+                );
               }
               return null;
             });
-            
+
             const results = await Promise.all(imagePromises);
             const newImageMap = { ...announcementImages };
-            results.forEach(result => {
+            results.forEach((result) => {
               if (result && result.url) {
                 newImageMap[result.id] = result.url;
               }
@@ -1183,106 +1206,143 @@ export default function AdminAnnouncements() {
         )}
 
       {/* Modal - TEST VERSION */}
-      {showModal && createPortal(
-        <div
-          className="admin-announcement-modal-overlay"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) closeModal();
-          }}
-        >
+      {showModal &&
+        createPortal(
           <div
-            className="admin-announcement-modal-dialog"
-            onClick={(e) => e.stopPropagation()}
+            className="admin-announcement-modal-overlay"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) closeModal();
+            }}
           >
             <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "20px",
-              }}
+              className="admin-announcement-modal-dialog"
+              onClick={(e) => e.stopPropagation()}
             >
-              <h4 style={{ margin: 0, fontSize: "20px", color: "#065f46" }}>
-                {isEditMode ? "Edit Announcement" : "Create Announcement"}
-              </h4>
-              <button
-                onClick={closeModal}
-                style={{
-                  background: "none",
-                  border: "none",
-                  fontSize: "24px",
-                  cursor: "pointer",
-                  color: "#999",
-                }}
-              >
-                ×
-              </button>
-            </div>
-
-            <div
-              style={{ display: "flex", flexDirection: "column", gap: "16px" }}
-            >
-              {/* Category and Priority */}
               <div
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "20px",
+                }}
+              >
+                <h4 style={{ margin: 0, fontSize: "20px", color: "#065f46" }}>
+                  {isEditMode ? "Edit Announcement" : "Create Announcement"}
+                </h4>
+                <button
+                  onClick={closeModal}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontSize: "24px",
+                    cursor: "pointer",
+                    color: "#999",
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
                   gap: "16px",
                 }}
               >
-                <div>
-                  <label
-                    style={{
-                      display: "block",
-                      marginBottom: "6px",
-                      fontWeight: "500",
-                      fontSize: "14px",
-                    }}
-                  >
-                    Category
-                  </label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => {
-                      const nextCategory = e.target.value;
-                      setFormData({
-                        ...formData,
-                        category: nextCategory,
-                        ...(nextCategory !== "event"
-                          ? {
-                              event_start: "",
-                              event_end: "",
-                              audience: "residents",
-                              max_participants: "",
-                              purok: [],
-                              min_age: "",
-                              max_age: "",
-                              voter_status: [],
-                              occupation: [],
-                              religion: [],
-                              civil_status: [],
-                              sex: "",
-                              send_sms: false,
-                            }
-                          : {}),
-                      });
-                      if (nextCategory !== "event") {
-                        setShowAdvanced(false);
+                {/* Category and Priority */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "16px",
+                  }}
+                >
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        marginBottom: "6px",
+                        fontWeight: "500",
+                        fontSize: "14px",
+                      }}
+                    >
+                      Category
+                    </label>
+                    <select
+                      value={formData.category}
+                      onChange={(e) => {
+                        const nextCategory = e.target.value;
+                        setFormData({
+                          ...formData,
+                          category: nextCategory,
+                          ...(nextCategory !== "event"
+                            ? {
+                                event_start: "",
+                                event_end: "",
+                                audience: "residents",
+                                max_participants: "",
+                                purok: [],
+                                min_age: "",
+                                max_age: "",
+                                voter_status: [],
+                                occupation: [],
+                                religion: [],
+                                civil_status: [],
+                                sex: "",
+                                send_sms: false,
+                              }
+                            : {}),
+                        });
+                        if (nextCategory !== "event") {
+                          setShowAdvanced(false);
+                        }
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "10px",
+                        border: "1px solid #ddd",
+                        borderRadius: "6px",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      <option value="general">General</option>
+                      <option value="event">Event</option>
+                      <option value="alert">Alert</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        marginBottom: "6px",
+                        fontWeight: "500",
+                        fontSize: "14px",
+                      }}
+                    >
+                      Priority Level
+                    </label>
+                    <select
+                      value={formData.priority}
+                      onChange={(e) =>
+                        setFormData({ ...formData, priority: e.target.value })
                       }
-                    }}
-                    style={{
-                      width: "100%",
-                      padding: "10px",
-                      border: "1px solid #ddd",
-                      borderRadius: "6px",
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    <option value="general">General</option>
-                    <option value="event">Event</option>
-                    <option value="alert">Alert</option>
-                  </select>
+                      style={{
+                        width: "100%",
+                        padding: "10px",
+                        border: "1px solid #ddd",
+                        borderRadius: "6px",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      <option value="normal">Normal</option>
+                      <option value="high">High</option>
+                      <option value="urgent">Urgent</option>
+                    </select>
+                  </div>
                 </div>
+
+                {/* Title */}
                 <div>
                   <label
                     style={{
@@ -1292,12 +1352,14 @@ export default function AdminAnnouncements() {
                       fontSize: "14px",
                     }}
                   >
-                    Priority Level
+                    Title
                   </label>
-                  <select
-                    value={formData.priority}
+                  <input
+                    type="text"
+                    placeholder="E.g., Monthly Clean-up Drive"
+                    value={formData.title}
                     onChange={(e) =>
-                      setFormData({ ...formData, priority: e.target.value })
+                      setFormData({ ...formData, title: e.target.value })
                     }
                     style={{
                       width: "100%",
@@ -1305,779 +1367,360 @@ export default function AdminAnnouncements() {
                       border: "1px solid #ddd",
                       borderRadius: "6px",
                       fontFamily: "inherit",
+                      boxSizing: "border-box",
                     }}
-                  >
-                    <option value="normal">Normal</option>
-                    <option value="high">High</option>
-                    <option value="urgent">Urgent</option>
-                  </select>
+                  />
                 </div>
-              </div>
 
-              {/* Title */}
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "6px",
-                    fontWeight: "500",
-                    fontSize: "14px",
-                  }}
-                >
-                  Title
-                </label>
-                <input
-                  type="text"
-                  placeholder="E.g., Monthly Clean-up Drive"
-                  value={formData.title}
-                  onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "10px",
-                    border: "1px solid #ddd",
-                    borderRadius: "6px",
-                    fontFamily: "inherit",
-                    boxSizing: "border-box",
-                  }}
-                />
-              </div>
-
-              {/* Content */}
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "6px",
-                    fontWeight: "500",
-                    fontSize: "14px",
-                  }}
-                >
-                  Content
-                </label>
-                <textarea
-                  rows={4}
-                  placeholder="Details about the announcement..."
-                  value={formData.content}
-                  onChange={(e) =>
-                    setFormData({ ...formData, content: e.target.value })
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "10px",
-                    border: "1px solid #ddd",
-                    borderRadius: "6px",
-                    fontFamily: "inherit",
-                    boxSizing: "border-box",
-                    resize: "vertical",
-                  }}
-                />
-              </div>
-
-              {formData.category === "event" && (
-                <>
-                  <div
+                {/* Content */}
+                <div>
+                  <label
                     style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: "16px",
+                      display: "block",
+                      marginBottom: "6px",
+                      fontWeight: "500",
+                      fontSize: "14px",
                     }}
                   >
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          marginBottom: "6px",
-                          fontWeight: "500",
-                          fontSize: "14px",
-                        }}
-                      >
-                        Event Start
-                      </label>
-                      <input
-                        type="datetime-local"
-                        min={minStartDateTime}
-                        value={formData.event_start}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            event_start: e.target.value,
-                          })
-                        }
-                        style={{
-                          width: "100%",
-                          padding: "10px",
-                          border: "1px solid #ddd",
-                          borderRadius: "6px",
-                          fontFamily: "inherit",
-                          boxSizing: "border-box",
-                        }}
-                      />
-                      {dateErrors.start && (
-                        <div
-                          style={{
-                            marginTop: "6px",
-                            fontSize: "12px",
-                            color: "#dc2626",
-                          }}
-                        >
-                          {dateErrors.start}
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          marginBottom: "6px",
-                          fontWeight: "500",
-                          fontSize: "14px",
-                        }}
-                      >
-                        Event End
-                      </label>
-                      <input
-                        type="datetime-local"
-                        min={minEndDateTime}
-                        value={formData.event_end}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            event_end: e.target.value,
-                          })
-                        }
-                        style={{
-                          width: "100%",
-                          padding: "10px",
-                          border: "1px solid #ddd",
-                          borderRadius: "6px",
-                          fontFamily: "inherit",
-                          boxSizing: "border-box",
-                        }}
-                      />
-                      {dateErrors.end && (
-                        <div
-                          style={{
-                            marginTop: "6px",
-                            fontSize: "12px",
-                            color: "#dc2626",
-                          }}
-                        >
-                          {dateErrors.end}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: "16px",
-                    }}
-                  >
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          marginBottom: "6px",
-                          fontWeight: "500",
-                          fontSize: "14px",
-                        }}
-                      >
-                        Audience
-                      </label>
-                      <select
-                        value={formData.audience}
-                        onChange={(e) =>
-                          setFormData({ ...formData, audience: e.target.value })
-                        }
-                        style={{
-                          width: "100%",
-                          padding: "10px",
-                          border: "1px solid #ddd",
-                          borderRadius: "6px",
-                          fontFamily: "inherit",
-                        }}
-                      >
-                        <option value="residents">Residents</option>
-                        <option value="officials">Officials</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          marginBottom: "6px",
-                          fontWeight: "500",
-                          fontSize: "14px",
-                        }}
-                      >
-                        Max Participants
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        placeholder="E.g., 50"
-                        value={formData.max_participants}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            max_participants: e.target.value,
-                          })
-                        }
-                        style={{
-                          width: "100%",
-                          padding: "10px",
-                          border: "1px solid #ddd",
-                          borderRadius: "6px",
-                          fontFamily: "inherit",
-                          boxSizing: "border-box",
-                        }}
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {formData.category === "event" && (
-                <div style={{ marginTop: "16px" }}>
-                  <button
-                    type="button"
-                    onClick={() => setShowAdvanced(!showAdvanced)}
+                    Content
+                  </label>
+                  <textarea
+                    rows={4}
+                    placeholder="Details about the announcement..."
+                    value={formData.content}
+                    onChange={(e) =>
+                      setFormData({ ...formData, content: e.target.value })
+                    }
                     style={{
                       width: "100%",
                       padding: "10px",
-                      border: "1px solid #d1d5db",
+                      border: "1px solid #ddd",
                       borderRadius: "6px",
-                      background: showAdvanced ? "#f0fdf4" : "#f9fafb",
-                      color: showAdvanced ? "#047857" : "#6b7280",
                       fontFamily: "inherit",
-                      fontSize: "14px",
-                      fontWeight: "600",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "8px",
-                      transition: "all 0.2s ease",
+                      boxSizing: "border-box",
+                      resize: "vertical",
                     }}
-                  >
-                    {showAdvanced ? "▼" : "▶"} Advanced Filtering Options
-                  </button>
+                  />
+                </div>
 
-                  {showAdvanced && (
+                {formData.category === "event" && (
+                  <>
                     <div
                       style={{
-                        marginTop: "16px",
-                        padding: "20px",
-                        background: "#f9fafb",
-                        borderRadius: "8px",
-                        border: "1px solid #e5e7eb",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "20px",
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: "16px",
                       }}
                     >
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                          gap: "18px",
-                        }}
-                      >
-                        <div>
-                          <label
-                            style={{
-                              display: "block",
-                              marginBottom: "6px",
-                              fontWeight: "500",
-                              fontSize: "14px",
-                            }}
-                          >
-                            Purok (Select Multiple)
-                          </label>
-                          <div style={{ position: "relative" }}>
-                            <button
-                              type="button"
-                              onClick={() => setPurokDropdown(!purokDropdown)}
-                              style={{
-                                width: "100%",
-                                padding: "10px",
-                                border: "1px solid #ddd",
-                                borderRadius: "6px",
-                                textAlign: "left",
-                                backgroundColor: "#f9fafb",
-                                cursor: "pointer",
-                                fontFamily: "inherit",
-                              }}
-                            >
-                              {formData.purok.length > 0
-                                ? `${formData.purok.length} selected`
-                                : "Select purok..."}
-                            </button>
-                            {purokDropdown && (
-                              <div
-                                style={{
-                                  position: "absolute",
-                                  top: "100%",
-                                  left: 0,
-                                  right: 0,
-                                  backgroundColor: "#fff",
-                                  border: "1px solid #ddd",
-                                  borderTop: "none",
-                                  borderRadius: "0 0 6px 6px",
-                                  maxHeight: "150px",
-                                  overflowY: "auto",
-                                  zIndex: 10,
-                                }}
-                              >
-                                {purokOptions.map((purokName) => (
-                                  <label
-                                    key={purokName}
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      padding: "8px 10px",
-                                      cursor: "pointer",
-                                      borderBottom: "1px solid #eee",
-                                    }}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={formData.purok.includes(
-                                        purokName,
-                                      )}
-                                      onChange={(e) => {
-                                        if (e.target.checked) {
-                                          setFormData({
-                                            ...formData,
-                                            purok: [
-                                              ...formData.purok,
-                                              purokName,
-                                            ],
-                                          });
-                                        } else {
-                                          setFormData({
-                                            ...formData,
-                                            purok: formData.purok.filter(
-                                              (p) => p !== purokName,
-                                            ),
-                                          });
-                                        }
-                                      }}
-                                      style={{
-                                        marginRight: "8px",
-                                        cursor: "pointer",
-                                      }}
-                                    />
-                                    {purokName}
-                                  </label>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          {formData.purok.length > 0 && (
-                            <div
-                              style={{
-                                marginTop: "10px",
-                                display: "flex",
-                                flexWrap: "wrap",
-                                gap: "6px",
-                              }}
-                            >
-                              {formData.purok.map((purokName) => (
-                                <div
-                                  key={purokName}
-                                  style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    backgroundColor: "#e8f0ff",
-                                    border: "1px solid #b3d9ff",
-                                    borderRadius: "4px",
-                                    padding: "6px 10px",
-                                    fontSize: "13px",
-                                  }}
-                                >
-                                  <span style={{ marginRight: "6px" }}>
-                                    {purokName}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setFormData({
-                                        ...formData,
-                                        purok: formData.purok.filter(
-                                          (p) => p !== purokName,
-                                        ),
-                                      });
-                                    }}
-                                    style={{
-                                      background: "none",
-                                      border: "none",
-                                      color: "#d32f2f",
-                                      cursor: "pointer",
-                                      fontSize: "16px",
-                                      padding: "0",
-                                      lineHeight: "1",
-                                    }}
-                                  >
-                                    ×
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        <div>
-                          <label
-                            style={{
-                              display: "block",
-                              marginBottom: "6px",
-                              fontWeight: "500",
-                              fontSize: "14px",
-                            }}
-                          >
-                            Age Range
-                          </label>
+                      <div>
+                        <label
+                          style={{
+                            display: "block",
+                            marginBottom: "6px",
+                            fontWeight: "500",
+                            fontSize: "14px",
+                          }}
+                        >
+                          Event Start
+                        </label>
+                        <input
+                          type="datetime-local"
+                          min={minStartDateTime}
+                          value={formData.event_start}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              event_start: e.target.value,
+                            })
+                          }
+                          style={{
+                            width: "100%",
+                            padding: "10px",
+                            border: "1px solid #ddd",
+                            borderRadius: "6px",
+                            fontFamily: "inherit",
+                            boxSizing: "border-box",
+                          }}
+                        />
+                        {dateErrors.start && (
                           <div
                             style={{
-                              display: "grid",
-                              gridTemplateColumns: "1fr 1fr",
-                              gap: "10px",
+                              marginTop: "6px",
+                              fontSize: "12px",
+                              color: "#dc2626",
                             }}
                           >
-                            <input
-                              type="number"
-                              min="0"
-                              placeholder="Minimum age"
-                              value={formData.min_age}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  min_age: e.target.value,
-                                })
-                              }
-                              onBlur={() => {
-                                if (
-                                  formData.min_age !== "" &&
-                                  formData.max_age === ""
-                                ) {
-                                  setFormData({
-                                    ...formData,
-                                    max_age: formData.min_age,
-                                  });
-                                }
-                              }}
-                              style={{
-                                width: "100%",
-                                padding: "10px",
-                                border: "1px solid #ddd",
-                                borderRadius: "6px",
-                                fontFamily: "inherit",
-                              }}
-                            />
-                            <input
-                              type="number"
-                              min="0"
-                              placeholder="Maximum age"
-                              value={formData.max_age}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  max_age: e.target.value,
-                                })
-                              }
-                              onBlur={() => {
-                                if (
-                                  formData.max_age !== "" &&
-                                  formData.min_age === ""
-                                ) {
-                                  setFormData({
-                                    ...formData,
-                                    min_age: "0",
-                                  });
-                                }
-                              }}
-                              style={{
-                                width: "100%",
-                                padding: "10px",
-                                border: "1px solid #ddd",
-                                borderRadius: "6px",
-                                fontFamily: "inherit",
-                              }}
-                            />
+                            {dateErrors.start}
                           </div>
-                        </div>
-
-                        <div>
-                          <label
+                        )}
+                      </div>
+                      <div>
+                        <label
+                          style={{
+                            display: "block",
+                            marginBottom: "6px",
+                            fontWeight: "500",
+                            fontSize: "14px",
+                          }}
+                        >
+                          Event End
+                        </label>
+                        <input
+                          type="datetime-local"
+                          min={minEndDateTime}
+                          value={formData.event_end}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              event_end: e.target.value,
+                            })
+                          }
+                          style={{
+                            width: "100%",
+                            padding: "10px",
+                            border: "1px solid #ddd",
+                            borderRadius: "6px",
+                            fontFamily: "inherit",
+                            boxSizing: "border-box",
+                          }}
+                        />
+                        {dateErrors.end && (
+                          <div
                             style={{
-                              display: "block",
-                              marginBottom: "6px",
-                              fontWeight: "500",
-                              fontSize: "14px",
+                              marginTop: "6px",
+                              fontSize: "12px",
+                              color: "#dc2626",
                             }}
                           >
-                            Voter Status (Select Multiple)
-                          </label>
-                          <div style={{ position: "relative" }}>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setVoterStatusDropdown(!voterStatusDropdown)
-                              }
+                            {dateErrors.end}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: "16px",
+                      }}
+                    >
+                      <div>
+                        <label
+                          style={{
+                            display: "block",
+                            marginBottom: "6px",
+                            fontWeight: "500",
+                            fontSize: "14px",
+                          }}
+                        >
+                          Audience
+                        </label>
+                        <select
+                          value={formData.audience}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              audience: e.target.value,
+                            })
+                          }
+                          style={{
+                            width: "100%",
+                            padding: "10px",
+                            border: "1px solid #ddd",
+                            borderRadius: "6px",
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          <option value="residents">Residents</option>
+                          <option value="officials">Officials</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label
+                          style={{
+                            display: "block",
+                            marginBottom: "6px",
+                            fontWeight: "500",
+                            fontSize: "14px",
+                          }}
+                        >
+                          Max Participants
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          placeholder="E.g., 50"
+                          value={formData.max_participants}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              max_participants: e.target.value,
+                            })
+                          }
+                          style={{
+                            width: "100%",
+                            padding: "10px",
+                            border: "1px solid #ddd",
+                            borderRadius: "6px",
+                            fontFamily: "inherit",
+                            boxSizing: "border-box",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {formData.category === "event" && (
+                  <div style={{ marginTop: "16px" }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvanced(!showAdvanced)}
+                      style={{
+                        width: "100%",
+                        padding: "10px",
+                        border: "1px solid #d1d5db",
+                        borderRadius: "6px",
+                        background: showAdvanced ? "#f0fdf4" : "#f9fafb",
+                        color: showAdvanced ? "#047857" : "#6b7280",
+                        fontFamily: "inherit",
+                        fontSize: "14px",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      {showAdvanced ? "▼" : "▶"} Advanced Filtering Options
+                    </button>
+
+                    {showAdvanced && (
+                      <div
+                        style={{
+                          marginTop: "16px",
+                          padding: "20px",
+                          background: "#f9fafb",
+                          borderRadius: "8px",
+                          border: "1px solid #e5e7eb",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "20px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                            gap: "18px",
+                          }}
+                        >
+                          <div>
+                            <label
                               style={{
-                                width: "100%",
-                                padding: "10px",
-                                border: "1px solid #ddd",
-                                borderRadius: "6px",
-                                textAlign: "left",
-                                backgroundColor: "#f9fafb",
-                                cursor: "pointer",
-                                fontFamily: "inherit",
+                                display: "block",
+                                marginBottom: "6px",
+                                fontWeight: "500",
+                                fontSize: "14px",
                               }}
                             >
-                              {formData.voter_status.length > 0
-                                ? `${formData.voter_status.length} selected`
-                                : "Select voter status..."}
-                            </button>
-                            {voterStatusDropdown && (
-                              <div
+                              Purok (Select Multiple)
+                            </label>
+                            <div style={{ position: "relative" }}>
+                              <button
+                                type="button"
+                                onClick={() => setPurokDropdown(!purokDropdown)}
                                 style={{
-                                  position: "absolute",
-                                  top: "100%",
-                                  left: 0,
-                                  right: 0,
-                                  backgroundColor: "#fff",
+                                  width: "100%",
+                                  padding: "10px",
                                   border: "1px solid #ddd",
-                                  borderTop: "none",
-                                  borderRadius: "0 0 6px 6px",
-                                  zIndex: 10,
+                                  borderRadius: "6px",
+                                  textAlign: "left",
+                                  backgroundColor: "#f9fafb",
+                                  cursor: "pointer",
+                                  fontFamily: "inherit",
                                 }}
                               >
-                                {[
-                                  "registered",
-                                  "not-registered",
-                                  "transferred",
-                                ].map((status) => (
-                                  <label
-                                    key={status}
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      padding: "8px 10px",
-                                      cursor: "pointer",
-                                      borderBottom: "1px solid #eee",
-                                    }}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={formData.voter_status.includes(
-                                        status,
-                                      )}
-                                      onChange={(e) => {
-                                        if (e.target.checked) {
-                                          setFormData({
-                                            ...formData,
-                                            voter_status: [
-                                              ...formData.voter_status,
-                                              status,
-                                            ],
-                                          });
-                                        } else {
-                                          setFormData({
-                                            ...formData,
-                                            voter_status:
-                                              formData.voter_status.filter(
-                                                (v) => v !== status,
-                                              ),
-                                          });
-                                        }
-                                      }}
-                                      style={{
-                                        marginRight: "8px",
-                                        cursor: "pointer",
-                                      }}
-                                    />
-                                    {status === "not-registered"
-                                      ? "Not Registered"
-                                      : status.charAt(0).toUpperCase() +
-                                        status.slice(1)}
-                                  </label>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          {formData.voter_status.length > 0 && (
-                            <div
-                              style={{
-                                marginTop: "10px",
-                                display: "flex",
-                                flexWrap: "wrap",
-                                gap: "6px",
-                              }}
-                            >
-                              {formData.voter_status.map((status) => (
+                                {formData.purok.length > 0
+                                  ? `${formData.purok.length} selected`
+                                  : "Select purok..."}
+                              </button>
+                              {purokDropdown && (
                                 <div
-                                  key={status}
                                   style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    backgroundColor: "#e8f0ff",
-                                    border: "1px solid #b3d9ff",
-                                    borderRadius: "4px",
-                                    padding: "6px 10px",
-                                    fontSize: "13px",
+                                    position: "absolute",
+                                    top: "100%",
+                                    left: 0,
+                                    right: 0,
+                                    backgroundColor: "#fff",
+                                    border: "1px solid #ddd",
+                                    borderTop: "none",
+                                    borderRadius: "0 0 6px 6px",
+                                    maxHeight: "150px",
+                                    overflowY: "auto",
+                                    zIndex: 10,
                                   }}
                                 >
-                                  <span style={{ marginRight: "6px" }}>
-                                    {status === "not-registered"
-                                      ? "Not Registered"
-                                      : status.charAt(0).toUpperCase() +
-                                        status.slice(1)}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setFormData({
-                                        ...formData,
-                                        voter_status:
-                                          formData.voter_status.filter(
-                                            (v) => v !== status,
-                                          ),
-                                      });
-                                    }}
-                                    style={{
-                                      background: "none",
-                                      border: "none",
-                                      color: "#d32f2f",
-                                      cursor: "pointer",
-                                      fontSize: "16px",
-                                      padding: "0",
-                                      lineHeight: "1",
-                                    }}
-                                  >
-                                    ×
-                                  </button>
+                                  {purokOptions.map((purokName) => (
+                                    <label
+                                      key={purokName}
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        padding: "8px 10px",
+                                        cursor: "pointer",
+                                        borderBottom: "1px solid #eee",
+                                      }}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={formData.purok.includes(
+                                          purokName,
+                                        )}
+                                        onChange={(e) => {
+                                          if (e.target.checked) {
+                                            setFormData({
+                                              ...formData,
+                                              purok: [
+                                                ...formData.purok,
+                                                purokName,
+                                              ],
+                                            });
+                                          } else {
+                                            setFormData({
+                                              ...formData,
+                                              purok: formData.purok.filter(
+                                                (p) => p !== purokName,
+                                              ),
+                                            });
+                                          }
+                                        }}
+                                        style={{
+                                          marginRight: "8px",
+                                          cursor: "pointer",
+                                        }}
+                                      />
+                                      {purokName}
+                                    </label>
+                                  ))}
                                 </div>
-                              ))}
+                              )}
                             </div>
-                          )}
-                        </div>
-
-                        <div>
-                          <label
-                            style={{
-                              display: "block",
-                              marginBottom: "6px",
-                              fontWeight: "500",
-                              fontSize: "14px",
-                            }}
-                          >
-                            Occupation (Select Multiple)
-                          </label>
-                          <div style={{ position: "relative" }}>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setOccupationDropdown(!occupationDropdown)
-                              }
-                              style={{
-                                width: "100%",
-                                padding: "10px",
-                                border: "1px solid #ddd",
-                                borderRadius: "6px",
-                                textAlign: "left",
-                                backgroundColor: "#f9fafb",
-                                cursor: "pointer",
-                                fontFamily: "inherit",
-                              }}
-                            >
-                              {formData.occupation.length > 0
-                                ? `${formData.occupation.length} selected`
-                                : "Select occupations..."}
-                            </button>
-                            {occupationDropdown && (
+                            {formData.purok.length > 0 && (
                               <div
                                 style={{
-                                  position: "absolute",
-                                  top: "100%",
-                                  left: 0,
-                                  right: 0,
-                                  backgroundColor: "#fff",
-                                  border: "1px solid #ddd",
-                                  borderTop: "none",
-                                  borderRadius: "0 0 6px 6px",
-                                  maxHeight: "150px",
-                                  overflowY: "auto",
-                                  zIndex: 10,
+                                  marginTop: "10px",
+                                  display: "flex",
+                                  flexWrap: "wrap",
+                                  gap: "6px",
                                 }}
                               >
-                                {occupationOptions.map((occ) => (
-                                  <label
-                                    key={occ.value}
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      padding: "8px 10px",
-                                      cursor: "pointer",
-                                      borderBottom: "1px solid #eee",
-                                    }}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={formData.occupation.includes(
-                                        occ.value,
-                                      )}
-                                      onChange={(e) => {
-                                        if (e.target.checked) {
-                                          setFormData({
-                                            ...formData,
-                                            occupation: [
-                                              ...formData.occupation,
-                                              occ.value,
-                                            ],
-                                          });
-                                        } else {
-                                          setFormData({
-                                            ...formData,
-                                            occupation:
-                                              formData.occupation.filter(
-                                                (o) => o !== occ.value,
-                                              ),
-                                          });
-                                        }
-                                      }}
-                                      style={{
-                                        marginRight: "8px",
-                                        cursor: "pointer",
-                                      }}
-                                    />
-                                    {occ.display}
-                                  </label>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          {formData.occupation.length > 0 && (
-                            <div
-                              style={{
-                                marginTop: "10px",
-                                display: "flex",
-                                flexWrap: "wrap",
-                                gap: "6px",
-                              }}
-                            >
-                              {formData.occupation.map((occ) => {
-                                const option = occupationOptions.find(
-                                  (o) => o.value === occ,
-                                );
-                                return (
+                                {formData.purok.map((purokName) => (
                                   <div
-                                    key={occ}
+                                    key={purokName}
                                     style={{
                                       display: "inline-flex",
                                       alignItems: "center",
@@ -2089,16 +1732,252 @@ export default function AdminAnnouncements() {
                                     }}
                                   >
                                     <span style={{ marginRight: "6px" }}>
-                                      {option?.display || occ}
+                                      {purokName}
                                     </span>
                                     <button
                                       type="button"
                                       onClick={() => {
                                         setFormData({
                                           ...formData,
-                                          occupation:
-                                            formData.occupation.filter(
-                                              (o) => o !== occ,
+                                          purok: formData.purok.filter(
+                                            (p) => p !== purokName,
+                                          ),
+                                        });
+                                      }}
+                                      style={{
+                                        background: "none",
+                                        border: "none",
+                                        color: "#d32f2f",
+                                        cursor: "pointer",
+                                        fontSize: "16px",
+                                        padding: "0",
+                                        lineHeight: "1",
+                                      }}
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <div>
+                            <label
+                              style={{
+                                display: "block",
+                                marginBottom: "6px",
+                                fontWeight: "500",
+                                fontSize: "14px",
+                              }}
+                            >
+                              Age Range
+                            </label>
+                            <div
+                              style={{
+                                display: "grid",
+                                gridTemplateColumns: "1fr 1fr",
+                                gap: "10px",
+                              }}
+                            >
+                              <input
+                                type="number"
+                                min="0"
+                                placeholder="Minimum age"
+                                value={formData.min_age}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    min_age: e.target.value,
+                                  })
+                                }
+                                onBlur={() => {
+                                  if (
+                                    formData.min_age !== "" &&
+                                    formData.max_age === ""
+                                  ) {
+                                    setFormData({
+                                      ...formData,
+                                      max_age: formData.min_age,
+                                    });
+                                  }
+                                }}
+                                style={{
+                                  width: "100%",
+                                  padding: "10px",
+                                  border: "1px solid #ddd",
+                                  borderRadius: "6px",
+                                  fontFamily: "inherit",
+                                }}
+                              />
+                              <input
+                                type="number"
+                                min="0"
+                                placeholder="Maximum age"
+                                value={formData.max_age}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    max_age: e.target.value,
+                                  })
+                                }
+                                onBlur={() => {
+                                  if (
+                                    formData.max_age !== "" &&
+                                    formData.min_age === ""
+                                  ) {
+                                    setFormData({
+                                      ...formData,
+                                      min_age: "0",
+                                    });
+                                  }
+                                }}
+                                style={{
+                                  width: "100%",
+                                  padding: "10px",
+                                  border: "1px solid #ddd",
+                                  borderRadius: "6px",
+                                  fontFamily: "inherit",
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label
+                              style={{
+                                display: "block",
+                                marginBottom: "6px",
+                                fontWeight: "500",
+                                fontSize: "14px",
+                              }}
+                            >
+                              Voter Status (Select Multiple)
+                            </label>
+                            <div style={{ position: "relative" }}>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setVoterStatusDropdown(!voterStatusDropdown)
+                                }
+                                style={{
+                                  width: "100%",
+                                  padding: "10px",
+                                  border: "1px solid #ddd",
+                                  borderRadius: "6px",
+                                  textAlign: "left",
+                                  backgroundColor: "#f9fafb",
+                                  cursor: "pointer",
+                                  fontFamily: "inherit",
+                                }}
+                              >
+                                {formData.voter_status.length > 0
+                                  ? `${formData.voter_status.length} selected`
+                                  : "Select voter status..."}
+                              </button>
+                              {voterStatusDropdown && (
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    top: "100%",
+                                    left: 0,
+                                    right: 0,
+                                    backgroundColor: "#fff",
+                                    border: "1px solid #ddd",
+                                    borderTop: "none",
+                                    borderRadius: "0 0 6px 6px",
+                                    zIndex: 10,
+                                  }}
+                                >
+                                  {[
+                                    "registered",
+                                    "not-registered",
+                                    "transferred",
+                                  ].map((status) => (
+                                    <label
+                                      key={status}
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        padding: "8px 10px",
+                                        cursor: "pointer",
+                                        borderBottom: "1px solid #eee",
+                                      }}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={formData.voter_status.includes(
+                                          status,
+                                        )}
+                                        onChange={(e) => {
+                                          if (e.target.checked) {
+                                            setFormData({
+                                              ...formData,
+                                              voter_status: [
+                                                ...formData.voter_status,
+                                                status,
+                                              ],
+                                            });
+                                          } else {
+                                            setFormData({
+                                              ...formData,
+                                              voter_status:
+                                                formData.voter_status.filter(
+                                                  (v) => v !== status,
+                                                ),
+                                            });
+                                          }
+                                        }}
+                                        style={{
+                                          marginRight: "8px",
+                                          cursor: "pointer",
+                                        }}
+                                      />
+                                      {status === "not-registered"
+                                        ? "Not Registered"
+                                        : status.charAt(0).toUpperCase() +
+                                          status.slice(1)}
+                                    </label>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            {formData.voter_status.length > 0 && (
+                              <div
+                                style={{
+                                  marginTop: "10px",
+                                  display: "flex",
+                                  flexWrap: "wrap",
+                                  gap: "6px",
+                                }}
+                              >
+                                {formData.voter_status.map((status) => (
+                                  <div
+                                    key={status}
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      backgroundColor: "#e8f0ff",
+                                      border: "1px solid #b3d9ff",
+                                      borderRadius: "4px",
+                                      padding: "6px 10px",
+                                      fontSize: "13px",
+                                    }}
+                                  >
+                                    <span style={{ marginRight: "6px" }}>
+                                      {status === "not-registered"
+                                        ? "Not Registered"
+                                        : status.charAt(0).toUpperCase() +
+                                          status.slice(1)}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setFormData({
+                                          ...formData,
+                                          voter_status:
+                                            formData.voter_status.filter(
+                                              (v) => v !== status,
                                             ),
                                         });
                                       }}
@@ -2115,64 +1994,62 @@ export default function AdminAnnouncements() {
                                       ×
                                     </button>
                                   </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
 
-                        <div>
-                          <label
-                            style={{
-                              display: "block",
-                              marginBottom: "6px",
-                              fontWeight: "500",
-                              fontSize: "14px",
-                            }}
-                          >
-                            Religion (Select Multiple)
-                          </label>
-                          <div style={{ position: "relative" }}>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setReligionDropdown(!religionDropdown)
-                              }
+                          <div>
+                            <label
                               style={{
-                                width: "100%",
-                                padding: "10px",
-                                border: "1px solid #ddd",
-                                borderRadius: "6px",
-                                textAlign: "left",
-                                backgroundColor: "#f9fafb",
-                                cursor: "pointer",
-                                fontFamily: "inherit",
+                                display: "block",
+                                marginBottom: "6px",
+                                fontWeight: "500",
+                                fontSize: "14px",
                               }}
                             >
-                              {formData.religion.length > 0
-                                ? `${formData.religion.length} selected`
-                                : "Select religions..."}
-                            </button>
-                            {religionDropdown && (
-                              <div
+                              Occupation (Select Multiple)
+                            </label>
+                            <div style={{ position: "relative" }}>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setOccupationDropdown(!occupationDropdown)
+                                }
                                 style={{
-                                  position: "absolute",
-                                  top: "100%",
-                                  left: 0,
-                                  right: 0,
-                                  backgroundColor: "#fff",
+                                  width: "100%",
+                                  padding: "10px",
                                   border: "1px solid #ddd",
-                                  borderTop: "none",
-                                  borderRadius: "0 0 6px 6px",
-                                  maxHeight: "150px",
-                                  overflowY: "auto",
-                                  zIndex: 10,
+                                  borderRadius: "6px",
+                                  textAlign: "left",
+                                  backgroundColor: "#f9fafb",
+                                  cursor: "pointer",
+                                  fontFamily: "inherit",
                                 }}
                               >
-                                {["Catholic", "Christian", "Born Again"].map(
-                                  (rel) => (
+                                {formData.occupation.length > 0
+                                  ? `${formData.occupation.length} selected`
+                                  : "Select occupations..."}
+                              </button>
+                              {occupationDropdown && (
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    top: "100%",
+                                    left: 0,
+                                    right: 0,
+                                    backgroundColor: "#fff",
+                                    border: "1px solid #ddd",
+                                    borderTop: "none",
+                                    borderRadius: "0 0 6px 6px",
+                                    maxHeight: "150px",
+                                    overflowY: "auto",
+                                    zIndex: 10,
+                                  }}
+                                >
+                                  {occupationOptions.map((occ) => (
                                     <label
-                                      key={rel}
+                                      key={occ.value}
                                       style={{
                                         display: "flex",
                                         alignItems: "center",
@@ -2183,24 +2060,24 @@ export default function AdminAnnouncements() {
                                     >
                                       <input
                                         type="checkbox"
-                                        checked={formData.religion.includes(
-                                          rel,
+                                        checked={formData.occupation.includes(
+                                          occ.value,
                                         )}
                                         onChange={(e) => {
                                           if (e.target.checked) {
                                             setFormData({
                                               ...formData,
-                                              religion: [
-                                                ...formData.religion,
-                                                rel,
+                                              occupation: [
+                                                ...formData.occupation,
+                                                occ.value,
                                               ],
                                             });
                                           } else {
                                             setFormData({
                                               ...formData,
-                                              religion:
-                                                formData.religion.filter(
-                                                  (r) => r !== rel,
+                                              occupation:
+                                                formData.occupation.filter(
+                                                  (o) => o !== occ.value,
                                                 ),
                                             });
                                           }
@@ -2210,470 +2087,629 @@ export default function AdminAnnouncements() {
                                           cursor: "pointer",
                                         }}
                                       />
-                                      {rel}
+                                      {occ.display}
                                     </label>
-                                  ),
-                                )}
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            {formData.occupation.length > 0 && (
+                              <div
+                                style={{
+                                  marginTop: "10px",
+                                  display: "flex",
+                                  flexWrap: "wrap",
+                                  gap: "6px",
+                                }}
+                              >
+                                {formData.occupation.map((occ) => {
+                                  const option = occupationOptions.find(
+                                    (o) => o.value === occ,
+                                  );
+                                  return (
+                                    <div
+                                      key={occ}
+                                      style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        backgroundColor: "#e8f0ff",
+                                        border: "1px solid #b3d9ff",
+                                        borderRadius: "4px",
+                                        padding: "6px 10px",
+                                        fontSize: "13px",
+                                      }}
+                                    >
+                                      <span style={{ marginRight: "6px" }}>
+                                        {option?.display || occ}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setFormData({
+                                            ...formData,
+                                            occupation:
+                                              formData.occupation.filter(
+                                                (o) => o !== occ,
+                                              ),
+                                          });
+                                        }}
+                                        style={{
+                                          background: "none",
+                                          border: "none",
+                                          color: "#d32f2f",
+                                          cursor: "pointer",
+                                          fontSize: "16px",
+                                          padding: "0",
+                                          lineHeight: "1",
+                                        }}
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             )}
                           </div>
-                          {formData.religion.length > 0 && (
-                            <div
+
+                          <div>
+                            <label
                               style={{
-                                marginTop: "10px",
-                                display: "flex",
-                                flexWrap: "wrap",
-                                gap: "6px",
+                                display: "block",
+                                marginBottom: "6px",
+                                fontWeight: "500",
+                                fontSize: "14px",
                               }}
                             >
-                              {formData.religion.map((rel) => (
+                              Religion (Select Multiple)
+                            </label>
+                            <div style={{ position: "relative" }}>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setReligionDropdown(!religionDropdown)
+                                }
+                                style={{
+                                  width: "100%",
+                                  padding: "10px",
+                                  border: "1px solid #ddd",
+                                  borderRadius: "6px",
+                                  textAlign: "left",
+                                  backgroundColor: "#f9fafb",
+                                  cursor: "pointer",
+                                  fontFamily: "inherit",
+                                }}
+                              >
+                                {formData.religion.length > 0
+                                  ? `${formData.religion.length} selected`
+                                  : "Select religions..."}
+                              </button>
+                              {religionDropdown && (
                                 <div
-                                  key={rel}
                                   style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    backgroundColor: "#e8f0ff",
-                                    border: "1px solid #b3d9ff",
-                                    borderRadius: "4px",
-                                    padding: "6px 10px",
-                                    fontSize: "13px",
+                                    position: "absolute",
+                                    top: "100%",
+                                    left: 0,
+                                    right: 0,
+                                    backgroundColor: "#fff",
+                                    border: "1px solid #ddd",
+                                    borderTop: "none",
+                                    borderRadius: "0 0 6px 6px",
+                                    maxHeight: "150px",
+                                    overflowY: "auto",
+                                    zIndex: 10,
                                   }}
                                 >
-                                  <span style={{ marginRight: "6px" }}>
-                                    {rel}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setFormData({
-                                        ...formData,
-                                        religion: formData.religion.filter(
-                                          (r) => r !== rel,
-                                        ),
-                                      });
-                                    }}
+                                  {["Catholic", "Christian", "Born Again"].map(
+                                    (rel) => (
+                                      <label
+                                        key={rel}
+                                        style={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          padding: "8px 10px",
+                                          cursor: "pointer",
+                                          borderBottom: "1px solid #eee",
+                                        }}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={formData.religion.includes(
+                                            rel,
+                                          )}
+                                          onChange={(e) => {
+                                            if (e.target.checked) {
+                                              setFormData({
+                                                ...formData,
+                                                religion: [
+                                                  ...formData.religion,
+                                                  rel,
+                                                ],
+                                              });
+                                            } else {
+                                              setFormData({
+                                                ...formData,
+                                                religion:
+                                                  formData.religion.filter(
+                                                    (r) => r !== rel,
+                                                  ),
+                                              });
+                                            }
+                                          }}
+                                          style={{
+                                            marginRight: "8px",
+                                            cursor: "pointer",
+                                          }}
+                                        />
+                                        {rel}
+                                      </label>
+                                    ),
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            {formData.religion.length > 0 && (
+                              <div
+                                style={{
+                                  marginTop: "10px",
+                                  display: "flex",
+                                  flexWrap: "wrap",
+                                  gap: "6px",
+                                }}
+                              >
+                                {formData.religion.map((rel) => (
+                                  <div
+                                    key={rel}
                                     style={{
-                                      background: "none",
-                                      border: "none",
-                                      color: "#d32f2f",
-                                      cursor: "pointer",
-                                      fontSize: "16px",
-                                      padding: "0",
-                                      lineHeight: "1",
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      backgroundColor: "#e8f0ff",
+                                      border: "1px solid #b3d9ff",
+                                      borderRadius: "4px",
+                                      padding: "6px 10px",
+                                      fontSize: "13px",
                                     }}
                                   >
-                                    ×
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                                    <span style={{ marginRight: "6px" }}>
+                                      {rel}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setFormData({
+                                          ...formData,
+                                          religion: formData.religion.filter(
+                                            (r) => r !== rel,
+                                          ),
+                                        });
+                                      }}
+                                      style={{
+                                        background: "none",
+                                        border: "none",
+                                        color: "#d32f2f",
+                                        cursor: "pointer",
+                                        fontSize: "16px",
+                                        padding: "0",
+                                        lineHeight: "1",
+                                      }}
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
 
-                        <div>
-                          <label
-                            style={{
-                              display: "block",
-                              marginBottom: "6px",
-                              fontWeight: "500",
-                              fontSize: "14px",
-                            }}
-                          >
-                            Civil Status (Select Multiple)
-                          </label>
-                          <div style={{ position: "relative" }}>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setCivilStatusDropdown(!civilStatusDropdown)
+                          <div>
+                            <label
+                              style={{
+                                display: "block",
+                                marginBottom: "6px",
+                                fontWeight: "500",
+                                fontSize: "14px",
+                              }}
+                            >
+                              Civil Status (Select Multiple)
+                            </label>
+                            <div style={{ position: "relative" }}>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setCivilStatusDropdown(!civilStatusDropdown)
+                                }
+                                style={{
+                                  width: "100%",
+                                  padding: "10px",
+                                  border: "1px solid #ddd",
+                                  borderRadius: "6px",
+                                  textAlign: "left",
+                                  backgroundColor: "#f9fafb",
+                                  cursor: "pointer",
+                                  fontFamily: "inherit",
+                                }}
+                              >
+                                {formData.civil_status.length > 0
+                                  ? `${formData.civil_status.length} selected`
+                                  : "Select civil status..."}
+                              </button>
+                              {civilStatusDropdown && (
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    top: "100%",
+                                    left: 0,
+                                    right: 0,
+                                    backgroundColor: "#fff",
+                                    border: "1px solid #ddd",
+                                    borderTop: "none",
+                                    borderRadius: "0 0 6px 6px",
+                                    zIndex: 10,
+                                  }}
+                                >
+                                  {[
+                                    "single",
+                                    "married",
+                                    "widowed",
+                                    "seperated",
+                                    "divorced",
+                                  ].map((status) => (
+                                    <label
+                                      key={status}
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        padding: "8px 10px",
+                                        cursor: "pointer",
+                                        borderBottom: "1px solid #eee",
+                                      }}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={formData.civil_status.includes(
+                                          status,
+                                        )}
+                                        onChange={(e) => {
+                                          if (e.target.checked) {
+                                            setFormData({
+                                              ...formData,
+                                              civil_status: [
+                                                ...formData.civil_status,
+                                                status,
+                                              ],
+                                            });
+                                          } else {
+                                            setFormData({
+                                              ...formData,
+                                              civil_status:
+                                                formData.civil_status.filter(
+                                                  (c) => c !== status,
+                                                ),
+                                            });
+                                          }
+                                        }}
+                                        style={{
+                                          marginRight: "8px",
+                                          cursor: "pointer",
+                                        }}
+                                      />
+                                      {status.charAt(0).toUpperCase() +
+                                        status.slice(1)}
+                                    </label>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            {formData.civil_status.length > 0 && (
+                              <div
+                                style={{
+                                  marginTop: "10px",
+                                  display: "flex",
+                                  flexWrap: "wrap",
+                                  gap: "6px",
+                                }}
+                              >
+                                {formData.civil_status.map((status) => (
+                                  <div
+                                    key={status}
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      backgroundColor: "#e8f0ff",
+                                      border: "1px solid #b3d9ff",
+                                      borderRadius: "4px",
+                                      padding: "6px 10px",
+                                      fontSize: "13px",
+                                    }}
+                                  >
+                                    <span style={{ marginRight: "6px" }}>
+                                      {status.charAt(0).toUpperCase() +
+                                        status.slice(1)}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setFormData({
+                                          ...formData,
+                                          civil_status:
+                                            formData.civil_status.filter(
+                                              (c) => c !== status,
+                                            ),
+                                        });
+                                      }}
+                                      style={{
+                                        background: "none",
+                                        border: "none",
+                                        color: "#d32f2f",
+                                        cursor: "pointer",
+                                        fontSize: "16px",
+                                        padding: "0",
+                                        lineHeight: "1",
+                                      }}
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <div>
+                            <label
+                              style={{
+                                display: "block",
+                                marginBottom: "6px",
+                                fontWeight: "500",
+                                fontSize: "14px",
+                              }}
+                            >
+                              Sex
+                            </label>
+                            <select
+                              value={formData.sex}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  sex: e.target.value,
+                                })
                               }
                               style={{
                                 width: "100%",
                                 padding: "10px",
                                 border: "1px solid #ddd",
                                 borderRadius: "6px",
-                                textAlign: "left",
-                                backgroundColor: "#f9fafb",
-                                cursor: "pointer",
                                 fontFamily: "inherit",
                               }}
                             >
-                              {formData.civil_status.length > 0
-                                ? `${formData.civil_status.length} selected`
-                                : "Select civil status..."}
-                            </button>
-                            {civilStatusDropdown && (
-                              <div
-                                style={{
-                                  position: "absolute",
-                                  top: "100%",
-                                  left: 0,
-                                  right: 0,
-                                  backgroundColor: "#fff",
-                                  border: "1px solid #ddd",
-                                  borderTop: "none",
-                                  borderRadius: "0 0 6px 6px",
-                                  zIndex: 10,
-                                }}
-                              >
-                                {[
-                                  "single",
-                                  "married",
-                                  "widowed",
-                                  "seperated",
-                                  "divorced",
-                                ].map((status) => (
-                                  <label
-                                    key={status}
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      padding: "8px 10px",
-                                      cursor: "pointer",
-                                      borderBottom: "1px solid #eee",
-                                    }}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={formData.civil_status.includes(
-                                        status,
-                                      )}
-                                      onChange={(e) => {
-                                        if (e.target.checked) {
-                                          setFormData({
-                                            ...formData,
-                                            civil_status: [
-                                              ...formData.civil_status,
-                                              status,
-                                            ],
-                                          });
-                                        } else {
-                                          setFormData({
-                                            ...formData,
-                                            civil_status:
-                                              formData.civil_status.filter(
-                                                (c) => c !== status,
-                                              ),
-                                          });
-                                        }
-                                      }}
-                                      style={{
-                                        marginRight: "8px",
-                                        cursor: "pointer",
-                                      }}
-                                    />
-                                    {status.charAt(0).toUpperCase() +
-                                      status.slice(1)}
-                                  </label>
-                                ))}
-                              </div>
-                            )}
+                              <option value="">All</option>
+                              <option value="Male">Male</option>
+                              <option value="Female">Female</option>
+                            </select>
                           </div>
-                          {formData.civil_status.length > 0 && (
-                            <div
+
+                          <div>
+                            <label
                               style={{
-                                marginTop: "10px",
-                                display: "flex",
-                                flexWrap: "wrap",
-                                gap: "6px",
+                                display: "block",
+                                marginBottom: "6px",
+                                fontWeight: "500",
+                                fontSize: "14px",
                               }}
                             >
-                              {formData.civil_status.map((status) => (
-                                <div
-                                  key={status}
-                                  style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    backgroundColor: "#e8f0ff",
-                                    border: "1px solid #b3d9ff",
-                                    borderRadius: "4px",
-                                    padding: "6px 10px",
-                                    fontSize: "13px",
-                                  }}
-                                >
-                                  <span style={{ marginRight: "6px" }}>
-                                    {status.charAt(0).toUpperCase() +
-                                      status.slice(1)}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setFormData({
-                                        ...formData,
-                                        civil_status:
-                                          formData.civil_status.filter(
-                                            (c) => c !== status,
-                                          ),
-                                      });
-                                    }}
-                                    style={{
-                                      background: "none",
-                                      border: "none",
-                                      color: "#d32f2f",
-                                      cursor: "pointer",
-                                      fontSize: "16px",
-                                      padding: "0",
-                                      lineHeight: "1",
-                                    }}
-                                  >
-                                    ×
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        <div>
-                          <label
-                            style={{
-                              display: "block",
-                              marginBottom: "6px",
-                              fontWeight: "500",
-                              fontSize: "14px",
-                            }}
-                          >
-                            Sex
-                          </label>
-                          <select
-                            value={formData.sex}
-                            onChange={(e) =>
-                              setFormData({ ...formData, sex: e.target.value })
-                            }
-                            style={{
-                              width: "100%",
-                              padding: "10px",
-                              border: "1px solid #ddd",
-                              borderRadius: "6px",
-                              fontFamily: "inherit",
-                            }}
-                          >
-                            <option value="">All</option>
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label
-                            style={{
-                              display: "block",
-                              marginBottom: "6px",
-                              fontWeight: "500",
-                              fontSize: "14px",
-                            }}
-                          >
-                            Send SMS to Qualified Residents
-                          </label>
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={formData.send_sms}
-                            onClick={() =>
-                              setFormData({
-                                ...formData,
-                                send_sms: !formData.send_sms,
-                              })
-                            }
-                            style={{
-                              width: "100%",
-                              padding: "10px 12px",
-                              border: "1px solid #ddd",
-                              borderRadius: "6px",
-                              backgroundColor: formData.send_sms
-                                ? "#ecfdf5"
-                                : "#f9fafb",
-                              color: formData.send_sms ? "#047857" : "#374151",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              cursor: "pointer",
-                              fontFamily: "inherit",
-                              fontSize: "14px",
-                              fontWeight: "500",
-                            }}
-                          >
-                            <span>
-                              {formData.send_sms ? "Enabled" : "Disabled"}
-                            </span>
-                            <span
+                              Send SMS to Qualified Residents
+                            </label>
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={formData.send_sms}
+                              onClick={() =>
+                                setFormData({
+                                  ...formData,
+                                  send_sms: !formData.send_sms,
+                                })
+                              }
                               style={{
-                                width: "44px",
-                                height: "24px",
-                                borderRadius: "999px",
+                                width: "100%",
+                                padding: "10px 12px",
+                                border: "1px solid #ddd",
+                                borderRadius: "6px",
                                 backgroundColor: formData.send_sms
-                                  ? "#10b981"
-                                  : "#d1d5db",
-                                padding: "2px",
-                                display: "inline-flex",
+                                  ? "#ecfdf5"
+                                  : "#f9fafb",
+                                color: formData.send_sms
+                                  ? "#047857"
+                                  : "#374151",
+                                display: "flex",
                                 alignItems: "center",
-                                justifyContent: formData.send_sms
-                                  ? "flex-end"
-                                  : "flex-start",
-                                transition: "all 0.2s ease",
+                                justifyContent: "space-between",
+                                cursor: "pointer",
+                                fontFamily: "inherit",
+                                fontSize: "14px",
+                                fontWeight: "500",
                               }}
                             >
+                              <span>
+                                {formData.send_sms ? "Enabled" : "Disabled"}
+                              </span>
                               <span
                                 style={{
-                                  width: "20px",
-                                  height: "20px",
-                                  borderRadius: "50%",
-                                  backgroundColor: "#fff",
-                                  boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
+                                  width: "44px",
+                                  height: "24px",
+                                  borderRadius: "999px",
+                                  backgroundColor: formData.send_sms
+                                    ? "#10b981"
+                                    : "#d1d5db",
+                                  padding: "2px",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: formData.send_sms
+                                    ? "flex-end"
+                                    : "flex-start",
+                                  transition: "all 0.2s ease",
                                 }}
-                              />
-                            </span>
-                          </button>
+                              >
+                                <span
+                                  style={{
+                                    width: "20px",
+                                    height: "20px",
+                                    borderRadius: "50%",
+                                    backgroundColor: "#fff",
+                                    boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
+                                  }}
+                                />
+                              </span>
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              )}
+                    )}
+                  </div>
+                )}
 
-              {/* Image Upload */}
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "6px",
-                    fontWeight: "500",
-                    fontSize: "14px",
-                  }}
-                >
-                  Picture (Optional)
-                </label>
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  style={{
-                    border: "2px dashed #ddd",
-                    borderRadius: "6px",
-                    padding: "24px",
-                    textAlign: "center",
-                    cursor: "pointer",
-                    backgroundColor: "#f9fafb",
-                    transition: "all 0.2s",
-                  }}
-                >
-                  <div
+                {/* Image Upload */}
+                <div>
+                  <label
                     style={{
-                      fontSize: "14px",
+                      display: "block",
+                      marginBottom: "6px",
                       fontWeight: "500",
-                      marginBottom: "4px",
+                      fontSize: "14px",
                     }}
                   >
-                    Click to upload image
-                  </div>
-                  <div style={{ fontSize: "12px", color: "#999" }}>
-                    PNG, JPG up to 10MB
-                  </div>
-                  {formData.imageFile && (
+                    Picture (Optional)
+                  </label>
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      border: "2px dashed #ddd",
+                      borderRadius: "6px",
+                      padding: "24px",
+                      textAlign: "center",
+                      cursor: "pointer",
+                      backgroundColor: "#f9fafb",
+                      transition: "all 0.2s",
+                    }}
+                  >
                     <div
                       style={{
-                        marginTop: "12px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "8px",
-                        color: "#16a34a",
-                        fontSize: "13px",
+                        fontSize: "14px",
+                        fontWeight: "500",
+                        marginBottom: "4px",
                       }}
                     >
-                      <span>✓ {formData.imageFile.name}</span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setFormData({ ...formData, imageFile: null });
-                        }}
+                      Click to upload image
+                    </div>
+                    <div style={{ fontSize: "12px", color: "#999" }}>
+                      PNG, JPG up to 10MB
+                    </div>
+                    {formData.imageFile && (
+                      <div
                         style={{
-                          background: "#fee2e2",
-                          color: "#991b1b",
-                          border: "none",
-                          borderRadius: "4px",
-                          padding: "4px 8px",
-                          cursor: "pointer",
-                          fontSize: "12px",
-                          fontWeight: "500",
+                          marginTop: "12px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "8px",
+                          color: "#16a34a",
+                          fontSize: "13px",
                         }}
                       >
-                        Clear
-                      </button>
-                    </div>
-                  )}
+                        <span>✓ {formData.imageFile.name}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFormData({ ...formData, imageFile: null });
+                          }}
+                          style={{
+                            background: "#fee2e2",
+                            color: "#991b1b",
+                            border: "none",
+                            borderRadius: "4px",
+                            padding: "4px 8px",
+                            cursor: "pointer",
+                            fontSize: "12px",
+                            fontWeight: "500",
+                          }}
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files?.[0]) {
+                        setFormData({
+                          ...formData,
+                          imageFile: e.target.files[0],
+                        });
+                      }
+                    }}
+                    style={{ display: "none" }}
+                  />
                 </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    if (e.target.files?.[0]) {
-                      setFormData({
-                        ...formData,
-                        imageFile: e.target.files[0],
-                      });
-                    }
+              </div>
+
+              {/* Footer */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: "12px",
+                  justifyContent: "flex-end",
+                  marginTop: "24px",
+                  paddingTop: "16px",
+                  borderTop: "1px solid #eee",
+                }}
+              >
+                <button
+                  onClick={closeModal}
+                  style={{
+                    padding: "10px 20px",
+                    backgroundColor: "#fff",
+                    color: "#333",
+                    border: "1px solid #ddd",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    fontWeight: "500",
                   }}
-                  style={{ display: "none" }}
-                />
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handlePostAnnouncement}
+                  disabled={
+                    posting ||
+                    (formData.category === "event" &&
+                      (Boolean(dateErrors.start) || Boolean(dateErrors.end)))
+                  }
+                  style={{
+                    padding: "10px 20px",
+                    backgroundColor: posting ? "#ccc" : "#16a34a",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "6px",
+                    cursor: posting ? "not-allowed" : "pointer",
+                    fontWeight: "500",
+                  }}
+                >
+                  {posting
+                    ? isEditMode
+                      ? "Updating..."
+                      : "Posting..."
+                    : isEditMode
+                      ? "Update Announcement"
+                      : "Post Announcement"}
+                </button>
               </div>
             </div>
-
-            {/* Footer */}
-            <div
-              style={{
-                display: "flex",
-                gap: "12px",
-                justifyContent: "flex-end",
-                marginTop: "24px",
-                paddingTop: "16px",
-                borderTop: "1px solid #eee",
-              }}
-            >
-              <button
-                onClick={closeModal}
-                style={{
-                  padding: "10px 20px",
-                  backgroundColor: "#fff",
-                  color: "#333",
-                  border: "1px solid #ddd",
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                  fontWeight: "500",
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handlePostAnnouncement}
-                disabled={
-                  posting ||
-                  (formData.category === "event" &&
-                    (Boolean(dateErrors.start) || Boolean(dateErrors.end)))
-                }
-                style={{
-                  padding: "10px 20px",
-                  backgroundColor: posting ? "#ccc" : "#16a34a",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: posting ? "not-allowed" : "pointer",
-                  fontWeight: "500",
-                }}
-              >
-                {posting
-                  ? isEditMode
-                    ? "Updating..."
-                    : "Posting..."
-                  : isEditMode
-                    ? "Update Announcement"
-                    : "Post Announcement"}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
