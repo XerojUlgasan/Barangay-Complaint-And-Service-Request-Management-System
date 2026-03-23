@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import supabase from "../../supabse_db/supabase_client";
 import {
@@ -297,7 +298,7 @@ const OfficialAnnouncements = () => {
       )}
 
       {/* SIGNUP CONFIRMATION MODAL */}
-      {showSignupModal && selectedAnnouncement && (
+      {showSignupModal && selectedAnnouncement && createPortal(
         <div
           className="modal-overlay-official"
           onClick={() => setShowSignupModal(false)}
@@ -400,11 +401,12 @@ const OfficialAnnouncements = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* EVENT DETAILS MODAL */}
-      {showDetailsModal && selectedAnnouncement && (
+      {showDetailsModal && selectedAnnouncement && createPortal(
         <div
           className="modal-overlay-official"
           onClick={() => setShowDetailsModal(false)}
@@ -676,7 +678,8 @@ const OfficialAnnouncements = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

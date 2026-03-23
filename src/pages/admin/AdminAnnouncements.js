@@ -261,6 +261,7 @@ export default function AdminAnnouncements() {
   };
 
   const openEditModal = (ann) => {
+    console.log("Editing announcement:", ann);
     setEditingAnnouncement(ann);
     setIsEditMode(true);
     setFormData({
@@ -273,13 +274,13 @@ export default function AdminAnnouncements() {
       event_end: ann.event_end ? ann.event_end.slice(0, 16) : "",
       audience: ann.audience || "residents",
       max_participants: ann.max_participants || "",
-      purok: ann.purok || [],
+      purok: Array.isArray(ann.purok) ? ann.purok : [],
       min_age: ann.min_age ?? "",
       max_age: ann.max_age ?? "",
-      voter_status: ann.voter_status || [],
-      occupation: ann.occupation || [],
-      religion: ann.religion || [],
-      civil_status: ann.civil_status || [],
+      voter_status: Array.isArray(ann.voter_status) ? ann.voter_status : [],
+      occupation: Array.isArray(ann.occupation) ? ann.occupation : [],
+      religion: Array.isArray(ann.religion) ? ann.religion : [],
+      civil_status: Array.isArray(ann.civil_status) ? ann.civil_status : [],
       sex: mapSexToUi(ann.sex),
       send_sms: Boolean(ann.send_sms),
     });
@@ -524,6 +525,13 @@ export default function AdminAnnouncements() {
 
       if (result.success) {
         console.log("Announcement saved successfully:", result.data);
+        
+        // Show success message
+        if (isEditMode) {
+          alert("Announcement updated successfully!");
+        } else {
+          alert("Announcement created successfully!");
+        }
 
         // Upload image if provided and it's a file (not just a reference)
         if (formData.imageFile && formData.imageFile instanceof File) {
@@ -1015,7 +1023,7 @@ export default function AdminAnnouncements() {
         )}
 
       {/* Modal - TEST VERSION */}
-      {showModal && (
+      {showModal && createPortal(
         <div
           className="admin-announcement-modal-overlay"
           onClick={(e) => {
@@ -2503,7 +2511,8 @@ export default function AdminAnnouncements() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
