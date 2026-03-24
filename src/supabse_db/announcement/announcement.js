@@ -507,9 +507,25 @@ export const signupForEvent = async (announcementId, userProfile = null) => {
 
   // audience on announcement should match user role
   if (!audience || audience.toLowerCase() !== userRole) {
+    // Normalize and format the audience name for display
+    const displayAudience = audience
+      ? audience
+          .toLowerCase()
+          .replace(/onmly/g, "only") // Fix common typo
+          .replace(/offical/g, "officials") // Fix misspelling
+          .split(/\s+/)
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" ")
+      : "Not specified";
+    
+    const displayRole = userRole
+      .split(/\s+/)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+
     return {
       success: false,
-      message: `This event is for '${announcement.audience}' only. Your role: '${userRole}'.`,
+      message: `This event is for "${displayAudience}" only. Your role is "${displayRole}".`,
     };
   }
 

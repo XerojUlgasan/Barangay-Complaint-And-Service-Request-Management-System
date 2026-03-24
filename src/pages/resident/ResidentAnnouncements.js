@@ -555,7 +555,7 @@ const Announcements = () => {
               style={{ maxWidth: 480 }}
             >
               <h3 className="logout-modal-title">
-                Confirm {signupAction === "signup" ? "Signup" : "Cancellation"}
+                Confirm {signupAction === "signup" ? "Sign Up" : "Cancellation"}
               </h3>
               <p>
                 Are you sure you want to{" "}
@@ -587,30 +587,34 @@ const Announcements = () => {
                         const res = await signupForEvent(
                           selectedAnnouncement.id,
                         );
-                        setSignupMessage(res);
                         if (res && res.success) {
                           setUserSignups((s) => ({
                             ...s,
                             [selectedAnnouncement.id]: true,
                           }));
-                          // Participant counts will update automatically via real-time subscription
-                          setTimeout(() => {
-                            setShowSignupModal(false);
-                          }, 1000);
+                          // Refresh announcement data to get updated participant counts
+                          await refresh();
+                          // Close modal immediately
+                          setShowSignupModal(false);
+                        } else {
+                          // Show error message if signup failed
+                          setSignupMessage(res);
                         }
                       } else {
                         const res = await cancelSignup(selectedAnnouncement.id);
-                        setSignupMessage(res);
                         if (res && res.success) {
                           setUserSignups((s) => {
                             const n = { ...s };
                             delete n[selectedAnnouncement.id];
                             return n;
                           });
-                          // Participant counts will update automatically via real-time subscription
-                          setTimeout(() => {
-                            setShowSignupModal(false);
-                          }, 400);
+                          // Refresh announcement data to get updated participant counts
+                          await refresh();
+                          // Close modal immediately
+                          setShowSignupModal(false);
+                        } else {
+                          // Show error message if cancel failed
+                          setSignupMessage(res);
                         }
                       }
                     } catch (err) {

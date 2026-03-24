@@ -390,19 +390,29 @@ const OfficialAnnouncements = () => {
                   try {
                     if (signupAction === "signup") {
                       const res = await signupForEvent(selectedAnnouncement.id);
-                      setSignupMessage(res);
                       if (res && res.success) {
+                        // Update state immediately
                         setUserSignups((s) => ({ ...s, [selectedAnnouncement.id]: true }));
-                        // Participant counts will update automatically via real-time subscription
-                        setTimeout(() => setShowSignupModal(false), 1000);
+                        // Refresh announcement data to get updated participant counts
+                        await refresh();
+                        // Close modal immediately
+                        setShowSignupModal(false);
+                      } else {
+                        // Show error message if signup failed
+                        setSignupMessage(res);
                       }
                     } else {
                       const res = await cancelSignup(selectedAnnouncement.id);
-                      setSignupMessage(res);
                       if (res && res.success) {
+                        // Update state immediately
                         setUserSignups((s) => { const n = { ...s }; delete n[selectedAnnouncement.id]; return n; });
-                        // Participant counts will update automatically via real-time subscription
-                        setTimeout(() => setShowSignupModal(false), 400);
+                        // Refresh announcement data to get updated participant counts
+                        await refresh();
+                        // Close modal immediately
+                        setShowSignupModal(false);
+                      } else {
+                        // Show error message if cancel failed
+                        setSignupMessage(res);
                       }
                     }
                   } catch (err) {
@@ -414,7 +424,7 @@ const OfficialAnnouncements = () => {
               >
                 {signupLoading
                   ? signupAction === "signup" ? "Signing up..." : "Cancelling..."
-                  : signupAction === "signup" ? "Yes, Sign Me Up" : "Yes, Cancel"}
+                  : signupAction === "signup" ? "Yes, Sign Up" : "Yes, Cancel"}
               </button>
             </div>
           </div>

@@ -104,8 +104,8 @@ export function useAnnouncementData() {
   }, []);
 
   /**
-   * Set up real-time subscription to announcement changes
-   * This ensures all components stay in sync when AdminAnnouncements makes changes
+   * Set up real-time subscription to announcement and participant changes
+   * This ensures all components stay in sync when users sign up/cancel
    */
   const setupRealtimeSubscription = useCallback(() => {
     // Unsubscribe from existing subscription
@@ -113,9 +113,9 @@ export function useAnnouncementData() {
       subscriptionRef.current.unsubscribe();
     }
 
-    // Subscribe to announcement table changes
+    // Create a single channel for all real-time updates
     subscriptionRef.current = supabase
-      .channel("announcements_channel")
+      .channel("announcements_and_participants_channel")
       .on(
         "postgres_changes",
         {
@@ -129,9 +129,44 @@ export function useAnnouncementData() {
           fetchAnnouncementData();
         }
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "*", // Listen to all events (INSERT, UPDATE, DELETE)
+          schema: "public",
+          table: "event_participants",
+        },
+        async (payload) => {
+          console.log("Participant change detected:", payload.eventType, payload);
+          
+          try {
+            // Fetch the fresh participant count for the affected announcement
+            const announcementId = payload.new?.announcement_id || payload.old?.announcement_id;
+            
+            if (announcementId) {
+              const { count, error: countError } = await supabase
+                .from("event_participants")
+                .select("*", { count: "exact", head: true })
+                .eq("announcement_id", announcementId);
+
+              if (!countError && typeof count === "number") {
+                // Update the count for this specific announcement
+                setParticipantCounts((prev) => ({
+                  ...prev,
+                  [announcementId]: count,
+                }));
+              }
+            }
+          } catch (err) {
+            console.error("Failed to fetch updated participant count:", err);
+            // If fetch fails, trigger a full refresh
+            fetchAnnouncementData();
+          }
+        }
+      )
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {
-          console.log("Real-time subscription established for announcements");
+          console.log("Real-time subscription established for announcements and participants");
         } else if (status === "CLOSED" || status === "CHANNEL_ERROR") {
           console.warn("Real-time subscription ended, will use polling");
         }
