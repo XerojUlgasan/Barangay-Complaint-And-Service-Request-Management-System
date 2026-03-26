@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
 import {
   getAssignedComplaints,
@@ -35,6 +36,7 @@ const normalizeStatus = (status) => {
 };
 
 export default function OfficialComplaints() {
+  const location = useLocation();
   const [selectedComplaintStatus, setSelectedComplaintStatus] = useState("All Status");
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -99,6 +101,19 @@ export default function OfficialComplaints() {
       document.body.style.overflow = "unset";
     };
   }, [isModalOpen]);
+
+  useEffect(() => {
+    // Auto-open modal if redirected from dashboard
+    if (location.state?.selectedComplaintId && location.state?.openModal && complaints.length > 0) {
+      const complaint = complaints.find((c) => c.id === location.state.selectedComplaintId);
+      if (complaint) {
+        setSelectedComplaint(complaint);
+        setIsModalOpen(true);
+        // Clear the location state after opening
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [complaints, location.state]);
 
   const filteredComplaints = complaints.filter((complaint) => {
     const statusMatch =

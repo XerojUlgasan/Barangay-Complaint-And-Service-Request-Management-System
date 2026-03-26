@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
 import RequestDetail from "../../components/RequestDetail";
 import {
@@ -42,6 +43,7 @@ const toStatusCode = (status) => {
 };
 
 export default function OfficialRequests() {
+  const location = useLocation();
   const [selectedRequestStatus, setSelectedRequestStatus] = useState("All Status");
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -52,20 +54,6 @@ export default function OfficialRequests() {
   const [searchQuery, setSearchQuery] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-
-  useEffect(() => { fetchAssignedRequests(); }, []);
-
-  useEffect(() => {
-    const handleEscape = (e) => { if (e.key === "Escape") handleCloseModal(); };
-    if (isModalOpen) {
-      document.addEventListener("keydown", handleEscape);
-      document.body.style.overflow = "hidden";
-    }
-    return () => {
-      document.removeEventListener("keydown", handleEscape);
-      document.body.style.overflow = "unset";
-    };
-  }, [isModalOpen]);
 
   const fetchAssignedRequests = async () => {
     try {
@@ -110,6 +98,36 @@ export default function OfficialRequests() {
       setLoadingRequests(false);
     }
   };
+
+  useEffect(() => {
+    fetchAssignedRequests();
+  }, []);
+
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === "Escape") handleCloseModal();
+    };
+    if (isModalOpen) {
+      document.addEventListener("keydown", handleEscape);
+      document.body.style.overflow = "hidden";
+    }
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "unset";
+    };
+  }, [isModalOpen]);
+
+  useEffect(() => {
+    // Auto-open modal if redirected from dashboard
+    if (location.state?.selectedRequestId && location.state?.openModal && requests.length > 0) {
+      const request = requests.find((r) => r.id === location.state.selectedRequestId);
+      if (request) {
+        openModal(request);
+        // Clear the location state after opening
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [requests, location.state]);
 
   const filterOptions = [
     "All Status", "Pending", "In Progress", "Completed", "Rejected",

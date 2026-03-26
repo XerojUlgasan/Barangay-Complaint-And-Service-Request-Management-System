@@ -77,20 +77,26 @@ export function AuthProvider({ children }) {
 
         if (superadminData && superadminData.length > 0) {
           if (mounted) setUserRole("superadmin");
-          const profileRes = await getOfficialProfile();
-          if (profileRes?.success && profileRes.data) {
-            const p = profileRes.data;
-            const full = [p.firstname, p.middlename, p.lastname]
-              .filter(Boolean)
-              .join(" ");
-            if (full && mounted) {
-              setUserName(full);
-              return;
+          try {
+            const profileRes = await getOfficialProfile(user.id);
+            if (profileRes?.success && profileRes.data) {
+              const p = profileRes.data;
+              const full = [p.firstname, p.lastname]
+                .filter(Boolean)
+                .join(" ");
+              if (full && mounted) {
+                setUserName(full);
+                if (mounted) setUserLoading(false);
+                return;
+              }
             }
+          } catch (e) {
+            console.warn("Error fetching admin profile:", e);
           }
           const fallback =
             user.user_metadata?.full_name || user.email || user.id;
           if (mounted) setUserName(fallback || "Barangay Admin");
+          if (mounted) setUserLoading(false);
           return;
         }
 
@@ -102,14 +108,22 @@ export function AuthProvider({ children }) {
 
         if (officialData && officialData.length > 0) {
           if (mounted) setUserRole("official");
-          const profileRes = await getOfficialProfile();
-          if (profileRes?.success && profileRes.data) {
-            const p = profileRes.data;
-            const full = [p.firstname, p.middlename, p.lastname]
-              .filter(Boolean)
-              .join(" ");
-            if (full && mounted) setUserName(full);
+          try {
+            const profileRes = await getOfficialProfile(user.id);
+            if (profileRes?.success && profileRes.data) {
+              const p = profileRes.data;
+              const full = [p.firstname, p.lastname]
+                .filter(Boolean)
+                .join(" ");
+              if (full && mounted) {
+                setUserName(full);
+              }
+            }
+          } catch (e) {
+            console.warn("Error fetching official profile:", e);
           }
+          // Ensure loading is set to false before returning
+          if (mounted) setUserLoading(false);
           // Role is already set to "official", redirect and stop here
           const currentPath = window.location.pathname;
           if (
@@ -130,6 +144,8 @@ export function AuthProvider({ children }) {
           if (mounted) setUserName(fallback || "Barangay User");
         }
 
+        if (mounted) setUserLoading(false);
+
         // Redirect to dashboard if arriving from a public page
         const currentPath = window.location.pathname;
         if (
@@ -142,7 +158,6 @@ export function AuthProvider({ children }) {
       } catch (err) {
         console.error("Error loading user data:", err);
         if (mounted) setResidentLoading(false);
-      } finally {
         if (mounted) setUserLoading(false);
       }
     };

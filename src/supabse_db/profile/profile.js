@@ -1,17 +1,22 @@
 import supabase from "../supabase_client";
 import { getResidentByAuthUid } from "../resident/resident";
 
-export const getOfficialProfile = async () => {
-  const { data: userData, error: authError } = await supabase.auth.getUser();
+export const getOfficialProfile = async (authUid = null) => {
+  let user_id = authUid;
 
-  if (authError || !userData?.user) {
-    return { success: false, message: "Not authenticated", data: null };
+  // If no authUid provided, fetch from current session
+  if (!user_id) {
+    const { data: userData, error: authError } = await supabase.auth.getUser();
+    if (authError || !userData?.user) {
+      return { success: false, message: "Not authenticated", data: null };
+    }
+    user_id = userData.user.id;
   }
 
   const { data, error } = await supabase
     .from("official_tbl")
     .select("*")
-    .eq("auth_uid", userData.user.id)
+    .eq("auth_uid", user_id)
     .maybeSingle(); // FIX: instead of single()
 
   if (error) {

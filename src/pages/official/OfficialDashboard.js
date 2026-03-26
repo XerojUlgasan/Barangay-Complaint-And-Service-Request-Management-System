@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   BarChart,
   Bar,
@@ -20,6 +21,8 @@ import {
   FileText,
   MessageSquare,
   XCircle,
+  Search,
+  ChevronDown,
 } from "lucide-react";
 import {
   getAssignedComplaints,
@@ -28,10 +31,15 @@ import {
 import "../../styles/BarangayOfficial.css";
 
 const OfficialDashboard = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("requests"); // "requests" or "complaints"
   const [requests, setRequests] = useState([]);
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("latest"); // latest, oldest
+  const [filterByStatus, setFilterByStatus] = useState("all");
+  const [filterByType, setFilterByType] = useState("all"); // all, requests, complaints
 
   useEffect(() => {
     fetchDashboardData();
@@ -170,10 +178,20 @@ const OfficialDashboard = () => {
     }));
   };
 
-  // Get recent items for active tab
+  // Get recent items for active tab with search, sort, filter by type and status
   const getRecentItems = () => {
-    const items = activeTab === "requests" ? requests : complaints;
-    const statusField = activeTab === "requests" ? "request_status" : "status";
+    // Determine which items to include based on filterByType
+    let items = [];
+    const allRequests = requests.map(r => ({ ...r, itemType: 'request' }));
+    const allComplaints = complaints.map(c => ({ ...c, itemType: 'complaint' }));
+    
+    if (filterByType === "requests") {
+      items = allRequests;
+    } else if (filterByType === "complaints") {
+      items = allComplaints;
+    } else {
+      items = [...allRequests, ...allComplaints];
+    }
 
     const statusColors = {
       pending: "#F59E0B",
@@ -185,17 +203,69 @@ const OfficialDashboard = () => {
       for_validation: "#06B6D4",
     };
 
-    return items
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-      .slice(0, 5)
-      .map((item) => ({
+    // Filter items
+    let filtered = items.filter((item) => {
+      const title = (item.certificate_type || item.complaint_type || "").toLowerCase();
+      const submitter = (
+        item.profiles?.full_name ||
+        item.profiles?.email ||
+        item.requester_name ||
+        item.complainant_name ||
+        ""
+      ).toLowerCase();
+      const description = (item.description || "").toLowerCase();
+
+      // Search filter
+      const matchesSearch =
+        searchQuery === "" ||
+        title.includes(searchQuery.toLowerCase()) ||
+        submitter.includes(searchQuery.toLowerCase()) ||
+        description.includes(searchQuery.toLowerCase());
+
+      // Status filter
+      const statusField = item.itemType === "request" ? "request_status" : "status";
+      const status = item[statusField];
+      const matchesStatus = filterByStatus === "all" || status === filterByStatus;
+
+      return matchesSearch && matchesStatus;
+    });
+
+    // Sort items
+    filtered = filtered.sort((a, b) => {
+      const dateA = new Date(a.created_at || 0);
+      const dateB = new Date(b.created_at || 0);
+      return sortBy === "latest" ? dateB - dateA : dateA - dateB;
+    });
+
+    return filtered.slice(0, 5).map((item) => {
+      const statusField = item.itemType === "request" ? "request_status" : "status";
+      return {
         id: item.id,
         title: item.certificate_type || item.complaint_type || "Untitled",
         submittedBy:
-          item.profiles?.full_name || item.profiles?.email || "Unknown",
+          item.profiles?.full_name ||
+          item.profiles?.email ||
+          item.requester_name ||
+          item.complainant_name ||
+          "Unknown",
         status: item[statusField],
         statusColor: statusColors[item[statusField]] || "#9CA3AF",
-      }));
+        itemType: item.itemType,
+        rawData: item,
+      };
+    });
+  };
+
+  const handleItemClick = (item, type) => {
+    if (type === "request") {
+      navigate("/BarangayOfficial/requests", {
+        state: { selectedRequestId: item.id, openModal: true },
+      });
+    } else if (type === "complaint") {
+      navigate("/BarangayOfficial/complaints", {
+        state: { selectedComplaintId: item.id, openModal: true },
+      });
+    }
   };
 
   const statusBreakdown = getStatusBreakdownData();
@@ -384,14 +454,93 @@ const OfficialDashboard = () => {
           <div className="recent-tasks-card">
             <div className="card-header">
               <TrendingUp size={20} color="#50C878" />
-              <h3>
-                Recent {activeTab === "requests" ? "Requests" : "Complaints"}
-              </h3>
+              <h3>Recent Requests and Complaints</h3>
             </div>
+
+            {/* SEARCH & FILTER BAR */}
+            <div className="recent-controls">
+              <div className="recent-search-wrap">
+                <Search size={18} className="recent-search-icon" />
+                <input
+                  type="text"
+                  placeholder={
+                    activeTab === "requests"
+                      ? "Search requests..."
+                      : "Search complaints..."
+                  }
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="recent-search-input"
+                />
+              </div>
+
+              <div className="recent-filter-group">
+                <div className="recent-filter-control">
+                  <label className="recent-filter-label">Type:</label>
+                  <select
+                    value={filterByType}
+                    onChange={(e) => setFilterByType(e.target.value)}
+                    className="recent-filter-select"
+                  >
+                    <option value="all">All Types</option>
+                    <option value="requests">Requests Only</option>
+                    <option value="complaints">Complaints Only</option>
+                  </select>
+                </div>
+
+                <div className="recent-filter-control">
+                  <label className="recent-filter-label">Sort By:</label>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="recent-filter-select"
+                  >
+                    <option value="latest">Latest First</option>
+                    <option value="oldest">Oldest First</option>
+                  </select>
+                </div>
+
+                <div className="recent-filter-control">
+                  <label className="recent-filter-label">Status:</label>
+                  <select
+                    value={filterByStatus}
+                    onChange={(e) => setFilterByStatus(e.target.value)}
+                    className="recent-filter-select"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="for_compliance">For Compliance</option>
+                    <option value="non_compliant">Non Compliant</option>
+                    <option value="for_validation">For Validation</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* RESULTS COUNT */}
+            <div className="recent-results-count">
+              Showing {recentItems.length} of{" "}
+              {filterByType === "all" ? requests.length + complaints.length : filterByType === "requests" ? requests.length : complaints.length}{" "}
+              {filterByType === "all" ? "items" : filterByType === "requests" ? "requests" : "complaints"}
+            </div>
+
+            {/* TASKS LIST */}
             <div className="tasks-list">
               {recentItems.length > 0 ? (
                 recentItems.map((item) => (
-                  <div key={item.id} className="task-item">
+                  <div
+                    key={item.id}
+                    className="task-item"
+                    onClick={() =>
+                      handleItemClick(
+                        item.rawData,
+                        item.itemType === "request" ? "request" : "complaint"
+                      )
+                    }
+                  >
                     <div className="task-icon">
                       <CheckCircle2 size={20} color="#50C878" />
                     </div>
@@ -410,9 +559,9 @@ const OfficialDashboard = () => {
                   </div>
                 ))
               ) : (
-                <p style={{ color: "#6B7280" }}>
-                  No recent{" "}
-                  {activeTab === "requests" ? "requests" : "complaints"} yet.
+                <p className="recent-empty-message">
+                  No {filterByType === "all" ? "items" : filterByType === "requests" ? "requests" : "complaints"}{" "}
+                  found with current filters.
                 </p>
               )}
             </div>
