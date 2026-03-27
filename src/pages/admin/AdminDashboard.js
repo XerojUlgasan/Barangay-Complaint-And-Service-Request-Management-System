@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Clock,
   AlertCircle,
@@ -1286,10 +1286,21 @@ function ComplaintsView({
 
 function RequestsView({
   requests = [],
+  complaints = [],
   allRequests = [],
+  allComplaints = [],
   timeFilter = "month",
   setTimeFilter = () => {},
+  feedSearch = "",
+  setFeedSearch = () => {},
+  feedFilterType = "all",
+  setFeedFilterType = () => {},
+  feedFilterStatus = "all",
+  setFeedFilterStatus = () => {},
+  feedSortBy = "newest",
+  setFeedSortBy = () => {},
 }) {
+  const navigate = useNavigate();
   const [showInsights, setShowInsights] = useState(false);
 
   const requestInsights = (() => {
@@ -1378,8 +1389,53 @@ function RequestsView({
   // Get request types breakdown
   const requestTypes = analyzeRequestsByType(requests).slice(0, 5);
 
-  // Get recent 5 requests for live feed
-  const recentRequests = requests.slice(0, 5);
+  // Combined feed: requests and complaints
+  const combinedFeed = [
+    ...requests.map((item) => ({
+      ...item,
+      type: "request",
+      title: item.subject || "Request",
+      subtype: item.certificate_type || "Service Request",
+      status: item.status || item.request_status || "pending",
+      date: item.created_at,
+    })),
+    ...complaints.map((item) => ({
+      ...item,
+      type: "complaint",
+      title: item.subject || "Complaint",
+      subtype: item.complaint_type || "General Complaint",
+      status: item.status || item.complaint_status || "pending",
+      date: item.created_at,
+    })),
+  ].sort((a, b) => {
+    const da = new Date(a.date).getTime() || 0;
+    const db = new Date(b.date).getTime() || 0;
+    return db - da;
+  });
+
+  const filteredFeed = combinedFeed
+    .filter((item) => {
+      const search = feedSearch.trim().toLowerCase();
+      if (feedFilterType !== "all" && item.type !== feedFilterType) {
+        return false;
+      }
+      if (feedFilterStatus !== "all" && item.status.toLowerCase() !== feedFilterStatus.toLowerCase()) {
+        return false;
+      }
+      if (!search) return true;
+      return [item.title, item.subtype, item.status]
+        .join(" ")
+        .toLowerCase()
+        .includes(search);
+    })
+    .sort((a, b) => {
+      if (feedSortBy === "oldest") {
+        return new Date(a.date).getTime() - new Date(b.date).getTime();
+      }
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
+    });
+
+  const liveFeedItems = filteredFeed.slice(0, 5);
 
   // Build monthly trend chart from currently filtered requests
   const monthlyTrendsMap = requests.reduce((acc, request) => {
@@ -1713,7 +1769,7 @@ function RequestsView({
           </div>
         </div>
 
-        {/* Live Request Feed */}
+        {/* Live Requests and Complaints */}
         <div className="live-feed">
           <div
             className="live-header"
@@ -1722,54 +1778,114 @@ function RequestsView({
               justifyContent: "space-between",
               alignItems: "center",
               gap: "1rem",
+              flexWrap: "wrap",
             }}
           >
             <div>
-              Live Request Feed <span className="badge">REAL-TIME</span>
+              Live Requests and Complaints <span className="badge">REAL-TIME</span>
             </div>
-            <Link
-              to="/BarangayAdmin/requests"
-              style={{
-                fontSize: "0.85rem",
-                fontWeight: 600,
-                color: "#2563eb",
-                textDecoration: "none",
-              }}
-            >
-              View More
-            </Link>
+            {/* Search, Filter, Sort Controls */}
+            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+              <input
+                type="text"
+                placeholder="Search..."
+                value={feedSearch}
+                onChange={(e) => setFeedSearch(e.target.value)}
+                style={{
+                  padding: "0.5rem",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "0.375rem",
+                  fontSize: "0.875rem",
+                  width: "150px",
+                }}
+              />
+              <select
+                value={feedFilterType}
+                onChange={(e) => setFeedFilterType(e.target.value)}
+                style={{
+                  padding: "0.5rem",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "0.375rem",
+                  fontSize: "0.875rem",
+                }}
+              >
+                <option value="all">All Types</option>
+                <option value="request">Requests</option>
+                <option value="complaint">Complaints</option>
+              </select>
+              <select
+                value={feedFilterStatus}
+                onChange={(e) => setFeedFilterStatus(e.target.value)}
+                style={{
+                  padding: "0.5rem",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "0.375rem",
+                  fontSize: "0.875rem",
+                }}
+              >
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+                <option value="rejected">Rejected</option>
+              </select>
+              <select
+                value={feedSortBy}
+                onChange={(e) => setFeedSortBy(e.target.value)}
+                style={{
+                  padding: "0.5rem",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "0.375rem",
+                  fontSize: "0.875rem",
+                }}
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+              </select>
+            </div>
           </div>
           <div className="feed-list">
-            {recentRequests.length > 0 ? (
-              recentRequests.slice(0, 10).map((req) => (
-                <div className="feed-item" key={req.id}>
-                  <div className="feed-icon">📄</div>
+            {liveFeedItems.length > 0 ? (
+              liveFeedItems.map((item) => (
+                <div
+                  key={`${item.type}-${item.id}`}
+                  className="feed-item"
+                  onClick={() => {
+                    const path =
+                      item.type === "request"
+                        ? "/BarangayAdmin/requests"
+                        : "/BarangayAdmin/complaints";
+                    navigate(path, {
+                      state: { selectedItemId: item.id },
+                    });
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
+                  <div className="feed-icon">
+                    {item.type === "request" ? "📄" : "⚠️"}
+                  </div>
                   <div className="feed-body">
-                    <div className="feed-title">{req.subject || "Request"}</div>
+                    <div className="feed-title">{item.title}</div>
                     <div className="feed-sub muted">
-                      {req.certificate_type || "Service Request"} •{" "}
-                      {new Date(req.created_at).toLocaleDateString()}
+                      {item.subtype} •{" "}
+                      {new Date(item.date).toLocaleDateString()}
                     </div>
                   </div>
                   <div
-                    className={`feed-status ${(
-                      req.status ||
-                      req.request_status ||
-                      "pending"
-                    )
+                    className={`feed-status ${item.status
                       .toLowerCase()
                       .replace(/[_ ]/g, "-")}`}
                   >
-                    {req.status || req.request_status || "Pending"}
+                    {item.status}
                   </div>
                 </div>
               ))
             ) : (
               <div className="feed-item">
                 <div className="feed-body">
-                  <div className="feed-title">No requests yet</div>
+                  <div className="feed-title">No items found</div>
                   <div className="feed-sub muted">
-                    Requests will appear here
+                    Try adjusting your search or filters
                   </div>
                 </div>
               </div>
@@ -2040,6 +2156,11 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [feedSearch, setFeedSearch] = useState("");
+  const [feedFilterType, setFeedFilterType] = useState("all");
+  const [feedFilterStatus, setFeedFilterStatus] = useState("all");
+  const [feedSortBy, setFeedSortBy] = useState("newest");
+
   // Sample data for demonstration when DB is empty
   const SAMPLE_REQUESTS = [
     {
@@ -2253,10 +2374,20 @@ export default function AdminDashboard() {
   if (active === "Requests") {
     Content = (
       <RequestsView
-        requests={filteredRequests}
+        requests={requests}
+        complaints={complaints}
         allRequests={requests}
+        allComplaints={complaints}
         timeFilter={timeFilter}
         setTimeFilter={setTimeFilter}
+        feedSearch={feedSearch}
+        setFeedSearch={setFeedSearch}
+        feedFilterType={feedFilterType}
+        setFeedFilterType={setFeedFilterType}
+        feedFilterStatus={feedFilterStatus}
+        setFeedFilterStatus={setFeedFilterStatus}
+        feedSortBy={feedSortBy}
+        setFeedSortBy={setFeedSortBy}
       />
     );
   } else if (active === "Complaints") {

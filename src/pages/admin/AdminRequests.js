@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, X } from "lucide-react";
+import { useLocation } from "react-router-dom";
 import "../../styles/BarangayAdmin.css";
 import "../../styles/RequestDetail.css";
 import {
@@ -16,6 +17,16 @@ const STATUS_COLORS = {
   "For Compliance": "#8b5cf6",
   "Non Compliant": "#ec4899",
   "For Validation": "#06b6d4",
+};
+
+const STATUS_TEXT_COLORS = {
+  Pending: "#92400e",
+  "In Progress": "#1e3a8a",
+  Completed: "#065f46",
+  Rejected: "#7f1d1d",
+  "For Compliance": "#4c1d95",
+  "Non Compliant": "#831843",
+  "For Validation": "#0f766e",
 };
 
 const STATUS_LABELS = {
@@ -45,8 +56,10 @@ const normalizeStatus = (status) => {
 };
 
 const getStatusColor = (statusLabel) => STATUS_COLORS[statusLabel] || "#9ca3af";
+const getStatusTextColor = (statusLabel) => STATUS_TEXT_COLORS[statusLabel] || "#1f2937";
 
 export default function AdminRequests() {
+  const location = useLocation();
   const [selectedRequestStatus, setSelectedRequestStatus] =
     useState("All Status");
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -62,6 +75,16 @@ export default function AdminRequests() {
   const [searchQuery, setSearchQuery] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  // Auto-open modal if navigated with selectedItemId
+  useEffect(() => {
+    if (location.state?.selectedItemId && requests.length > 0) {
+      const item = requests.find(r => r.id === location.state.selectedItemId);
+      if (item) {
+        openModal(item);
+      }
+    }
+  }, [location.state, requests]);
 
   const transformRequestData = (dbRequest) => {
     return {
@@ -433,6 +456,8 @@ export default function AdminRequests() {
                           className="ar-status-badge"
                           style={{
                             backgroundColor: getStatusColor(request.status),
+                            color: getStatusTextColor(request.status),
+                            borderColor: "rgba(0,0,0,0.10)",
                           }}
                         >
                           {request.status}
@@ -472,13 +497,13 @@ export default function AdminRequests() {
 
       {/* Modal Overlay */}
       {isModalOpen && createPortal(
-        <div className="ar-modal-overlay" onClick={closeModal} />,
+        <div className="ar-modal-overlay request-detail-overlay" onClick={closeModal} />,
         document.body
       )}
 
       {/* Modal */}
       {isModalOpen && selectedRequest && createPortal(
-        <div className="ar-modal">
+        <div className="ar-modal modal-dialog request-detail-dialog">
           {/* Header */}
           <div className="ar-modal-header">
             <div className="ar-modal-header-top">
@@ -492,6 +517,8 @@ export default function AdminRequests() {
                 className="ar-status-badge-modal"
                 style={{
                   backgroundColor: getStatusColor(selectedRequest.status),
+                  color: getStatusTextColor(selectedRequest.status),
+                  borderColor: "rgba(0,0,0,0.10)",
                 }}
               >
                 {selectedRequest.status.toUpperCase()}
