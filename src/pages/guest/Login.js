@@ -4,7 +4,6 @@ import {
   loginByEmail,
   checkHouseholdMember,
   registerByEmail,
-  checkUserRole,
   requestPasswordReset,
 } from "../../supabse_db/auth/auth";
 import "../../styles/Auth.css";
@@ -67,17 +66,16 @@ const Login = () => {
       return;
     }
 
-    const role = await checkUserRole(result.user.id);
     setSignInLoading(false);
 
-    if (!role) {
+    if (!result.role) {
       setSignInError("Could not determine user role. Please try again.");
       return;
     }
 
-    if (role === "super_admin") {
+    if (result.role === "super_admin") {
       navigate("/BarangayAdmin");
-    } else if (role === "official") {
+    } else if (result.role === "official") {
       navigate("/BarangayOfficial");
     } else {
       navigate("/dashboard");

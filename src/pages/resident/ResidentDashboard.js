@@ -4,57 +4,43 @@ import { logout } from "../../supabse_db/auth/auth";
 import { useAuth } from "../../context/AuthContext";
 import { getRequests } from "../../supabse_db/request/request";
 import { getComplaints } from "../../supabse_db/complaint/complaint";
-import {
-  getResidentByAuthUid,
-  formatResidentFullName,
-} from "../../supabse_db/resident/resident";
 import ResidentSidebar from "../../components/ResidentSidebar";
 import ResidentSettings from "../../components/ResidentSettings";
 import "../../styles/UserPages.css";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { authUser, userLoading, residentLoading } = useAuth();
+  const { authUser, userLoading, userName } = useAuth();
 
   const [requests, setRequests] = useState([]);
-  const [residentName, setResidentName] = useState("");
   const [loading, setLoading] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    if (userLoading || residentLoading || !authUser) return;
+    if (userLoading || !authUser) return;
 
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [requestsRes, complaintsRes, residentRes] = await Promise.all([
+        const [requestsRes, complaintsRes] = await Promise.all([
           getRequests(),
           getComplaints(),
-          getResidentByAuthUid(authUser.id),
         ]);
 
         if (requestsRes.success) {
           setRequests(requestsRes.data);
         }
-
-        if (residentRes.success && residentRes.data) {
-          const fullName = formatResidentFullName(residentRes.data);
-          setResidentName(fullName || authUser.email || "Barangay User");
-        } else {
-          setResidentName(authUser.email || "Barangay User");
-        }
       } catch (error) {
         console.error("Error fetching data:", error);
-        setResidentName(authUser.email || "Barangay User");
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [authUser, userLoading, residentLoading]);
+  }, [authUser, userLoading]);
 
   const handleLogoutConfirm = useCallback(async () => {
     try {
@@ -320,7 +306,7 @@ const Dashboard = () => {
           </div>
 
           <div className="welcome">
-            <h1>Welcome, {residentName || "..."}!</h1>
+            <h1>Welcome, {userName || "..."}!</h1>
             <p>Manage your barangay services and requests</p>
           </div>
 

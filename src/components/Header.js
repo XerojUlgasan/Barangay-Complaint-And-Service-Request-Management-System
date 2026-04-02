@@ -1,24 +1,31 @@
-import React from 'react';
-import { LogOut } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
-import '../styles/Header.css';
+import React from "react";
+import { LogOut } from "lucide-react";
+import { useLocation } from "react-router-dom";
+import "../styles/Header.css";
 
 /**
  * Header Component
- * 
+ *
  * This component displays the top navigation bar with:
  * - Current page title/label (e.g., "Dashboard", "Requests")
  * - User account display
  * - Logout button with icon
- * 
+ *
  * Props:
  * @param {string} userName - Name/email of the currently logged-in user
  * @param {function} onLogout - Callback function to execute when user clicks logout
  */
-const Header = ({ menuItems = [], userName = 'Barangay Official', userPosition = '', userRole = null, onLogout, userLoading = false }) => {
+const Header = ({
+  menuItems = [],
+  userName = "Barangay Official",
+  userPosition = "",
+  userRole = null,
+  onLogout,
+  userLoading = false,
+}) => {
   /**
    * Handle logout button click
-   * 
+   *
    * Calls the onLogout callback passed from parent component.
    * Parent component (App.js) should handle actual logout logic.
    */
@@ -30,24 +37,24 @@ const Header = ({ menuItems = [], userName = 'Barangay Official', userPosition =
 
   // Determine the role label to display
   const getRoleLabel = () => {
-    if (userRole === 'superadmin') {
-      return 'SUPER ADMINISTRATOR';
-    } else if (userRole === 'official') {
-      return 'BARANGAY OFFICIAL';
+    if (userRole === "superadmin") {
+      return "SUPER ADMINISTRATOR";
+    } else if (userRole === "official") {
+      return "BARANGAY OFFICIAL";
     }
-    return 'BARANGAY OFFICIAL'; // default fallback
+    return "BARANGAY OFFICIAL"; // default fallback
   };
 
   const location = useLocation();
-  const pathname = location.pathname || '/';
+  const pathname = location.pathname || "/";
 
   const findMenuLabel = () => {
-    if (!Array.isArray(menuItems) || menuItems.length === 0) return 'Dashboard';
+    if (!Array.isArray(menuItems) || menuItems.length === 0) return "Dashboard";
     const exact = menuItems.find((m) => m.path === pathname);
     if (exact) return exact.label;
     const sorted = [...menuItems].sort((a, b) => b.path.length - a.path.length);
     const prefix = sorted.find((m) => pathname.startsWith(m.path));
-    return prefix ? prefix.label : 'Dashboard';
+    return prefix ? prefix.label : "Dashboard";
   };
 
   const pageTitle = findMenuLabel();
@@ -69,7 +76,7 @@ const Header = ({ menuItems = [], userName = 'Barangay Official', userPosition =
           ) : (
             <span className="account-user">
               {userName}
-              {userRole === 'official' && userPosition ? (
+              {userRole === "official" && userPosition ? (
                 <span className="account-position"> • {userPosition}</span>
               ) : null}
             </span>
@@ -77,7 +84,11 @@ const Header = ({ menuItems = [], userName = 'Barangay Official', userPosition =
         </div>
 
         {/* Logout button with icon */}
-        <button className="logout-icon-btn" onClick={handleLogout} title="Logout">
+        <button
+          className="logout-icon-btn"
+          onClick={handleLogout}
+          title="Logout"
+        >
           <LogOut size={20} />
         </button>
       </div>

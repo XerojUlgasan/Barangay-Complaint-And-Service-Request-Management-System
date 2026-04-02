@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import {
   BarChart,
   Bar,
@@ -32,6 +33,7 @@ import "../../styles/BarangayOfficial.css";
 
 const OfficialDashboard = () => {
   const navigate = useNavigate();
+  const { userName, userLoading } = useAuth();
   const [activeTab, setActiveTab] = useState("requests"); // "requests" or "complaints"
   const [requests, setRequests] = useState([]);
   const [complaints, setComplaints] = useState([]);
@@ -182,9 +184,12 @@ const OfficialDashboard = () => {
   const getRecentItems = () => {
     // Determine which items to include based on filterByType
     let items = [];
-    const allRequests = requests.map(r => ({ ...r, itemType: 'request' }));
-    const allComplaints = complaints.map(c => ({ ...c, itemType: 'complaint' }));
-    
+    const allRequests = requests.map((r) => ({ ...r, itemType: "request" }));
+    const allComplaints = complaints.map((c) => ({
+      ...c,
+      itemType: "complaint",
+    }));
+
     if (filterByType === "requests") {
       items = allRequests;
     } else if (filterByType === "complaints") {
@@ -205,7 +210,11 @@ const OfficialDashboard = () => {
 
     // Filter items
     let filtered = items.filter((item) => {
-      const title = (item.certificate_type || item.complaint_type || "").toLowerCase();
+      const title = (
+        item.certificate_type ||
+        item.complaint_type ||
+        ""
+      ).toLowerCase();
       const submitter = (
         item.profiles?.full_name ||
         item.profiles?.email ||
@@ -223,9 +232,11 @@ const OfficialDashboard = () => {
         description.includes(searchQuery.toLowerCase());
 
       // Status filter
-      const statusField = item.itemType === "request" ? "request_status" : "status";
+      const statusField =
+        item.itemType === "request" ? "request_status" : "status";
       const status = item[statusField];
-      const matchesStatus = filterByStatus === "all" || status === filterByStatus;
+      const matchesStatus =
+        filterByStatus === "all" || status === filterByStatus;
 
       return matchesSearch && matchesStatus;
     });
@@ -238,7 +249,8 @@ const OfficialDashboard = () => {
     });
 
     return filtered.slice(0, 5).map((item) => {
-      const statusField = item.itemType === "request" ? "request_status" : "status";
+      const statusField =
+        item.itemType === "request" ? "request_status" : "status";
       return {
         id: item.id,
         title: item.certificate_type || item.complaint_type || "Untitled",
@@ -275,7 +287,9 @@ const OfficialDashboard = () => {
   return (
     <div className="barangay-official-container">
       <div className="dashboard-header">
-        <h1>Welcome, Barangay Official</h1>
+        <h1>
+          Welcome, {userLoading ? "..." : userName || "Barangay Official"}
+        </h1>
         <p>Your personal dashboard overview</p>
       </div>
 
@@ -523,8 +537,16 @@ const OfficialDashboard = () => {
             {/* RESULTS COUNT */}
             <div className="recent-results-count">
               Showing {recentItems.length} of{" "}
-              {filterByType === "all" ? requests.length + complaints.length : filterByType === "requests" ? requests.length : complaints.length}{" "}
-              {filterByType === "all" ? "items" : filterByType === "requests" ? "requests" : "complaints"}
+              {filterByType === "all"
+                ? requests.length + complaints.length
+                : filterByType === "requests"
+                  ? requests.length
+                  : complaints.length}{" "}
+              {filterByType === "all"
+                ? "items"
+                : filterByType === "requests"
+                  ? "requests"
+                  : "complaints"}
             </div>
 
             {/* TASKS LIST */}
@@ -537,7 +559,7 @@ const OfficialDashboard = () => {
                     onClick={() =>
                       handleItemClick(
                         item.rawData,
-                        item.itemType === "request" ? "request" : "complaint"
+                        item.itemType === "request" ? "request" : "complaint",
                       )
                     }
                   >
@@ -560,7 +582,12 @@ const OfficialDashboard = () => {
                 ))
               ) : (
                 <p className="recent-empty-message">
-                  No {filterByType === "all" ? "items" : filterByType === "requests" ? "requests" : "complaints"}{" "}
+                  No{" "}
+                  {filterByType === "all"
+                    ? "items"
+                    : filterByType === "requests"
+                      ? "requests"
+                      : "complaints"}{" "}
                   found with current filters.
                 </p>
               )}

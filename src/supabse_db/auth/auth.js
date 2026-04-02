@@ -28,7 +28,7 @@ export const checkHouseholdMember = async (
   birthdate,
 ) => {
   let query = supabase
-    .from("residents_tbl")
+    .from("residents_tbl_view")
     .select("id,email")
     .eq("first_name", firstname)
     .eq("last_name", lastname)
@@ -219,7 +219,7 @@ export const registerByEmail = async (email, password) => {
 
   // 5. Update resident email in household database
   const { error: residentUpdateError } = await supabase
-    .from("residents_tbl")
+    .from("residents_tbl_view")
     .update({ email: normalizedEmail })
     .eq("id", member_id);
 
@@ -288,13 +288,43 @@ export const loginByEmail = async (email, password) => {
       console.log("failed to activate resident : ", error);
     }
 
-    const userRole = await checkUserRole(data.user.id);
+    const metadataRole = data.user?.app_metadata?.role || null;
+    const normalizedRole =
+      typeof metadataRole === "string" ? metadataRole.toLowerCase() : null;
+
+    if (normalizedRole === "official" || normalizedRole === "resident") {
+      return {
+        success: true,
+        message: "Logged In Successfully",
+        user: data.user,
+        role: normalizedRole,
+      };
+    }
+
+    const { data: superadminData, error: superadminError } = await supabase
+      .from("superadmin_tbl")
+      .select("id")
+      .eq("auth_uid", data.user.id)
+      .maybeSingle();
+
+    if (superadminError) {
+      console.log("superadmin lookup error:", superadminError);
+    }
+
+    if (superadminData?.id) {
+      return {
+        success: true,
+        message: "Logged In Successfully",
+        user: data.user,
+        role: "super_admin",
+      };
+    }
+
+    await supabase.auth.signOut();
 
     return {
-      success: true,
-      message: "Logged In Successfully",
-      user: data.user,
-      role: userRole,
+      success: false,
+      message: "Unauthorized account. Missing role metadata.",
     };
   }
 
@@ -423,7 +453,7 @@ const checkMemberId = async () => {
   console.log("CHECKING MEMBER ID:", member_id);
 
   const { data, error } = await supabase
-    .from("residents_tbl")
+    .from("residents_tbl_view")
     .select("id")
     .eq("id", member_id)
     .maybeSingle();

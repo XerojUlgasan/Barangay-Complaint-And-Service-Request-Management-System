@@ -1,11 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import supabase from "../supabse_db/supabase_client";
-import {
-  clearResidentCache,
-  formatResidentFullName,
-  getResidentByAuthUid,
-} from "../supabse_db/resident/resident";
+import { clearResidentCache } from "../supabse_db/resident/resident";
 
 const AuthContext = createContext();
 
@@ -55,35 +51,9 @@ export function AuthProvider({ children }) {
         const metadataFullName =
           user.user_metadata?.fullname || user.user_metadata?.full_name || "";
         const metadataPosition = user.user_metadata?.position || "";
+        const metadataRole = (user.app_metadata?.role || "").toLowerCase();
 
-        // Check role first to avoid loading resident profile for officials/admins.
-        const [{ data: superadminData }, { data: officialData }] =
-          await Promise.all([
-            supabase
-              .from("superadmin_tbl")
-              .select("id")
-              .eq("auth_uid", user.id),
-            supabase
-              .from("barangay_officials")
-              .select("official_id")
-              .eq("uid", user.id),
-          ]);
-
-        if (superadminData && superadminData.length > 0) {
-          if (mounted) {
-            setUserRole("superadmin");
-            setResident(null);
-            setResidentLoading(false);
-            setUserPosition("");
-            setUserName(
-              metadataFullName || user.email || user.id || "Barangay Admin",
-            );
-            setUserLoading(false);
-          }
-          return;
-        }
-
-        if (officialData && officialData.length > 0) {
+        if (metadataRole === "official") {
           if (mounted) {
             setUserRole("official");
             setResident(null);
@@ -104,43 +74,61 @@ export function AuthProvider({ children }) {
           return;
         }
 
-        // Fetch resident record once per sign-in (resident users only)
-        const residentResult = await getResidentByAuthUid(user.id);
-        const residentFullName =
-          residentResult.success && residentResult.data
-            ? formatResidentFullName(residentResult.data)
-            : "";
+        if (metadataRole === "resident") {
+          if (mounted) {
+            setUserRole("resident");
+            setResident(null);
+            setResidentLoading(false);
+            setUserPosition("");
+            setUserName(
+              metadataFullName || user.email || user.id || "Barangay User",
+            );
+            setUserLoading(false);
+          }
+
+          const currentPath = window.location.pathname;
+          if (
+            currentPath === "/" ||
+            currentPath === "/login" ||
+            currentPath === "/homepage"
+          ) {
+            navigate("/dashboard", { replace: true });
+          }
+          return;
+        }
+
+        const { data: superadminData, error: superadminError } = await supabase
+          .from("superadmin_tbl")
+          .select("id")
+          .eq("auth_uid", user.id)
+          .maybeSingle();
+
+        if (superadminError) {
+          console.error("Error checking superadmin access:", superadminError);
+        }
+
+        if (superadminData?.id) {
+          if (mounted) {
+            setUserRole("superadmin");
+            setResident(null);
+            setResidentLoading(false);
+            setUserPosition("");
+            setUserName(
+              metadataFullName || user.email || user.id || "Barangay Admin",
+            );
+            setUserLoading(false);
+          }
+          return;
+        }
 
         if (mounted) {
-          setResident(
-            residentResult.success ? residentResult.data || null : null,
-          );
+          setResident(null);
           setResidentLoading(false);
+          setUserLoading(false);
         }
 
-        if (residentFullName && mounted) {
-          setUserName(residentFullName);
-        }
-
-        // Plain resident
-        if (mounted) setUserRole("resident");
-        if (mounted) setUserPosition("");
-        if (!residentFullName) {
-          const fallback = metadataFullName || user.email || user.id;
-          if (mounted) setUserName(fallback || "Barangay User");
-        }
-
-        if (mounted) setUserLoading(false);
-
-        // Redirect to dashboard if arriving from a public page
-        const currentPath = window.location.pathname;
-        if (
-          currentPath === "/" ||
-          currentPath === "/login" ||
-          currentPath === "/homepage"
-        ) {
-          navigate("/dashboard", { replace: true });
-        }
+        await supabase.auth.signOut();
+        handleSignOut();
       } catch (err) {
         console.error("Error loading user data:", err);
         if (mounted) setResidentLoading(false);
