@@ -52,7 +52,7 @@ function UserPage() {
 
 // Routes component that uses auth context
 function AppRoutes() {
-  const { userName, userRole, userLoading } = useAuth();
+  const { userName, userPosition, userRole, userLoading } = useAuth();
 
   const handleLogout = async () => {
     try {
@@ -160,6 +160,7 @@ function AppRoutes() {
               },
             ]}
             userName={userName}
+            userPosition={userPosition}
             userRole={userRole}
             userLoading={userLoading}
             onLogout={handleLogout}
@@ -206,6 +207,7 @@ function AppRoutes() {
               },
             ]}
             userName={userName}
+            userPosition={userPosition}
             userRole={userRole}
             userLoading={userLoading}
             onLogout={handleLogout}
@@ -253,6 +255,7 @@ function AppRoutes() {
               },
             ]}
             userName={userName}
+            userPosition={userPosition}
             userLoading={userLoading}
             onLogout={handleLogout}
           />

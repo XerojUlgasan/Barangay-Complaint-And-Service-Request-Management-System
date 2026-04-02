@@ -163,7 +163,7 @@ export const getAllOfficials = async () => {
   }
 
   const { data, error } = await supabase
-    .from("official_tbl")
+    .from("barangay_officials")
     .select("*")
     .order("created_at", { ascending: false });
 
@@ -174,9 +174,13 @@ export const getAllOfficials = async () => {
 
   const enriched = data.map((official) => ({
     ...official,
+    id: official.official_id,
+    firstname: official.first_name,
+    lastname: official.last_name,
+    role: official.position,
     full_name:
-      official.firstname && official.lastname
-        ? `${official.firstname} ${official.middlename ? official.middlename + " " : ""}${official.lastname}`
+      official.first_name && official.last_name
+        ? `${official.first_name} ${official.last_name}`
         : "Unknown",
   }));
 
@@ -232,9 +236,9 @@ export const getOfficialById = async (officialId) => {
   }
 
   const { data, error } = await supabase
-    .from("official_tbl")
+    .from("barangay_officials")
     .select("*")
-    .eq("id", officialId)
+    .eq("official_id", officialId)
     .single();
 
   if (error) {
@@ -258,9 +262,13 @@ export const getOfficialById = async (officialId) => {
     success: true,
     data: {
       ...data,
+      id: data.official_id,
+      firstname: data.first_name,
+      lastname: data.last_name,
+      role: data.position,
       full_name:
-        data.firstname && data.lastname
-          ? `${data.firstname} ${data.middlename ? data.middlename + " " : ""}${data.lastname}`
+        data.first_name && data.last_name
+          ? `${data.first_name} ${data.last_name}`
           : "Unknown",
     },
   };

@@ -13,9 +13,9 @@ const checkUserRole = async (userId) => {
     .eq("auth_uid", userId);
 
   const { data: officialData } = await supabase
-    .from("official_tbl")
-    .select("id")
-    .eq("auth_uid", userId);
+    .from("barangay_officials")
+    .select("official_id")
+    .eq("uid", userId);
 
   return {
     isSuperAdmin: superadminData && superadminData.length > 0,
@@ -47,10 +47,10 @@ export const getAssignedComplaints = async () => {
     .select(
       `
       *,
-      official:official_tbl!complaint_tbl_assigned_official_id_fkey (
-        firstname,
-        lastname,
-        role
+      official:barangay_officials!complaint_tbl_assigned_official_id_fkey (
+        first_name,
+        last_name,
+        position
       )
     `,
     )
@@ -93,8 +93,8 @@ export const getAssignedComplaints = async () => {
     ...complaint,
     complainant_name: residentNameMap[complaint.complainant_id] || "Unknown",
     assigned_official_name:
-      complaint.official?.firstname && complaint.official?.lastname
-        ? `${complaint.official.firstname} ${complaint.official.lastname}`
+      complaint.official?.first_name && complaint.official?.last_name
+        ? `${complaint.official.first_name} ${complaint.official.last_name}`
         : null,
     // Attach respondents as a joined string for UI consumption
     respondent_names: (complaint.respondent_id || [])
@@ -129,10 +129,10 @@ export const getAssignedRequests = async () => {
     .select(
       `
       *,
-      official:official_tbl!request_tbl_assigned_official_id_fkey (
-        firstname,
-        lastname,
-        role
+      official:barangay_officials!request_tbl_assigned_official_id_fkey (
+        first_name,
+        last_name,
+        position
       )
     `,
     )
@@ -161,8 +161,8 @@ export const getAssignedRequests = async () => {
     ...request,
     requester_name: residentNameMap[request.requester_id] || "Unknown",
     assigned_official_name:
-      request.official?.firstname && request.official?.lastname
-        ? `${request.official.firstname} ${request.official.lastname}`
+      request.official?.first_name && request.official?.last_name
+        ? `${request.official.first_name} ${request.official.last_name}`
         : null,
   }));
 

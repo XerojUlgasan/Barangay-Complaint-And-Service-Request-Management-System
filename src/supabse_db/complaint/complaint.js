@@ -12,9 +12,9 @@ const checkUserRole = async (userId) => {
     .eq("auth_uid", userId);
 
   const { data: officialData } = await supabase
-    .from("official_tbl")
-    .select("id")
-    .eq("auth_uid", userId);
+    .from("barangay_officials")
+    .select("official_id")
+    .eq("uid", userId);
 
   return {
     isSuperAdmin: superadminData && superadminData.length > 0,
@@ -98,10 +98,10 @@ export const getComplaints = async (options = {}) => {
     .select(
       `
       *,
-      official:official_tbl!complaint_tbl_assigned_official_id_fkey (
-        firstname,
-        lastname,
-        role
+      official:barangay_officials!complaint_tbl_assigned_official_id_fkey (
+        first_name,
+        last_name,
+        position
       )
     `,
     )
@@ -138,8 +138,8 @@ export const getComplaints = async (options = {}) => {
     ...complaint,
     complainant_name: residentNameMap[complaint.complainant_id] || "Unknown",
     assigned_official_name:
-      complaint.official?.firstname && complaint.official?.lastname
-        ? `${complaint.official.firstname} ${complaint.official.lastname}`
+      complaint.official?.first_name && complaint.official?.last_name
+        ? `${complaint.official.first_name} ${complaint.official.last_name}`
         : null,
   }));
 
@@ -160,10 +160,10 @@ export const getComplaintById = async (complaintId) => {
     .select(
       `
       *,
-      official:official_tbl!complaint_tbl_assigned_official_id_fkey (
-        firstname,
-        lastname,
-        role
+      official:barangay_officials!complaint_tbl_assigned_official_id_fkey (
+        first_name,
+        last_name,
+        position
       )
     `,
     )
@@ -200,8 +200,8 @@ export const getComplaintById = async (complaintId) => {
       ...data,
       complainant_name: complainantName,
       assigned_official_name:
-        data.official?.firstname && data.official?.lastname
-          ? `${data.official.firstname} ${data.official.lastname}`
+        data.official?.first_name && data.official?.last_name
+          ? `${data.official.first_name} ${data.official.last_name}`
           : null,
     },
   };
@@ -292,10 +292,10 @@ export const getComplaintHistory = async (complaintId) => {
     .select(
       `
       *,
-      updater:official_tbl!complaint_history_tbl_updater_id_fkey (
-        firstname,
-        lastname,
-        role
+      updater:barangay_officials!complaint_history_tbl_updater_id_fkey (
+        first_name,
+        last_name,
+        position
       )
     `,
     )
@@ -310,8 +310,8 @@ export const getComplaintHistory = async (complaintId) => {
   const enriched = data.map((history) => ({
     ...history,
     updater_name:
-      history.updater?.firstname && history.updater?.lastname
-        ? `${history.updater.firstname} ${history.updater.lastname}`
+      history.updater?.first_name && history.updater?.last_name
+        ? `${history.updater.first_name} ${history.updater.last_name}`
         : "System",
   }));
 

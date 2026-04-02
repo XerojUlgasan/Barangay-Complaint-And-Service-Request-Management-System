@@ -43,10 +43,10 @@ const MyRequests = () => {
         .from("request_tbl")
         .select(
           `*,
-          official:official_tbl!request_tbl_assigned_official_id_fkey (
-            firstname,
-            lastname,
-            role
+          official:barangay_officials!request_tbl_assigned_official_id_fkey (
+            first_name,
+            last_name,
+            position
           )`,
         )
         .eq("requester_id", authUser.id)
@@ -249,7 +249,7 @@ const MyRequests = () => {
 
     if (!official) return "—";
 
-    const fullName = [official.firstname, official.lastname]
+    const fullName = [official.first_name, official.last_name]
       .filter(Boolean)
       .join(" ")
       .trim();

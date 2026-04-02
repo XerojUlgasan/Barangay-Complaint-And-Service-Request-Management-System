@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import supabase from "../supabse_db/supabase_client";
-import { getOfficialProfile } from "../supabse_db/profile/profile";
 import {
   clearResidentCache,
   formatResidentFullName,
@@ -16,6 +15,7 @@ export function AuthProvider({ children }) {
   const [authUser, setAuthUser] = useState(null);
   const [resident, setResident] = useState(null);
   const [userName, setUserName] = useState("Barangay User");
+  const [userPosition, setUserPosition] = useState("");
   const [userRole, setUserRole] = useState(null); // 'superadmin', 'official', or null
   const [userLoading, setUserLoading] = useState(true);
   const [residentLoading, setResidentLoading] = useState(true);
@@ -29,6 +29,7 @@ export function AuthProvider({ children }) {
       setAuthUser(null);
       setResident(null);
       setUserName("Barangay User");
+      setUserPosition("");
       setUserRole(null);
       setResidentLoading(false);
       setUserLoading(false);
@@ -51,7 +52,59 @@ export function AuthProvider({ children }) {
       try {
         if (mounted) setAuthUser(user);
 
-        // Fetch resident record once per sign-in
+        const metadataFullName =
+          user.user_metadata?.fullname || user.user_metadata?.full_name || "";
+        const metadataPosition = user.user_metadata?.position || "";
+
+        // Check role first to avoid loading resident profile for officials/admins.
+        const [{ data: superadminData }, { data: officialData }] =
+          await Promise.all([
+            supabase
+              .from("superadmin_tbl")
+              .select("id")
+              .eq("auth_uid", user.id),
+            supabase
+              .from("barangay_officials")
+              .select("official_id")
+              .eq("uid", user.id),
+          ]);
+
+        if (superadminData && superadminData.length > 0) {
+          if (mounted) {
+            setUserRole("superadmin");
+            setResident(null);
+            setResidentLoading(false);
+            setUserPosition("");
+            setUserName(
+              metadataFullName || user.email || user.id || "Barangay Admin",
+            );
+            setUserLoading(false);
+          }
+          return;
+        }
+
+        if (officialData && officialData.length > 0) {
+          if (mounted) {
+            setUserRole("official");
+            setResident(null);
+            setResidentLoading(false);
+            setUserPosition(metadataPosition);
+            setUserName(metadataFullName || user.email || "Barangay Official");
+            setUserLoading(false);
+          }
+          // Role is already set to "official", redirect and stop here
+          const currentPath = window.location.pathname;
+          if (
+            currentPath === "/" ||
+            currentPath === "/login" ||
+            currentPath === "/homepage"
+          ) {
+            navigate("/BarangayOfficial", { replace: true });
+          }
+          return;
+        }
+
+        // Fetch resident record once per sign-in (resident users only)
         const residentResult = await getResidentByAuthUid(user.id);
         const residentFullName =
           residentResult.success && residentResult.data
@@ -69,78 +122,11 @@ export function AuthProvider({ children }) {
           setUserName(residentFullName);
         }
 
-        // Check if user is superadmin
-        const { data: superadminData } = await supabase
-          .from("superadmin_tbl")
-          .select("id")
-          .eq("auth_uid", user.id);
-
-        if (superadminData && superadminData.length > 0) {
-          if (mounted) setUserRole("superadmin");
-          try {
-            const profileRes = await getOfficialProfile(user.id);
-            if (profileRes?.success && profileRes.data) {
-              const p = profileRes.data;
-              const full = [p.firstname, p.lastname]
-                .filter(Boolean)
-                .join(" ");
-              if (full && mounted) {
-                setUserName(full);
-                if (mounted) setUserLoading(false);
-                return;
-              }
-            }
-          } catch (e) {
-            console.warn("Error fetching admin profile:", e);
-          }
-          const fallback =
-            user.user_metadata?.full_name || user.email || user.id;
-          if (mounted) setUserName(fallback || "Barangay Admin");
-          if (mounted) setUserLoading(false);
-          return;
-        }
-
-        // Check if user is official
-        const { data: officialData } = await supabase
-          .from("official_tbl")
-          .select("id")
-          .eq("auth_uid", user.id);
-
-        if (officialData && officialData.length > 0) {
-          if (mounted) setUserRole("official");
-          try {
-            const profileRes = await getOfficialProfile(user.id);
-            if (profileRes?.success && profileRes.data) {
-              const p = profileRes.data;
-              const full = [p.firstname, p.lastname]
-                .filter(Boolean)
-                .join(" ");
-              if (full && mounted) {
-                setUserName(full);
-              }
-            }
-          } catch (e) {
-            console.warn("Error fetching official profile:", e);
-          }
-          // Ensure loading is set to false before returning
-          if (mounted) setUserLoading(false);
-          // Role is already set to "official", redirect and stop here
-          const currentPath = window.location.pathname;
-          if (
-            currentPath === "/" ||
-            currentPath === "/login" ||
-            currentPath === "/homepage"
-          ) {
-            navigate("/dashboard", { replace: true });
-          }
-          return;
-        }
-
         // Plain resident
         if (mounted) setUserRole("resident");
+        if (mounted) setUserPosition("");
         if (!residentFullName) {
-          const fallback =
-            user.user_metadata?.full_name || user.email || user.id;
+          const fallback = metadataFullName || user.email || user.id;
           if (mounted) setUserName(fallback || "Barangay User");
         }
 
@@ -206,6 +192,7 @@ export function AuthProvider({ children }) {
     resident,
     residentLoading,
     userName,
+    userPosition,
     userRole,
     userLoading,
   };

@@ -15,7 +15,7 @@ import '../styles/Header.css';
  * @param {string} userName - Name/email of the currently logged-in user
  * @param {function} onLogout - Callback function to execute when user clicks logout
  */
-const Header = ({ menuItems = [], userName = 'Barangay Official', userRole = null, onLogout, userLoading = false }) => {
+const Header = ({ menuItems = [], userName = 'Barangay Official', userPosition = '', userRole = null, onLogout, userLoading = false }) => {
   /**
    * Handle logout button click
    * 
@@ -67,7 +67,12 @@ const Header = ({ menuItems = [], userName = 'Barangay Official', userRole = nul
           {userLoading ? (
             <span className="account-loading">Loading...</span>
           ) : (
-            <span className="account-user">{userName}</span>
+            <span className="account-user">
+              {userName}
+              {userRole === 'official' && userPosition ? (
+                <span className="account-position"> • {userPosition}</span>
+              ) : null}
+            </span>
           )}
         </div>
 

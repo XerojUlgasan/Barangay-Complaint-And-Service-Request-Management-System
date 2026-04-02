@@ -14,9 +14,9 @@ export const getOfficialProfile = async (authUid = null) => {
   }
 
   const { data, error } = await supabase
-    .from("official_tbl")
+    .from("barangay_officials")
     .select("*")
-    .eq("auth_uid", user_id)
+    .eq("uid", user_id)
     .maybeSingle(); // FIX: instead of single()
 
   if (error) {
@@ -32,7 +32,16 @@ export const getOfficialProfile = async (authUid = null) => {
     };
   }
 
-  return { success: true, data };
+  return {
+    success: true,
+    data: {
+      ...data,
+      auth_uid: data.uid,
+      firstname: data.first_name,
+      lastname: data.last_name,
+      role: data.position,
+    },
+  };
 };
 
 export const getResidentProfile = async () => {

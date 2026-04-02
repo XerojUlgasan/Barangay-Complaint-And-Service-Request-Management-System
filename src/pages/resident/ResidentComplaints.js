@@ -75,8 +75,8 @@ const MyComplaints = () => {
           const selectExpr = `
               *,
               assigned_official:assigned_official_id (
-                firstname,
-                lastname
+                first_name,
+                last_name
               )
             `;
 
@@ -238,7 +238,7 @@ const MyComplaints = () => {
                   ...complaint,
                   complainant_name: "—",
                   assigned_official_name: complaint.assigned_official
-                    ? `${complaint.assigned_official.firstname} ${complaint.assigned_official.lastname}`
+                    ? `${complaint.assigned_official.first_name} ${complaint.assigned_official.last_name}`
                     : null,
                 }))
               : [];

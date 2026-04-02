@@ -18,10 +18,10 @@ export const getAllComplaints = async () => {
       .select(
         `
         *,
-        official:official_tbl!complaint_tbl_assigned_official_id_fkey (
-          firstname,
-          lastname,
-          role
+        official:barangay_officials!complaint_tbl_assigned_official_id_fkey (
+          first_name,
+          last_name,
+          position
         )
       `,
       )
@@ -50,8 +50,8 @@ export const getAllComplaints = async () => {
       ...complaint,
       complainant_name: residentNameMap[complaint.complainant_id] || "Unknown",
       assigned_official_name:
-        complaint.official?.firstname && complaint.official?.lastname
-          ? `${complaint.official.firstname} ${complaint.official.lastname}`
+        complaint.official?.first_name && complaint.official?.last_name
+          ? `${complaint.official.first_name} ${complaint.official.last_name}`
           : null,
     }));
 
@@ -70,10 +70,10 @@ export const getAllRequests = async () => {
       .select(
         `
         *,
-        official:official_tbl!request_tbl_assigned_official_id_fkey (
-          firstname,
-          lastname,
-          role
+        official:barangay_officials!request_tbl_assigned_official_id_fkey (
+          first_name,
+          last_name,
+          position
         )
       `,
       )
@@ -103,8 +103,8 @@ export const getAllRequests = async () => {
       status: request.request_status || "pending",
       requester_name: residentNameMap[request.requester_id] || "Unknown",
       assigned_official_name:
-        request.official?.firstname && request.official?.lastname
-          ? `${request.official.firstname} ${request.official.lastname}`
+        request.official?.first_name && request.official?.last_name
+          ? `${request.official.first_name} ${request.official.last_name}`
           : null,
     }));
 
@@ -120,7 +120,7 @@ export const getOfficialsWithStats = async () => {
   try {
     // First, get all officials
     const { data: officials, error: officialsError } = await supabase
-      .from("official_tbl")
+      .from("barangay_officials")
       .select("*");
 
     if (officialsError) {
@@ -141,12 +141,11 @@ export const getOfficialsWithStats = async () => {
     // Process statistics
     const officialsWithStats = officials.map((official) => {
       const requests =
-        requestCounts?.filter(
-          (r) => r.assigned_official_id === official.auth_uid,
-        ) || [];
+        requestCounts?.filter((r) => r.assigned_official_id === official.uid) ||
+        [];
       const complaints =
         complaintCounts?.filter(
-          (c) => c.assigned_official_id === official.auth_uid,
+          (c) => c.assigned_official_id === official.uid,
         ) || [];
 
       const totalCases = requests.length + complaints.length;
@@ -168,7 +167,12 @@ export const getOfficialsWithStats = async () => {
 
       return {
         ...official,
-        full_name: `${official.firstname} ${official.lastname}`,
+        id: official.official_id,
+        auth_uid: official.uid,
+        firstname: official.first_name,
+        lastname: official.last_name,
+        role: official.position,
+        full_name: `${official.first_name} ${official.last_name}`,
         stats: {
           totalRequests: requests.length,
           totalComplaints: complaints.length,

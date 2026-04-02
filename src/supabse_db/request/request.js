@@ -12,9 +12,9 @@ const checkUserRole = async (userId) => {
     .eq("auth_uid", userId);
 
   const { data: officialData } = await supabase
-    .from("official_tbl")
-    .select("id")
-    .eq("auth_uid", userId);
+    .from("barangay_officials")
+    .select("official_id")
+    .eq("uid", userId);
 
   return {
     isSuperAdmin: superadminData && superadminData.length > 0,
@@ -105,10 +105,10 @@ export const getRequests = async () => {
     .select(
       `
       *,
-      official:official_tbl!request_tbl_assigned_official_id_fkey (
-        firstname,
-        lastname,
-        role
+      official:barangay_officials!request_tbl_assigned_official_id_fkey (
+        first_name,
+        last_name,
+        position
       )
     `,
     )
@@ -192,8 +192,8 @@ export const getRequests = async () => {
     ...request,
     requester_name: residentNameMap[request.requester_id] || "Unknown",
     assigned_official_name:
-      request.official?.firstname && request.official?.lastname
-        ? `${request.official.firstname} ${request.official.lastname}`
+      request.official?.first_name && request.official?.last_name
+        ? `${request.official.first_name} ${request.official.last_name}`
         : null,
   }));
 
@@ -230,10 +230,10 @@ export const getRequestById = async (requestId) => {
     .select(
       `
       *,
-      official:official_tbl!request_tbl_assigned_official_id_fkey (
-        firstname,
-        lastname,
-        role
+      official:barangay_officials!request_tbl_assigned_official_id_fkey (
+        first_name,
+        last_name,
+        position
       )
     `,
     )
@@ -275,8 +275,8 @@ export const getRequestById = async (requestId) => {
       ...data,
       requester_name: requesterName,
       assigned_official_name:
-        data.official?.firstname && data.official?.lastname
-          ? `${data.official.firstname} ${data.official.lastname}`
+        data.official?.first_name && data.official?.last_name
+          ? `${data.official.first_name} ${data.official.last_name}`
           : null,
     },
   };
@@ -426,10 +426,10 @@ export const getRequestHistory = async (requestId) => {
     .select(
       `
       *,
-      updater:official_tbl!request_history_tbl_updater_id_fkey (
-        firstname,
-        lastname,
-        role
+      updater:barangay_officials!request_history_tbl_updater_id_fkey (
+        first_name,
+        last_name,
+        position
       )
     `,
     )
@@ -444,8 +444,8 @@ export const getRequestHistory = async (requestId) => {
   const enriched = data.map((history) => ({
     ...history,
     updater_name:
-      history.updater?.firstname && history.updater?.lastname
-        ? `${history.updater.firstname} ${history.updater.lastname}`
+      history.updater?.first_name && history.updater?.last_name
+        ? `${history.updater.first_name} ${history.updater.last_name}`
         : "System",
   }));
 
