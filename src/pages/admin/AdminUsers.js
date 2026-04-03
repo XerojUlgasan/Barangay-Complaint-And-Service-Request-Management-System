@@ -23,10 +23,10 @@ import {
   getRegisteredResidents,
   getUnregisteredResidents,
   getOfficialByCode,
-  activateOfficial,
   deactivateOfficial,
   getActivatedOfficials,
 } from "../../supabse_db/superadmin/superadmin";
+import supabase, { API_CONFIG } from "../../supabse_db/supabase_client";
 import "../../styles/BarangayAdmin.css";
 
 export default function AdminUsers() {
@@ -49,6 +49,11 @@ export default function AdminUsers() {
   // ── Final confirmation step (activate) ─────────────────────────
   const [showFinalConfirm, setShowFinalConfirm] = useState(false);
 
+  // ── Email binding step (for activation) ────────────────────────
+  const [showEmailBinding, setShowEmailBinding] = useState(false);
+  const [bindingEmail, setBindingEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
+
   // ── Manage / Deactivate Officials modal ────────────────────────
   const [manageModal, setManageModal] = useState(false);
   const [activatedOfficials, setActivatedOfficials] = useState([]);
@@ -70,6 +75,7 @@ export default function AdminUsers() {
       activateModal ||
       foundOfficial ||
       showFinalConfirm ||
+      showEmailBinding ||
       manageModal ||
       showDeactivateConfirm;
     if (!anyOpen) return;
@@ -83,6 +89,7 @@ export default function AdminUsers() {
     activateModal,
     foundOfficial,
     showFinalConfirm,
+    showEmailBinding,
     manageModal,
     showDeactivateConfirm,
   ]);
@@ -91,6 +98,7 @@ export default function AdminUsers() {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key !== "Escape") return;
+      if (showEmailBinding) { setShowEmailBinding(false); return; }
       if (showDeactivateConfirm) { setShowDeactivateConfirm(false); return; }
       if (showFinalConfirm) { setShowFinalConfirm(false); return; }
       if (foundOfficial) { closeActivateFlow(); return; }
@@ -105,6 +113,7 @@ export default function AdminUsers() {
     activateModal,
     foundOfficial,
     showFinalConfirm,
+    showEmailBinding,
     manageModal,
     showDeactivateConfirm,
   ]);
@@ -205,6 +214,9 @@ export default function AdminUsers() {
     setCodeError("");
     setActivateSuccess(false);
     setShowFinalConfirm(false);
+    setShowEmailBinding(false);
+    setBindingEmail("");
+    setEmailError("");
   };
 
   const handleCodeSearch = async () => {
@@ -230,23 +242,66 @@ export default function AdminUsers() {
   };
 
   const handleActivateClick = () => {
-    setShowFinalConfirm(true);
+    // Open email binding modal instead of final confirm
+    setShowEmailBinding(true);
+    setBindingEmail("");
+    setEmailError("");
   };
 
   const handleActivateConfirm = async () => {
-    setShowFinalConfirm(false);
+    // Validate email
+    if (!bindingEmail.trim()) {
+      setEmailError("Please enter an email address.");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(bindingEmail.trim())) {
+      setEmailError("Please enter a valid email address.");
+      return;
+    }
+
+    setShowEmailBinding(false);
     setActivating(true);
     try {
-      const result = await activateOfficial(
-        foundOfficial.official_id ?? foundOfficial.id
+      // Get the access token from Supabase
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        setCodeError("Authentication error. Please log in again.");
+        setActivating(false);
+        return;
+      }
+
+      const accessToken = session.access_token;
+
+      const response = await fetch(
+        `${API_CONFIG.SERVER_API_URL}/superadmin/activateOfficial`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            official_code: foundOfficial.official_code,
+            email: bindingEmail.trim(),
+          }),
+        }
       );
-      if (result.success) {
+
+      const data = await response.json();
+
+      if (data.success) {
         setActivateSuccess(true);
+        setBindingEmail("");
+        setEmailError("");
         await fetchUsersData();
       } else {
-        setCodeError(result.message || "Activation failed.");
+        setCodeError(data.message || "Activation failed.");
       }
     } catch (err) {
+      console.error("Activation error:", err);
       setCodeError("Activation failed. Please try again.");
     } finally {
       setActivating(false);
@@ -344,9 +399,9 @@ export default function AdminUsers() {
 
   const isAlreadyActivated =
     foundOfficial &&
-    (foundOfficial.status === "ACTIVE" ||
-      foundOfficial.status === "active" ||
-      foundOfficial.is_activated === true);
+    (foundOfficial.uid !== null &&
+      foundOfficial.uid !== undefined &&
+      foundOfficial.uid !== "");
 
   const filteredActivated = activatedOfficials.filter((o) => {
     const q = manageSearch.toLowerCase();
@@ -677,6 +732,88 @@ export default function AdminUsers() {
                 <button type="button" className="ao-cancel-btn" onClick={() => setShowFinalConfirm(false)}>Cancel</button>
                 <button type="button" className="ao-activate-btn" onClick={handleActivateConfirm}>
                   <ShieldCheck size={16} /> Yes, Activate
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
+
+  // Email Binding Modal — Ask for email to bind to official account
+  const emailBindingModal =
+    showEmailBinding && foundOfficial && typeof document !== "undefined"
+      ? createPortal(
+          <div className="ao-overlay" style={{ zIndex: 10250 }} onClick={() => setShowEmailBinding(false)}>
+            <div className="ao-modal" style={{ width: "min(480px, 100%)" }} onClick={(e) => e.stopPropagation()}>
+              <div className="ao-modal-header">
+                <div className="ao-modal-header-icon" style={{ background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)", boxShadow: "0 4px 12px rgba(59,130,246,0.3)" }}>
+                  <User size={22} />
+                </div>
+                <div>
+                  <h3 className="ao-modal-title">Bind Email Address</h3>
+                  <p className="ao-modal-subtitle">Enter an email to link with this official account</p>
+                </div>
+                <button type="button" className="ao-close-btn" onClick={() => setShowEmailBinding(false)} disabled={activating} aria-label="Close"><X size={18} /></button>
+              </div>
+
+              <div className="ao-modal-body">
+                {/* Official info card */}
+                <div style={{ display: "flex", alignItems: "center", gap: 12, background: "#eff6ff", border: "1.5px solid #bfdbfe", borderRadius: 12, padding: "12px 14px", marginBottom: 20 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 16, flexShrink: 0 }}>
+                    {(foundOfficial.first_name?.[0] || "?").toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a" }}>{foundOfficial.first_name} {foundOfficial.last_name}</div>
+                    <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{foundOfficial.position || "N/A"} · {foundOfficial.official_code}</div>
+                  </div>
+                </div>
+
+                {/* Email input */}
+                <label className="ao-label" htmlFor="binding-email-input">Email Address</label>
+                <input
+                  id="binding-email-input"
+                  type="email"
+                  className="ao-input"
+                  placeholder="e.g. official@barangay.gov.ph"
+                  value={bindingEmail}
+                  onChange={(e) => { setBindingEmail(e.target.value); setEmailError(""); }}
+                  onKeyDown={(e) => e.key === "Enter" && handleActivateConfirm()}
+                  autoFocus
+                  disabled={activating}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    border: emailError ? "1.5px solid #ef4444" : "1.5px solid #d1d5db",
+                    borderRadius: 10,
+                    fontSize: 14,
+                    fontFamily: "inherit",
+                    outline: "none",
+                    transition: "border-color 0.2s ease",
+                  }}
+                />
+
+                {emailError && <p className="ao-error" style={{ marginTop: 8 }}>{emailError}</p>}
+
+                <p className="ao-hint" style={{ marginTop: 12 }}>This email will be used to link the official to the system account</p>
+              </div>
+
+              <div className="ao-modal-footer">
+                <button
+                  type="button"
+                  className="ao-cancel-btn"
+                  onClick={() => setShowEmailBinding(false)}
+                  disabled={activating}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="ao-activate-btn"
+                  onClick={handleActivateConfirm}
+                  disabled={activating}
+                >
+                  {activating ? <><Loader2 size={16} className="ao-spin" /> Activating…</> : <><ShieldCheck size={16} /> Activate with Email</>}
                 </button>
               </div>
             </div>
@@ -1124,6 +1261,7 @@ export default function AdminUsers() {
       {residentModal}
       {codeInputModal}
       {confirmModal}
+      {emailBindingModal}
       {finalConfirmModal}
       {manageOfficialsModal}
       {deactivateConfirmModal}
