@@ -443,7 +443,93 @@ export const completePasswordRecovery = async (
   };
 };
 
+// CHECK IF USER NEEDS TO CHANGE PASSWORD (First-time login)
+export const checkIfPasswordChangeRequired = async () => {
+  try {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      console.log("Error getting user:", userError);
+      return false;
+    }
+
+    // Check user_metadata for initial_password_changed flag
+    // user_metadata persists correctly, unlike app_metadata
+    const initialPasswordChanged = user?.user_metadata?.initial_password_changed;
+    
+    console.log("User metadata:", user.user_metadata);
+    console.log("Initial password changed:", initialPasswordChanged);
+
+    // If flag is true, password has been changed. If false or null, user needs to change password
+    const needsPasswordChange = initialPasswordChanged !== true;
+    console.log("Needs password change:", needsPasswordChange);
+    
+    return needsPasswordChange;
+  } catch (error) {
+    console.error("Error checking password change requirement:", error);
+    return false;
+  }
+};
+
+// UPDATE PASSWORD AND SET FLAG
+export const updatePasswordAndSetFlag = async (newPassword) => {
+  console.log("Updating password...");
+
+  const normalizedPassword = (newPassword || "").trim();
+
+  if (normalizedPassword.length < 6) {
+    return {
+      success: false,
+      message: "Password must be at least 6 characters.",
+    };
+  }
+
+  try {
+    // Update both password and user_metadata in a single call
+    // This ensures atomicity and proper session refresh
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: normalizedPassword,
+      data: { initial_password_changed: true },
+    });
+
+    if (updateError) {
+      console.log("Password update error:", updateError);
+      return {
+        success: false,
+        message: updateError.message,
+      };
+    }
+
+    // Refresh session to get updated user data with new metadata
+    const { data: sessionData, error: refreshError } = await supabase.auth.refreshSession();
+
+    if (refreshError) {
+      console.log("Session refresh error:", refreshError);
+      // Password was updated successfully, so return success even if refresh fails
+      return {
+        success: true,
+        message: "Password updated successfully.",
+      };
+    }
+
+    console.log("Password updated and flag set successfully");
+    console.log("Updated user metadata:", sessionData.user?.user_metadata);
+    
+    return {
+      success: true,
+      message: "Password updated successfully.",
+    };
+  } catch (error) {
+    console.error("Error updating password:", error);
+    return {
+      success: false,
+      message: "An error occurred while updating password.",
+    };
+  }
+};
+
 // DEBUG FUNCTIONS
+
 
 const checkUser = async () => {
   console.log(await supabase.auth.getUser());
