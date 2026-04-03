@@ -2,11 +2,14 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   loginByEmail,
-  checkHouseholdMember,
-  registerByEmail,
   requestPasswordReset,
 } from "../../supabse_db/auth/auth";
+import { API_CONFIG } from "../../supabse_db/supabase_client";
+import supabase from "../../supabse_db/supabase_client";
 import "../../styles/Auth.css";
+
+// Get the Supabase anon token for public/unauthenticated requests
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjbmxqaW9neG5tZnVnY2FxeGdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0NjM1NTAsImV4cCI6MjA4NjAzOTU1MH0.C_GLCdO2YjmHMz4UAnSnMxMIjVVwIO8I3tVFGrgBSZc";
 
 const Login = () => {
   const [isSignIn, setIsSignIn] = useState(true);
@@ -30,16 +33,24 @@ const Login = () => {
   const [birthdate, setBirthdate] = useState("");
   const [verifyError, setVerifyError] = useState("");
   const [verifyLoading, setVerifyLoading] = useState(false);
+  const [activationToken, setActivationToken] = useState("");
 
   const [newEmail, setNewEmail] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [registerError, setRegisterError] = useState("");
   const [registerLoading, setRegisterLoading] = useState(false);
 
+  const [notification, setNotification] = useState(null);
+
   const navigate = useNavigate();
+
+  // Popup notification function
+  const showNotification = (message, type = "success") => {
+    setNotification({ message, type });
+  };
+
+  const closeNotification = () => {
+    setNotification(null);
+  };
 
   const handleSignInClick = (e) => {
     e.preventDefault();
@@ -118,79 +129,126 @@ const Login = () => {
     setVerifyError("");
     setVerifyLoading(true);
 
-    const parsedHouseholdId = isNaN(householdId.trim())
-      ? householdId.trim()
-      : parseInt(householdId.trim());
+    try {
+      const payload = {
+        house_id: householdId.trim(),
+        fname: firstName.trim(),
+        lname: lastName.trim(),
+        mname: middleName.trim() || null,
+        bdate: birthdate,
+      };
 
-    const result = await checkHouseholdMember(
-      parsedHouseholdId,
-      firstName.trim(),
-      lastName.trim(),
-      middleName.trim(),
-      birthdate,
-    );
+      console.log("📤 Sending to checkIdentity:", JSON.stringify(payload, null, 2));
 
-    setVerifyLoading(false);
+      const headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+      };
 
-    if (!result.success) {
-      setVerifyError("Something went wrong. Please try again.");
-      return;
+      const response = await fetch(`${API_CONFIG.SERVER_API_URL}/resident/checkIdentity`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        setVerifyLoading(false);
+        console.error("❌ Error from checkIdentity:", response.status, errorData);
+        setVerifyError(errorData.message || `Error: ${response.status} ${response.statusText}`);
+        return;
+      }
+
+      const data = await response.json();
+      setVerifyLoading(false);
+
+      console.log("✅ Response from checkIdentity:", data);
+
+      if (!data.result) {
+        setVerifyError(data.message || "Identity verification failed. Please check your details.");
+        return;
+      }
+
+      // Store the token and proceed to step 2
+      setActivationToken(data.token);
+      setStep(2);
+    } catch (error) {
+      setVerifyLoading(false);
+      setVerifyError("An error occurred during verification. Please try again.");
+      console.error("Verification error:", error);
     }
-
-    if (!result.isExist) {
-      setVerifyError(
-        "No matching record found in barangay records. Please check your details.",
-      );
-      return;
-    }
-
-    if (result.isActivated) {
-      setVerifyError(
-        "This member already has an account. Please sign in instead.",
-      );
-      return;
-    }
-
-    setStep(2);
   };
 
   const handleAccountSubmit = async (e) => {
     e.preventDefault();
     setRegisterError("");
-
-    if (newPassword !== confirmPassword) {
-      setRegisterError("Passwords do not match.");
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      setRegisterError("Password must be at least 6 characters.");
-      return;
-    }
-
     setRegisterLoading(true);
-    const result = await registerByEmail(newEmail, newPassword);
-    setRegisterLoading(false);
 
-    if (result.success) {
-      alert(
-        "OTP sent to your email! Please verify to complete registration.\n\nPlease sign in after verification.",
-      );
-      // Reset to sign-in form
-      setIsSignIn(true);
-      setStep(1);
-      setEmail("");
-      setPassword("");
-      setHouseholdId("");
-      setFirstName("");
-      setLastName("");
-      setMiddleName("");
-      setBirthdate("");
-      setNewEmail("");
-      setNewPassword("");
-      setConfirmPassword("");
-    } else {
-      setRegisterError(result.message);
+    try {
+      const payload = {
+        house_id: householdId.trim(),
+        fname: firstName.trim(),
+        lname: lastName.trim(),
+        mname: middleName.trim() || null,
+        bdate: birthdate,
+        token: activationToken,
+        email: newEmail.trim(),
+      };
+
+      console.log("📤 Sending to activateAccount:", JSON.stringify(payload, null, 2));
+
+      const headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+      };
+
+      const response = await fetch(`${API_CONFIG.SERVER_API_URL}/resident/activateAccount`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        setRegisterLoading(false);
+        console.error("❌ Error from activateAccount:", response.status, errorData);
+        setRegisterError(errorData.message || `Error: ${response.status} ${response.statusText}`);
+        return;
+      }
+
+      const data = await response.json();
+      setRegisterLoading(false);
+
+      console.log("✅ Response from activateAccount:", data);
+
+      if (!data.result) {
+        setRegisterError(data.message || "Account activation failed. Please try again.");
+        return;
+      }
+
+      // Success - show message and redirect to sign-in
+      showNotification(data.message || "Account activated successfully! Please sign in with your new account.", "success", 3000);
+      
+      // Reset to sign-in form after a short delay
+      setTimeout(() => {
+        setIsSignIn(true);
+        setStep(1);
+        setEmail("");
+        setPassword("");
+        setHouseholdId("");
+        setFirstName("");
+        setLastName("");
+        setMiddleName("");
+        setBirthdate("");
+        setNewEmail("");
+        setActivationToken("");
+      }, 1500);
+    } catch (error) {
+      setRegisterLoading(false);
+      setRegisterError("An error occurred during account activation. Please try again.");
+      console.error("Account activation error:", error);
     }
   };
 
@@ -554,9 +612,9 @@ const Login = () => {
 
         {step === 2 && (
           <div className="identity-section mt-4">
-            <h6 className="text-center">Account Setup</h6>
+            <h6 className="text-center">Account Activation</h6>
             <p className="text-center text-muted">
-              Create your login credentials
+              Enter your email to activate your account
             </p>
 
             <form onSubmit={handleAccountSubmit}>
@@ -573,94 +631,6 @@ const Login = () => {
                   onChange={(e) => setNewEmail(e.target.value)}
                   required
                 />
-              </div>
-              <div className="mb-3">
-                <label htmlFor="newPassword" className="form-label">
-                  Password
-                </label>
-                <div className="password-input-wrapper">
-                  <input
-                    type={showNewPassword ? "text" : "password"}
-                    className="form-control"
-                    id="newPassword"
-                    placeholder="Create a password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    required
-                  />
-                  <button
-                    type="button"
-                    className="password-eye-btn"
-                    onClick={() => setShowNewPassword(!showNewPassword)}
-                    tabIndex="-1"
-                  >
-                    {showNewPassword ? (
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                    ) : (
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                        <line x1="1" y1="1" x2="23" y2="23" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-              </div>
-              <div className="mb-3">
-                <label htmlFor="confirmPassword" className="form-label">
-                  Confirm Password
-                </label>
-                <div className="password-input-wrapper">
-                  <input
-                    type={showConfirmPassword ? "text" : "password"}
-                    className="form-control"
-                    id="confirmPassword"
-                    placeholder="Re-enter your password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                  />
-                  <button
-                    type="button"
-                    className="password-eye-btn"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    tabIndex="-1"
-                  >
-                    {showConfirmPassword ? (
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                    ) : (
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                        <line x1="1" y1="1" x2="23" y2="23" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
               </div>
 
               {registerError && (
@@ -681,7 +651,7 @@ const Login = () => {
                 className="btn btn-success"
                 disabled={registerLoading}
               >
-                {registerLoading ? "Creating Account..." : "Create Account"}
+                {registerLoading ? "Activating..." : "Activate Account"}
               </button>
               <button
                 type="button"
@@ -694,6 +664,138 @@ const Login = () => {
           </div>
         )}
       </div>
+
+      {/* Notification Popup Modal */}
+      {notification && (
+        <div className="notification-modal-overlay" role="dialog" aria-modal="true">
+          <div className="notification-modal-card">
+            <div className="notification-modal-icon">
+              {notification.type === "success" ? (
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                    color: "#10b981",
+                  }}
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              ) : (
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                    color: "#ef4444",
+                  }}
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              )}
+            </div>
+
+            <h5 className="notification-modal-title">
+              {notification.type === "success" ? "Success" : "Error"}
+            </h5>
+
+            <p className="notification-modal-message">{notification.message}</p>
+
+            <button
+              type="button"
+              className="btn btn-success notification-modal-btn"
+              onClick={closeNotification}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        .notification-modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: rgba(0, 0, 0, 0.5);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 10000;
+          animation: fadeIn 0.3s ease-out;
+        }
+
+        .notification-modal-card {
+          background-color: white;
+          border-radius: 12px;
+          padding: 32px 24px;
+          max-width: 400px;
+          width: 90%;
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+          text-align: center;
+          animation: popIn 0.3s ease-out;
+        }
+
+        .notification-modal-icon {
+          display: flex;
+          justify-content: center;
+          margin-bottom: 16px;
+        }
+
+        .notification-modal-title {
+          margin: 0 0 12px 0;
+          font-size: 20px;
+          font-weight: 600;
+          color: #1f2937;
+        }
+
+        .notification-modal-message {
+          margin: 0 0 24px 0;
+          font-size: 14px;
+          color: #6b7280;
+          line-height: 1.5;
+        }
+
+        .notification-modal-btn {
+          width: 100%;
+          padding: 10px 24px;
+          border: none;
+          border-radius: 6px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
+        @keyframes popIn {
+          from {
+            transform: scale(0.9);
+            opacity: 0;
+          }
+          to {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+      `}</style>
     </div>
   );
 };
