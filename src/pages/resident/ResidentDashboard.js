@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { logout, checkIfPasswordChangeRequired, updatePasswordAndSetFlag } from "../../supabse_db/auth/auth";
+import {
+  logout,
+  checkIfPasswordChangeRequired,
+  updatePasswordAndSetFlag,
+} from "../../supabse_db/auth/auth";
 import { useAuth } from "../../context/AuthContext";
 import { getRequests } from "../../supabse_db/request/request";
 import { getComplaints } from "../../supabse_db/complaint/complaint";
 import ResidentSidebar from "../../components/ResidentSidebar";
+import ResidentProfile from "../../components/ResidentProfile";
 import ResidentSettings from "../../components/ResidentSettings";
 import "../../styles/UserPages.css";
 
@@ -17,7 +22,7 @@ const Dashboard = () => {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  
+
   // Password change modal states
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -82,39 +87,42 @@ const Dashboard = () => {
     [navigate],
   );
 
-  const handlePasswordChange = useCallback(async (e) => {
-    e.preventDefault();
-    setPasswordError("");
+  const handlePasswordChange = useCallback(
+    async (e) => {
+      e.preventDefault();
+      setPasswordError("");
 
-    if (!newPassword || !confirmPassword) {
-      setPasswordError("Please fill in all fields.");
-      return;
-    }
+      if (!newPassword || !confirmPassword) {
+        setPasswordError("Please fill in all fields.");
+        return;
+      }
 
-    if (newPassword !== confirmPassword) {
-      setPasswordError("Passwords do not match.");
-      return;
-    }
+      if (newPassword !== confirmPassword) {
+        setPasswordError("Passwords do not match.");
+        return;
+      }
 
-    if (newPassword.length < 6) {
-      setPasswordError("Password must be at least 6 characters.");
-      return;
-    }
+      if (newPassword.length < 6) {
+        setPasswordError("Password must be at least 6 characters.");
+        return;
+      }
 
-    setPasswordLoading(true);
-    const result = await updatePasswordAndSetFlag(newPassword);
-    setPasswordLoading(false);
+      setPasswordLoading(true);
+      const result = await updatePasswordAndSetFlag(newPassword);
+      setPasswordLoading(false);
 
-    if (!result.success) {
-      setPasswordError(result.message);
-      return;
-    }
+      if (!result.success) {
+        setPasswordError(result.message);
+        return;
+      }
 
-    // Password changed successfully, close modal
-    setShowPasswordModal(false);
-    setNewPassword("");
-    setConfirmPassword("");
-  }, [newPassword, confirmPassword]);
+      // Password changed successfully, close modal
+      setShowPasswordModal(false);
+      setNewPassword("");
+      setConfirmPassword("");
+    },
+    [newPassword, confirmPassword],
+  );
 
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
@@ -306,7 +314,11 @@ const Dashboard = () => {
 
         {/* PASSWORD CHANGE MODAL (First-time Login) */}
         {showPasswordModal && (
-          <div className="password-modal-overlay" role="dialog" aria-modal="true">
+          <div
+            className="password-modal-overlay"
+            role="dialog"
+            aria-modal="true"
+          >
             <div className="password-modal-card">
               <div className="password-modal-header">
                 <div className="password-icon">
@@ -323,12 +335,16 @@ const Dashboard = () => {
                 </div>
                 <h3 className="password-modal-title">Secure Your Account</h3>
                 <p className="password-modal-subtitle">
-                  Welcome! This is your first login. Please set a strong password to secure your account.
+                  Welcome! This is your first login. Please set a strong
+                  password to secure your account.
                 </p>
               </div>
 
               <div className="password-modal-body">
-                <form onSubmit={handlePasswordChange} className="password-modal-form">
+                <form
+                  onSubmit={handlePasswordChange}
+                  className="password-modal-form"
+                >
                   <div className="password-field">
                     <label htmlFor="newPassword" className="password-label">
                       <svg
@@ -413,7 +429,9 @@ const Dashboard = () => {
                       <button
                         type="button"
                         className="password-eye-btn"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        onClick={() =>
+                          setShowConfirmPassword(!showConfirmPassword)
+                        }
                         tabIndex="-1"
                       >
                         {showConfirmPassword ? (
@@ -444,9 +462,7 @@ const Dashboard = () => {
                   </div>
 
                   {passwordError && (
-                    <div className="password-error">
-                      {passwordError}
-                    </div>
+                    <div className="password-error">{passwordError}</div>
                   )}
 
                   <button
@@ -749,6 +765,7 @@ const Dashboard = () => {
                 <strong>{authUser?.email || "Loading..."}</strong>
                 <span>Resident</span>
               </div>
+              <ResidentProfile />
               <ResidentSettings />
               <button
                 onClick={() => setShowLogoutModal(true)}

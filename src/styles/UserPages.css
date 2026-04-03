@@ -384,6 +384,236 @@
   height: 18px;
 }
 
+.user-landing-page .profile-button {
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+  color: #047857;
+}
+
+.user-landing-page .profile-button:hover {
+  background: #d1fae5;
+  border-color: #86efac;
+  color: #065f46;
+}
+
+.user-landing-page .profile-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.profile-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2200;
+  padding: 16px;
+  backdrop-filter: blur(4px);
+}
+
+.profile-modal {
+  width: min(92vw, 860px);
+  max-height: min(90vh, 880px);
+  overflow: auto;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(2, 6, 23, 0.28);
+}
+
+.profile-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 24px 18px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.profile-modal-title-block {
+  min-width: 0;
+}
+
+.profile-modal-kicker {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #047857;
+}
+
+.profile-modal-title-block h3 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.profile-modal-subtitle {
+  margin: 8px 0 0;
+  color: #6b7280;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.profile-modal-body {
+  padding: 24px;
+}
+
+.profile-modal-note,
+.profile-modal-error {
+  margin: 0;
+  font-size: 14px;
+}
+
+.profile-modal-note {
+  color: #6b7280;
+}
+
+.profile-modal-error {
+  color: #dc2626;
+}
+
+.profile-summary {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px;
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%);
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+}
+
+.profile-avatar {
+  width: 88px;
+  height: 88px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #d1fae5 0%, #bfdbfe 100%);
+  border: 1px solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #065f46;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.profile-summary-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.profile-summary-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.profile-summary-meta span {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #dbe4f0;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.profile-sections {
+  display: grid;
+  gap: 18px;
+}
+
+.profile-section {
+  padding: 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.profile-section h4 {
+  margin: 0 0 14px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.profile-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.profile-field {
+  padding: 12px 14px;
+  border: 1px solid #eef2f7;
+  border-radius: 12px;
+  background: #f9fafb;
+  min-width: 0;
+}
+
+.profile-field-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.profile-field-value {
+  display: block;
+  color: #111827;
+  font-size: 14px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.profile-link {
+  color: #047857;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.profile-link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 720px) {
+  .profile-modal-header {
+    padding: 20px 18px 14px;
+  }
+
+  .profile-modal-body {
+    padding: 18px;
+  }
+
+  .profile-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .profile-fields-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .settings-modal-overlay {
   position: fixed;
   inset: 0;
