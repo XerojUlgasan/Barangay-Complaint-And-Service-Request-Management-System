@@ -273,3 +273,102 @@ export const getOfficialById = async (officialId) => {
     },
   };
 };
+
+export const getOfficialByCode = async (officialCode) => {
+  const accessResult = await ensureSuperAdminAccess();
+
+  if (!accessResult.success) {
+    console.log("Official does not exist or you don't have access to it");
+    return accessResult;
+  }
+
+  const { data, error } = await supabase
+    .from("barangay_officials")
+    .select("*")
+    .eq("official_code", officialCode)
+    .single();
+
+  if (error) {
+    console.error("Error fetching official by code:", error);
+    return {
+      success: false,
+      message: "No official found with that code.",
+    };
+  }
+
+  if (!data) {
+    return {
+      success: false,
+      message: "No official found with that code.",
+    };
+  }
+
+  return { success: true, data };
+};
+
+export const activateOfficial = async (officialId) => {
+  const accessResult = await ensureSuperAdminAccess();
+
+  if (!accessResult.success) {
+    console.log("You don't have access to perform this action");
+    return accessResult;
+  }
+
+  const { data, error } = await supabase
+    .from("barangay_officials")
+    .update({ status: "ACTIVE" })
+    .eq("official_id", officialId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error activating official:", error);
+    return { success: false, message: "Failed to activate official." };
+  }
+
+  return { success: true, data };
+};
+
+export const deactivateOfficial = async (officialId) => {
+  const accessResult = await ensureSuperAdminAccess();
+
+  if (!accessResult.success) {
+    console.log("You don't have access to perform this action");
+    return accessResult;
+  }
+
+  const { data, error } = await supabase
+    .from("barangay_officials")
+    .update({ status: "INACTIVE" })
+    .eq("official_id", officialId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error deactivating official:", error);
+    return { success: false, message: "Failed to deactivate official." };
+  }
+
+  return { success: true, data };
+};
+
+export const getActivatedOfficials = async () => {
+  const accessResult = await ensureSuperAdminAccess();
+
+  if (!accessResult.success) {
+    return accessResult;
+  }
+
+  const { data, error } = await supabase
+    .from("barangay_officials")
+    .select("*")
+    .eq("status", "ACTIVE")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching activated officials:", error);
+    return { success: false, message: "Failed to fetch activated officials." };
+  }
+
+  return { success: true, data: data || [] };
+};
