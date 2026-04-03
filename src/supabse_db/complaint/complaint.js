@@ -3,6 +3,7 @@ import {
   formatResidentFullName,
   getResidentsByAuthUids,
 } from "../resident/resident";
+import { assignAllUnassignedByTable } from "../utils/autoAssign";
 
 // Helper function to check user role without causing 406 errors
 const checkUserRole = async (userId) => {
@@ -316,4 +317,94 @@ export const getComplaintHistory = async (complaintId) => {
   }));
 
   return { success: true, data: enriched };
+};
+
+export const assignAllUnassignedComplaints = async () => {
+  const { data: userData, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !userData || !userData.user) {
+    return { success: false, message: "Not authenticated" };
+  }
+
+  const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
+
+  if (!isSuperAdmin && !isOfficial) {
+    return {
+      success: false,
+      message: "Only officials or superadmin can assign complaints",
+    };
+  }
+
+  return assignAllUnassignedByTable("complaint_tbl", "status");
+};
+
+export const transferComplaintAssignment = async (
+  complaintId,
+  newOfficialUid,
+) => {
+  const { data: userData, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !userData || !userData.user) {
+    return { success: false, message: "Not authenticated" };
+  }
+
+  const { isSuperAdmin } = await checkUserRole(userData.user.id);
+
+  if (!isSuperAdmin) {
+    return {
+      success: false,
+      message: "Only superadmin can transfer complaint assignments",
+    };
+  }
+
+  const { data: complaintData } = await supabase
+    .from("complaint_tbl")
+    .select("id, assigned_official_id")
+    .eq("id", complaintId)
+    .maybeSingle();
+
+  if (!complaintData) {
+    return { success: false, message: "Complaint not found" };
+  }
+
+  if (complaintData.assigned_official_id === newOfficialUid) {
+    return {
+      success: false,
+      message: "Selected official is already assigned to this complaint",
+    };
+  }
+
+  const { data: officialData, error: officialError } = await supabase
+    .from("barangay_officials")
+    .select("uid, first_name, last_name, status")
+    .eq("uid", newOfficialUid)
+    .eq("status", "ACTIVE")
+    .maybeSingle();
+
+  if (officialError || !officialData) {
+    return { success: false, message: "Selected official is not ACTIVE" };
+  }
+
+  const { error } = await supabase
+    .from("complaint_tbl")
+    .update({
+      assigned_official_id: newOfficialUid,
+      updated_at: new Date().toISOString(),
+      updated_by: userData.user.id,
+    })
+    .eq("id", complaintId);
+
+  if (error) {
+    console.error("Error transferring complaint assignment:", error);
+    return {
+      success: false,
+      message: "Failed to transfer complaint assignment",
+    };
+  }
+
+  return {
+    success: true,
+    message: "Complaint assignment transferred successfully",
+    assignedOfficialName: `${officialData.first_name} ${officialData.last_name}`,
+  };
 };
