@@ -321,3 +321,35 @@ export const updateComplaintStatus = async (
 
   return { success: true, message: "Complaint updated successfully" };
 };
+
+export const getActiveOfficialsForAssignment = async () => {
+  const { data: userData, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !userData || !userData.user) {
+    return { success: false, message: "Not authenticated" };
+  }
+
+  const { isSuperAdmin } = await checkUserRole(userData.user.id);
+
+  if (!isSuperAdmin) {
+    return {
+      success: false,
+      message: "Only superadmin can view transferable active officials",
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("barangay_officials")
+    .select("official_id, uid, first_name, last_name, position, status")
+    .eq("status", "ACTIVE")
+    .not("uid", "is", null)
+    .order("last_name", { ascending: true })
+    .order("first_name", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching active officials:", error);
+    return { success: false, message: "Failed to fetch active officials" };
+  }
+
+  return { success: true, data: data || [] };
+};

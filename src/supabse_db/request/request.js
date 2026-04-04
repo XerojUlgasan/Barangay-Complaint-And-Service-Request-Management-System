@@ -3,6 +3,7 @@ import {
   formatResidentFullName,
   getResidentsByAuthUids,
 } from "../resident/resident";
+import { assignAllUnassignedByTable } from "../utils/autoAssign";
 
 // Helper function to check user role without causing 406 errors
 const checkUserRole = async (userId) => {
@@ -450,4 +451,88 @@ export const getRequestHistory = async (requestId) => {
   }));
 
   return { success: true, data: enriched };
+};
+
+export const assignAllUnassignedRequests = async () => {
+  const { data: userData, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !userData || !userData.user) {
+    return { success: false, message: "Not authenticated" };
+  }
+
+  const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
+
+  if (!isSuperAdmin && !isOfficial) {
+    return {
+      success: false,
+      message: "Only officials or superadmin can assign requests",
+    };
+  }
+
+  return assignAllUnassignedByTable("request_tbl", "request_status");
+};
+
+export const transferRequestAssignment = async (requestId, newOfficialUid) => {
+  const { data: userData, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !userData || !userData.user) {
+    return { success: false, message: "Not authenticated" };
+  }
+
+  const { isSuperAdmin } = await checkUserRole(userData.user.id);
+
+  if (!isSuperAdmin) {
+    return {
+      success: false,
+      message: "Only superadmin can transfer request assignments",
+    };
+  }
+
+  const { data: requestData } = await supabase
+    .from("request_tbl")
+    .select("id, assigned_official_id")
+    .eq("id", requestId)
+    .maybeSingle();
+
+  if (!requestData) {
+    return { success: false, message: "Request not found" };
+  }
+
+  if (requestData.assigned_official_id === newOfficialUid) {
+    return {
+      success: false,
+      message: "Selected official is already assigned to this request",
+    };
+  }
+
+  const { data: officialData, error: officialError } = await supabase
+    .from("barangay_officials")
+    .select("uid, first_name, last_name, status")
+    .eq("uid", newOfficialUid)
+    .eq("status", "ACTIVE")
+    .maybeSingle();
+
+  if (officialError || !officialData) {
+    return { success: false, message: "Selected official is not ACTIVE" };
+  }
+
+  const { error } = await supabase
+    .from("request_tbl")
+    .update({
+      assigned_official_id: newOfficialUid,
+      updated_at: new Date().toISOString(),
+      updated_by: userData.user.id,
+    })
+    .eq("id", requestId);
+
+  if (error) {
+    console.error("Error transferring request assignment:", error);
+    return { success: false, message: "Failed to transfer request assignment" };
+  }
+
+  return {
+    success: true,
+    message: "Request assignment transferred successfully",
+    assignedOfficialName: `${officialData.first_name} ${officialData.last_name}`,
+  };
 };
