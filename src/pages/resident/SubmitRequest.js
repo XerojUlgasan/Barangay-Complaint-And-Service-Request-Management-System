@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { insertRequest } from "../../supabse_db/request/request";
 import { insertComplaint } from "../../supabse_db/complaint/complaint";
 import { uploadAnImage } from "../../supabse_db/uploadImages";
+import { getCertificateChoices } from "../../supabse_db/certificate/certificate";
 import household_supabase from "../../supabse_db/household_supabase_client";
 import { useAuth } from "../../context/AuthContext";
 import ResidentSidebar from "../../components/ResidentSidebar";
@@ -24,6 +25,11 @@ const SubmitRequest = () => {
   const [respondentSuggestions, setRespondentSuggestions] = useState([]);
   const [selectedRespondents, setSelectedRespondents] = useState([]);
   const [searchTimeout, setSearchTimeout] = useState(null);
+  const [certificateChoices, setCertificateChoices] = useState([]);
+  const [certificateLoading, setCertificateLoading] = useState(false);
+  const [certificateChoiceError, setCertificateChoiceError] = useState("");
+  const [certificateRequirementFiles, setCertificateRequirementFiles] =
+    useState([]);
 
   const isCertificate = location.pathname.includes("certificate");
   const isComplaint = !isCertificate;
@@ -47,6 +53,60 @@ const SubmitRequest = () => {
   useEffect(() => {
     setCurrentUserResidentId(resident?.id || null);
   }, [resident]);
+
+  useEffect(() => {
+    if (!isCertificate) {
+      setCertificateChoices([]);
+      setCertificateChoiceError("");
+      setCertificateRequirementFiles([]);
+      return;
+    }
+
+    const loadCertificateChoices = async () => {
+      setCertificateLoading(true);
+      setCertificateChoiceError("");
+
+      try {
+        const result = await getCertificateChoices();
+        if (result.success && Array.isArray(result.data)) {
+          setCertificateChoices(result.data);
+        } else {
+          setCertificateChoices([]);
+          setCertificateChoiceError(
+            result.message || "Failed to load certificate choices",
+          );
+        }
+      } catch (error) {
+        setCertificateChoices([]);
+        setCertificateChoiceError(
+          error.message || "Failed to load certificate choices",
+        );
+      } finally {
+        setCertificateLoading(false);
+      }
+    };
+
+    loadCertificateChoices();
+  }, [isCertificate]);
+
+  const selectedCertificate = certificateChoices.find(
+    (item) => item.type === formData.certificateType,
+  );
+
+  useEffect(() => {
+    if (!isCertificate) return;
+
+    const requirements = Array.isArray(selectedCertificate?.requirements)
+      ? selectedCertificate.requirements
+      : [];
+
+    setCertificateRequirementFiles(
+      requirements.map((requirement) => ({
+        requirement,
+        file: null,
+      })),
+    );
+  }, [isCertificate, formData.certificateType, selectedCertificate]);
 
   // Cleanup timeout on unmount or when component changes
   useEffect(() => {
@@ -124,6 +184,14 @@ const SubmitRequest = () => {
       }
     }
 
+    if (isCertificate) {
+      const certificateValidationError = validateCertificateFiles();
+      if (certificateValidationError) {
+        setSubmitError(certificateValidationError);
+        return;
+      }
+    }
+
     // Validate respondents for complaint - removed validation
     // if (isComplaint && selectedRespondents.length === 0) {
     //   setSubmitError("Please add at least one respondent to the complaint.");
@@ -160,8 +228,34 @@ const SubmitRequest = () => {
         return;
       }
 
-      // 2. If successful and there are attachments, upload them
-      if (formData.attachments.length > 0) {
+      // 2. If successful, upload the supporting files
+      if (isCertificate) {
+        const recordId = result.data.id;
+        const uploadResults = await Promise.all(
+          certificateRequirementFiles.map((item, index) => {
+            const renamedFile = new File(
+              [item.file],
+              buildRequirementFileName(item.requirement, item.file, index),
+              {
+                type: item.file.type,
+                lastModified: item.file.lastModified,
+              },
+            );
+
+            return uploadAnImage(renamedFile, "request", recordId);
+          }),
+        );
+
+        const failedUploads = uploadResults.filter(
+          (uploadResult) => !uploadResult.success,
+        );
+        if (failedUploads.length > 0) {
+          console.warn(
+            "Some requirement files failed to upload:",
+            failedUploads,
+          );
+        }
+      } else if (formData.attachments.length > 0) {
         const recordId = result.data.id; // Get the ID of the newly created record
         const uploadType = isComplaint ? "complaint" : "request";
 
@@ -209,6 +303,59 @@ const SubmitRequest = () => {
       ...prev,
       attachments: prev.attachments.filter((_, i) => i !== index),
     }));
+  };
+
+  const handleCertificateRequirementFileChange = (index, file) => {
+    setCertificateRequirementFiles((prev) =>
+      prev.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, file } : item,
+      ),
+    );
+  };
+
+  const isAllowedImageFile = (file) =>
+    file && ["image/png", "image/jpeg"].includes(file.type);
+
+  const validateCertificateFiles = () => {
+    if (!selectedCertificate) {
+      return "Please select a certificate type.";
+    }
+
+    if (
+      !Array.isArray(selectedCertificate.requirements) ||
+      selectedCertificate.requirements.length === 0
+    ) {
+      return "This certificate does not have any requirements configured.";
+    }
+
+    for (const requirementItem of certificateRequirementFiles) {
+      if (!requirementItem.file) {
+        return `Please upload ${requirementItem.requirement}.`;
+      }
+
+      if (!isAllowedImageFile(requirementItem.file)) {
+        return `${requirementItem.requirement} must be a PNG or JPEG image.`;
+      }
+    }
+
+    return "";
+  };
+
+  const buildRequirementFileName = (requirement, originalFile, index) => {
+    const safeRequirement = String(requirement || "requirement")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+
+    const ext =
+      originalFile.type === "image/png"
+        ? "png"
+        : originalFile.type === "image/jpeg"
+          ? "jpg"
+          : (originalFile.name.split(".").pop() || "jpg").toLowerCase();
+
+    return `${safeRequirement || "requirement"}_${index + 1}.${ext}`;
   };
 
   return (
@@ -408,9 +555,7 @@ const SubmitRequest = () => {
                     </div>
 
                     <div className="form-group">
-                      <label htmlFor="respondents">
-                        Respondent(s)
-                      </label>
+                      <label htmlFor="respondents">Respondent(s)</label>
                       <div
                         className="respondent-input-wrapper"
                         style={{ position: "relative" }}
@@ -600,22 +745,27 @@ const SubmitRequest = () => {
                         onChange={handleChange}
                         className="form-select"
                         required
+                        disabled={certificateLoading}
                       >
-                        <option value="">Select certificate type</option>
-                        <option value="Certificate of Indigency">
-                          Certificate of Indigency
+                        <option value="">
+                          {certificateLoading
+                            ? "Loading certificate types..."
+                            : "Select certificate type"}
                         </option>
-                        <option value="Barangay Clearance">
-                          Barangay Clearance
-                        </option>
-                        <option value="Certificate of Residency">
-                          Certificate of Residency
-                        </option>
-                        <option value="Business Permit">Business Permit</option>
-                        <option value="Community Tax Certificate">
-                          Community Tax Certificate
-                        </option>
+                        {certificateChoices.map((certificate) => (
+                          <option key={certificate.id} value={certificate.type}>
+                            {certificate.type}
+                          </option>
+                        ))}
                       </select>
+                      {certificateChoiceError && (
+                        <p
+                          className="attachment-hint"
+                          style={{ color: "#dc2626" }}
+                        >
+                          {certificateChoiceError}
+                        </p>
+                      )}
                     </div>
 
                     <div className="form-group">
@@ -647,74 +797,70 @@ const SubmitRequest = () => {
                       />
                     </div>
 
-                    <div className="form-group">
-                      <label>
-                        Attachments (Valid ID, etc.)
-                        <span className="required-star"> *</span>
-                      </label>
-                      <div className="attachments-area">
-                        {formData.attachments.map((file, index) => (
-                          <div key={index} className="attachment-item">
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
+                    {selectedCertificate && (
+                      <div className="form-group">
+                        <label>
+                          Requirements <span className="required-star">*</span>
+                        </label>
+                        <div style={{ display: "grid", gap: "0.9rem" }}>
+                          {certificateRequirementFiles.map((item, index) => (
+                            <div
+                              key={`${item.requirement}-${index}`}
+                              style={{
+                                padding: "0.9rem",
+                                border: "1px solid #dbe3ef",
+                                borderRadius: "0.75rem",
+                                background: "#f8fafc",
+                              }}
                             >
-                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                              <polyline points="14 2 14 8 20 8" />
-                            </svg>
-                            <span className="attachment-name">{file.name}</span>
-                            <button
-                              type="button"
-                              className="remove-attachment"
-                              onClick={() => handleRemoveFile(index)}
-                              title="Remove file"
-                            >
-                              <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
+                              <div
+                                style={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  gap: "0.75rem",
+                                  flexWrap: "wrap",
+                                  alignItems: "center",
+                                  marginBottom: "0.7rem",
+                                }}
                               >
-                                <line x1="18" y1="6" x2="6" y2="18" />
-                                <line x1="6" y1="6" x2="18" y2="18" />
-                              </svg>
-                            </button>
-                          </div>
-                        ))}
+                                <strong style={{ color: "#0f172a" }}>
+                                  {item.requirement}
+                                </strong>
+                                <span
+                                  style={{
+                                    fontSize: "0.8rem",
+                                    color: isAllowedImageFile(item.file)
+                                      ? "#047857"
+                                      : "#b45309",
+                                  }}
+                                >
+                                  {item.file
+                                    ? item.file.name
+                                    : "PNG or JPEG required"}
+                                </span>
+                              </div>
 
-                        <button
-                          type="button"
-                          className="add-file-btn"
-                          onClick={() => fileInputRef.current?.click()}
-                        >
-                          <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <polyline points="16 16 12 12 8 16" />
-                            <line x1="12" y1="12" x2="12" y2="21" />
-                            <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3" />
-                          </svg>
-                          Add File
-                        </button>
-
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          multiple
-                          accept="image/*,.pdf,.doc,.docx"
-                          onChange={handleFileChange}
-                          style={{ display: "none" }}
-                        />
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg"
+                                onChange={(e) =>
+                                  handleCertificateRequirementFileChange(
+                                    index,
+                                    e.target.files?.[0] || null,
+                                  )
+                                }
+                                className="form-input"
+                                required
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        <p className="attachment-hint">
+                          Each requirement must be completed with a PNG or JPEG
+                          file before submission.
+                        </p>
                       </div>
-                      <p className="attachment-hint">
-                        Please attach at least one valid ID or document
-                      </p>
-                    </div>
+                    )}
                   </>
                 )}
 

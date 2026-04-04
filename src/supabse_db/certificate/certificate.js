@@ -23,6 +23,20 @@ const normalizeRequirements = (requirementsText) =>
     .map((item) => item.trim())
     .filter(Boolean);
 
+export const getCertificateChoices = async () => {
+  const { data, error } = await supabase
+    .from("cetificates")
+    .select("id, type, requirements")
+    .order("type", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching certificate choices:", error);
+    return { success: false, message: "Failed to fetch certificate choices" };
+  }
+
+  return { success: true, data: data || [] };
+};
+
 export const getCertificates = async () => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
 

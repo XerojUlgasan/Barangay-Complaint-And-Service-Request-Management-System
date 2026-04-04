@@ -12,15 +12,16 @@ export const uploadAnImage = async (file, type, rowId) => {
       return { success: false, error: "No file provided" };
     }
 
-    // 2. Create a unique filename to avoid conflicts
-    const fileExt = file.name.split(".").pop(); // Get file extension (jpg, png, etc.)
-    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+    // 2. Use the incoming filename so callers can control bucket naming.
+    const fileName = String(file.name || "upload.jpg")
+      .trim()
+      .replace(/[\\/]/g, "_");
     const filePath = `${type}/${rowId}/${fileName}`; // Store in 'images' folder inside the bucket
 
     // 3. Upload the file to the 'private' bucket in Supabase Storage
     const { data, error } = await supabase.storage
       .from("private") // Your bucket name
-      .upload(filePath, file);
+      .upload(filePath, file, { upsert: true });
 
     // 4. Check if there was an error during upload
     if (error) {
