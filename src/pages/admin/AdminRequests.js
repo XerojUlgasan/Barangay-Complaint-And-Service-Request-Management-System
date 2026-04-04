@@ -11,6 +11,11 @@ import {
   transferRequestAssignment,
 } from "../../supabse_db/request/request";
 import { getActiveOfficialsForAssignment } from "../../supabse_db/official/official";
+import {
+  getCertificates,
+  insertCertificate,
+  updateCertificate,
+} from "../../supabse_db/certificate/certificate";
 
 const STATUS_COLORS = {
   Pending: "#fbbf24",
@@ -87,6 +92,22 @@ export default function AdminRequests() {
   const [selectedOfficialUid, setSelectedOfficialUid] = useState("");
   const [loadingOfficials, setLoadingOfficials] = useState(false);
   const [transferringAssignment, setTransferringAssignment] = useState(false);
+  const [certificatesModalOpen, setCertificatesModalOpen] = useState(false);
+  const [certificates, setCertificates] = useState([]);
+  const [loadingCertificates, setLoadingCertificates] = useState(false);
+  const [certificatePopupOpen, setCertificatePopupOpen] = useState(false);
+  const [certificateFormMode, setCertificateFormMode] = useState("add");
+  const [editingCertificateId, setEditingCertificateId] = useState(null);
+  const [certificateTypeInput, setCertificateTypeInput] = useState("");
+  const [certificateRequirementsInput, setCertificateRequirementsInput] =
+    useState("");
+  const [certificateFormSubmitting, setCertificateFormSubmitting] =
+    useState(false);
+  const [certificatePopupMessage, setCertificatePopupMessage] = useState({
+    open: false,
+    title: "",
+    message: "",
+  });
 
   const [searchQuery, setSearchQuery] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -216,6 +237,41 @@ export default function AdminRequests() {
     fetchActiveOfficials();
   };
 
+  const openCertificatesModal = async () => {
+    setCertificatesModalOpen(true);
+    await fetchCertificates();
+  };
+
+  const closeCertificatesModal = () => {
+    setCertificatesModalOpen(false);
+    setCertificatePopupOpen(false);
+    setCertificatePopupMessage({ open: false, title: "", message: "" });
+    setCertificateTypeInput("");
+    setCertificateRequirementsInput("");
+    setEditingCertificateId(null);
+    setCertificateFormMode("add");
+  };
+
+  const openAddCertificatePopup = () => {
+    setCertificateFormMode("add");
+    setEditingCertificateId(null);
+    setCertificateTypeInput("");
+    setCertificateRequirementsInput("");
+    setCertificatePopupOpen(true);
+  };
+
+  const openEditCertificatePopup = (certificate) => {
+    setCertificateFormMode("edit");
+    setEditingCertificateId(certificate.id);
+    setCertificateTypeInput(certificate.type || "");
+    setCertificateRequirementsInput(
+      Array.isArray(certificate.requirements)
+        ? certificate.requirements.join("\n")
+        : "",
+    );
+    setCertificatePopupOpen(true);
+  };
+
   const closeModal = () => {
     setIsModalOpen(false);
     setHistory([]);
@@ -223,6 +279,34 @@ export default function AdminRequests() {
     setShowOfficialOptions(false);
     setSelectedOfficialUid("");
     setTimeout(() => setSelectedRequest(null), 300);
+  };
+
+  const fetchCertificates = async () => {
+    setLoadingCertificates(true);
+    try {
+      const result = await getCertificates();
+      if (result.success && Array.isArray(result.data)) {
+        setCertificates(result.data);
+      } else {
+        setCertificates([]);
+        if (result.message) {
+          setCertificatePopupMessage({
+            open: true,
+            title: "Unable to Load Certificates",
+            message: result.message,
+          });
+        }
+      }
+    } catch (err) {
+      setCertificates([]);
+      setCertificatePopupMessage({
+        open: true,
+        title: "Unable to Load Certificates",
+        message: err.message || "Failed to load certificates",
+      });
+    } finally {
+      setLoadingCertificates(false);
+    }
   };
 
   const fetchActiveOfficials = async () => {
@@ -398,6 +482,77 @@ export default function AdminRequests() {
     }
   };
 
+  const handleSaveCertificate = async () => {
+    if (certificateFormSubmitting) return;
+
+    setCertificateFormSubmitting(true);
+    try {
+      const payload = {
+        type: certificateTypeInput,
+        requirementsText: certificateRequirementsInput,
+      };
+
+      const result =
+        certificateFormMode === "edit" && editingCertificateId != null
+          ? await updateCertificate(editingCertificateId, payload)
+          : await insertCertificate(payload);
+
+      if (!result.success) {
+        setCertificatePopupMessage({
+          open: true,
+          title:
+            certificateFormMode === "edit" ? "Update Failed" : "Add Failed",
+          message: result.message || "Unable to save certificate.",
+        });
+        return;
+      }
+
+      await fetchCertificates();
+      setCertificatePopupOpen(false);
+      setEditingCertificateId(null);
+      setCertificateTypeInput("");
+      setCertificateRequirementsInput("");
+      setCertificatePopupMessage({
+        open: true,
+        title:
+          certificateFormMode === "edit"
+            ? "Certificate Updated"
+            : "Certificate Added",
+        message:
+          certificateFormMode === "edit"
+            ? "The certificate details were updated successfully."
+            : "The new certificate was added successfully.",
+      });
+    } finally {
+      setCertificateFormSubmitting(false);
+    }
+  };
+
+  const renderCertificateRequirements = (requirements) => {
+    if (!Array.isArray(requirements) || requirements.length === 0) {
+      return <span style={{ color: "#6b7280" }}>No requirements listed.</span>;
+    }
+
+    return (
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+        {requirements.map((requirement, index) => (
+          <span
+            key={`${requirement}-${index}`}
+            style={{
+              padding: "0.35rem 0.65rem",
+              borderRadius: "999px",
+              background: "#e2e8f0",
+              color: "#0f172a",
+              fontSize: "0.875rem",
+            }}
+          >
+            {requirement}
+          </span>
+        ))}
+      </div>
+    );
+  };
+
   const statusOptions = [
     "All Status",
     "Pending",
@@ -566,6 +721,23 @@ export default function AdminRequests() {
               flexWrap: "wrap",
             }}
           >
+            <button
+              type="button"
+              onClick={openCertificatesModal}
+              style={{
+                padding: "0.625rem 1rem",
+                borderRadius: "0.5rem",
+                border: "1px solid #cbd5e1",
+                background: "#334155",
+                color: "#f8fafc",
+                fontSize: "0.875rem",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Manage Certificates
+            </button>
+
             <div className="status-filter-wrapper" style={{ marginBottom: 0 }}>
               <button
                 className="status-filter-btn"
@@ -821,6 +993,279 @@ export default function AdminRequests() {
       {/* end ar-page-content */}
 
       {/* Modal Overlay */}
+      {certificatePopupMessage.open &&
+        createPortal(
+          <div
+            className="ar-modal-overlay"
+            onClick={() =>
+              setCertificatePopupMessage({
+                open: false,
+                title: "",
+                message: "",
+              })
+            }
+          >
+            <div
+              className="ar-modal"
+              style={{ maxWidth: "460px", width: "92vw" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="ar-modal-header">
+                <div className="ar-modal-header-top">
+                  <h3 className="ar-modal-title">
+                    {certificatePopupMessage.title}
+                  </h3>
+                  <button
+                    className="ar-modal-close"
+                    onClick={() =>
+                      setCertificatePopupMessage({
+                        open: false,
+                        title: "",
+                        message: "",
+                      })
+                    }
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+              <div className="ar-modal-body">
+                <p style={{ margin: 0, color: "#334155" }}>
+                  {certificatePopupMessage.message}
+                </p>
+              </div>
+              <div className="ar-modal-footer">
+                <button
+                  className="ar-close-btn"
+                  onClick={() =>
+                    setCertificatePopupMessage({
+                      open: false,
+                      title: "",
+                      message: "",
+                    })
+                  }
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {certificatesModalOpen &&
+        createPortal(
+          <div className="ar-modal-overlay" onClick={closeCertificatesModal}>
+            <div
+              className="ar-modal"
+              style={{ maxWidth: "920px", width: "94vw" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="ar-modal-header">
+                <div className="ar-modal-header-top">
+                  <h3 className="ar-modal-title">Manage Certificates</h3>
+                  <button
+                    className="ar-modal-close"
+                    onClick={closeCertificatesModal}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+              <div
+                className="ar-modal-body"
+                style={{ display: "grid", gap: "1rem" }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: "1rem",
+                    flexWrap: "wrap",
+                    alignItems: "center",
+                  }}
+                >
+                  <div>
+                    <h4 style={{ margin: 0, color: "#0f172a" }}>
+                      Certificate Types
+                    </h4>
+                    <p style={{ margin: "0.25rem 0 0", color: "#64748b" }}>
+                      Type names and their requirements.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-save"
+                    onClick={openAddCertificatePopup}
+                  >
+                    Add Certificate
+                  </button>
+                </div>
+
+                {loadingCertificates ? (
+                  <div className="loading-wrap">
+                    <div className="loading-spinner" aria-hidden="true"></div>
+                    <div className="loading-text">Loading certificates...</div>
+                  </div>
+                ) : certificates.length > 0 ? (
+                  <div
+                    className="requests-table-card"
+                    style={{ marginBottom: 0 }}
+                  >
+                    <table className="requests-table">
+                      <thead>
+                        <tr>
+                          <th>ID</th>
+                          <th>Certificate Type</th>
+                          <th>Requirements</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {certificates.map((certificate) => (
+                          <tr key={certificate.id}>
+                            <td>
+                              <span className="req-id-chip">
+                                {certificate.id}
+                              </span>
+                            </td>
+                            <td className="req-details">
+                              <div className="req-title">
+                                {certificate.type}
+                              </div>
+                            </td>
+                            <td>
+                              {renderCertificateRequirements(
+                                certificate.requirements,
+                              )}
+                            </td>
+                            <td className="req-action">
+                              <button
+                                className="btn-save ar-table-action-btn"
+                                onClick={() =>
+                                  openEditCertificatePopup(certificate)
+                                }
+                              >
+                                Edit
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p style={{ margin: 0, color: "#64748b" }}>
+                    No certificates found.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {certificatePopupOpen &&
+        createPortal(
+          <div
+            className="ar-modal-overlay"
+            onClick={() => setCertificatePopupOpen(false)}
+          >
+            <div
+              className="ar-modal"
+              style={{ maxWidth: "640px", width: "92vw" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="ar-modal-header">
+                <div className="ar-modal-header-top">
+                  <h3 className="ar-modal-title">
+                    {certificateFormMode === "edit"
+                      ? "Edit Certificate"
+                      : "Add Certificate"}
+                  </h3>
+                  <button
+                    className="ar-modal-close"
+                    onClick={() => setCertificatePopupOpen(false)}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+              <div
+                className="ar-modal-body"
+                style={{ display: "grid", gap: "1rem" }}
+              >
+                <div>
+                  <label
+                    className="ar-metadata-label"
+                    style={{ display: "block", marginBottom: "0.35rem" }}
+                  >
+                    Certificate Type
+                  </label>
+                  <input
+                    type="text"
+                    value={certificateTypeInput}
+                    onChange={(e) => setCertificateTypeInput(e.target.value)}
+                    placeholder="e.g. Barangay Clearance"
+                    style={{
+                      width: "100%",
+                      padding: "0.75rem",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "0.5rem",
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label
+                    className="ar-metadata-label"
+                    style={{ display: "block", marginBottom: "0.35rem" }}
+                  >
+                    Requirements
+                  </label>
+                  <textarea
+                    rows="6"
+                    value={certificateRequirementsInput}
+                    onChange={(e) =>
+                      setCertificateRequirementsInput(e.target.value)
+                    }
+                    placeholder={
+                      "One requirement per line\nExample:\nValid ID\nProof of Residency"
+                    }
+                    style={{
+                      width: "100%",
+                      padding: "0.75rem",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "0.5rem",
+                      resize: "vertical",
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="ar-modal-footer">
+                <button
+                  className="ar-close-btn"
+                  onClick={() => setCertificatePopupOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn-save"
+                  onClick={handleSaveCertificate}
+                  disabled={certificateFormSubmitting}
+                >
+                  {certificateFormSubmitting
+                    ? "Saving..."
+                    : certificateFormMode === "edit"
+                      ? "Save Changes"
+                      : "Add Certificate"}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
       {assignPopup.open &&
         createPortal(
           <div
