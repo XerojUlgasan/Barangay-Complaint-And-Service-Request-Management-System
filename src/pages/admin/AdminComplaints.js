@@ -357,8 +357,7 @@ export default function AdminComplaints() {
         setAssignPopup({
           open: true,
           title: "Transfer Failed",
-          message:
-            result.message || "Unable to transfer complaint assignment.",
+          message: result.message || "Unable to transfer complaint assignment.",
         });
         return;
       }
@@ -1014,7 +1013,13 @@ export default function AdminComplaints() {
 
               <div className="ar-section">
                 <h4 className="ar-section-title">Transfer Assignment</h4>
-                <div style={{ display: "grid", gap: "0.75rem", position: "relative" }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gap: "0.75rem",
+                    position: "relative",
+                  }}
+                >
                   <input
                     type="text"
                     placeholder="Search active official by name or position"
@@ -1071,7 +1076,12 @@ export default function AdminComplaints() {
                           </button>
                         ))
                       ) : (
-                        <div style={{ padding: "0.625rem 0.75rem", color: "#64748b" }}>
+                        <div
+                          style={{
+                            padding: "0.625rem 0.75rem",
+                            color: "#64748b",
+                          }}
+                        >
                           No matching active officials.
                         </div>
                       )}

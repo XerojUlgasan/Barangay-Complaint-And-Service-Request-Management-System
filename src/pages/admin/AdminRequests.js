@@ -335,7 +335,11 @@ export default function AdminRequests() {
   };
 
   const handleTransferRequest = async () => {
-    if (!selectedRequest?.id || !selectedOfficialUid || transferringAssignment) {
+    if (
+      !selectedRequest?.id ||
+      !selectedOfficialUid ||
+      transferringAssignment
+    ) {
       return;
     }
 
@@ -944,7 +948,13 @@ export default function AdminRequests() {
 
               <div className="ar-section">
                 <h4 className="ar-section-title">Transfer Assignment</h4>
-                <div style={{ display: "grid", gap: "0.75rem", position: "relative" }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gap: "0.75rem",
+                    position: "relative",
+                  }}
+                >
                   <input
                     type="text"
                     placeholder="Search active official by name or position"
@@ -1001,7 +1011,12 @@ export default function AdminRequests() {
                           </button>
                         ))
                       ) : (
-                        <div style={{ padding: "0.625rem 0.75rem", color: "#64748b" }}>
+                        <div
+                          style={{
+                            padding: "0.625rem 0.75rem",
+                            color: "#64748b",
+                          }}
+                        >
                           No matching active officials.
                         </div>
                       )}
