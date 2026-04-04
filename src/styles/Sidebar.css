@@ -1,3 +1,9 @@
+body.modal-active .sidebar,
+body.modal-active .sidebar-overlay {
+  filter: brightness(0.6) grayscale(0.2) blur(4px);
+  transition: filter 0.2s;
+  pointer-events: none;
+}
 .sidebar {
   position: fixed;
   left: 0;
@@ -267,7 +273,7 @@
   right: 0;
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.4);
-  z-index: 99;
+  z-index: 90;
   backdrop-filter: blur(2px);
 }
 

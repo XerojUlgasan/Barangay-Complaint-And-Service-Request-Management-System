@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { checkIfPasswordChangeRequired, updatePasswordAndSetFlag } from "../../supabse_db/auth/auth";
 import {
   BarChart,
   Bar,
@@ -30,10 +31,14 @@ import {
   getAssignedRequests,
 } from "../../supabse_db/official/official";
 import "../../styles/BarangayOfficial.css";
+import PasswordChangeModal from "../../components/PasswordChangeModal";
+import Sidebar from "../../components/Sidebar";
 
 const OfficialDashboard = () => {
+  // Sidebar open state for overlay logic
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
-  const { userName, userLoading } = useAuth();
+  const { userName, userLoading, authUser } = useAuth();
   const [activeTab, setActiveTab] = useState("requests"); // "requests" or "complaints"
   const [requests, setRequests] = useState([]);
   const [complaints, setComplaints] = useState([]);
@@ -43,9 +48,24 @@ const OfficialDashboard = () => {
   const [filterByStatus, setFilterByStatus] = useState("all");
   const [filterByType, setFilterByType] = useState("all"); // all, requests, complaints
 
+  // Password change modal states
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    if (userLoading || !authUser) return;
+    const checkPasswordAndFetchData = async () => {
+      const needsPasswordChange = await checkIfPasswordChangeRequired();
+      setShowPasswordModal(needsPasswordChange);
+      fetchDashboardData();
+    };
+    checkPasswordAndFetchData();
+  }, [authUser, userLoading]);
 
   const fetchDashboardData = async () => {
     try {
@@ -68,6 +88,30 @@ const OfficialDashboard = () => {
       setLoading(false);
     }
   };
+
+  // Handle password change
+  const handlePasswordChange = useCallback(async (e) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Passwords do not match.");
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordError("Password must be at least 6 characters.");
+      return;
+    }
+    setPasswordLoading(true);
+    const result = await updatePasswordAndSetFlag(newPassword);
+    setPasswordLoading(false);
+    if (result.success) {
+      setShowPasswordModal(false);
+      setNewPassword("");
+      setConfirmPassword("");
+      setPasswordError("");
+    } else {
+      setPasswordError(result.message);
+    }
+  }, [newPassword, confirmPassword]);
 
   // Calculate stats dynamically
   const getRequestStats = () => {
@@ -286,6 +330,8 @@ const OfficialDashboard = () => {
 
   return (
     <div className="barangay-official-container">
+      {/* SIDEBAR COMPONENT */}
+      <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
       <div className="dashboard-header">
         <h1>
           Welcome, {userLoading ? "..." : userName || "Barangay Official"}
@@ -595,6 +641,23 @@ const OfficialDashboard = () => {
           </div>
         </>
       )}
+
+      {/* PASSWORD CHANGE MODAL (First-time Login) */}
+      <PasswordChangeModal
+        open={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        onSubmit={handlePasswordChange}
+        newPassword={newPassword}
+        setNewPassword={setNewPassword}
+        confirmPassword={confirmPassword}
+        setConfirmPassword={setConfirmPassword}
+        showNewPassword={showNewPassword}
+        setShowNewPassword={setShowNewPassword}
+        showConfirmPassword={showConfirmPassword}
+        setShowConfirmPassword={setShowConfirmPassword}
+        passwordError={passwordError}
+        passwordLoading={passwordLoading}
+      />
     </div>
   );
 };
