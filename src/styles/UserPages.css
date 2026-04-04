@@ -387,88 +387,159 @@
 .settings-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2000;
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(8px);
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .settings-modal {
-  width: min(92vw, 460px);
+  width: min(92vw, 480px);
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 16px 42px rgba(2, 6, 23, 0.24);
-  padding: 18px;
+  border-radius: 16px;
+  box-shadow: 0 20px 56px rgba(2, 6, 23, 0.32), 0 0 1px rgba(2, 6, 23, 0.08);
+  overflow: hidden;
+  animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.settings-modal > div:not(.settings-modal-header) {
+  padding: 20px;
 }
 
 .settings-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  background: linear-gradient(135deg, #50c878 0%, #45a76d 100%);
+  padding: 20px;
+  color: #fff;
+  position: relative;
+}
+
+.settings-modal-header::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 100% 0%, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
+  pointer-events: none;
 }
 
 .settings-modal-header h3 {
-  font-size: 18px;
-  color: #111827;
+  font-size: 19px;
+  color: #fff;
   font-weight: 700;
+  position: relative;
+  z-index: 1;
 }
 
 .settings-close-btn {
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
-  color: #6b7280;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
   border-radius: 8px;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   line-height: 1;
   font-size: 20px;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+  transition: all 0.2s ease;
+}
+
+.settings-close-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.05);
 }
 
 .settings-section {
   border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 14px;
-  background: #f9fafb;
+  border-radius: 12px;
+  padding: 16px;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  margin-bottom: 14px;
 }
 
 .settings-section h4 {
-  font-size: 14px;
+  font-size: 15px;
   color: #1f2937;
   font-weight: 700;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .settings-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-bottom: 10px;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .settings-field label {
-  font-size: 12px;
-  color: #4b5563;
+  font-size: 13px;
+  color: #374151;
   font-weight: 600;
 }
 
 .settings-field input {
   width: 100%;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 10px;
   background: #fff;
-  padding: 10px 12px;
-  font-size: 13px;
+  padding: 11px 14px;
+  font-size: 14px;
   color: #111827;
+  transition: all 0.2s ease;
+}
+
+.settings-field input:focus {
+  outline: none;
+  border-color: #50c878;
+  box-shadow: 0 0 0 3px rgba(80, 200, 120, 0.1);
+  background: #f8fffe;
+}
+
+.settings-field input:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
 }
 
 .settings-inline-field {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .settings-inline-field input {
@@ -476,99 +547,221 @@
 }
 
 .settings-inline-action {
-  border: 1px solid #bfdbfe;
-  background: #eff6ff;
-  color: #1d4ed8;
-  border-radius: 8px;
-  padding: 9px 10px;
-  font-size: 12px;
+  border: 1px solid #50c878;
+  background: linear-gradient(135deg, #50c878 0%, #45a76d 100%);
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .settings-inline-action:hover {
-  background: #dbeafe;
+  background: linear-gradient(135deg, #45a76d 0%, #3a9157 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(80, 200, 120, 0.3);
+}
+
+.settings-inline-action:active {
+  transform: translateY(0);
+}
+
+.settings-inline-action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .settings-note {
-  font-size: 12px;
+  font-size: 13px;
   color: #6b7280;
-  margin-top: 4px;
+  margin-top: 6px;
+  font-weight: 500;
 }
 
 .settings-error {
-  font-size: 12px;
-  color: #b91c1c;
-  background: #fee2e2;
-  border: 1px solid #fecaca;
-  border-radius: 8px;
-  padding: 8px 10px;
+  font-size: 13px;
+  color: #92400e;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  animation: slideUp 0.3s ease-in-out;
+}
+
+.settings-error::before {
+  content: "⚠";
+  flex-shrink: 0;
+  font-weight: bold;
 }
 
 .settings-success {
-  font-size: 12px;
+  font-size: 13px;
   color: #065f46;
-  background: #d1fae5;
-  border: 1px solid #a7f3d0;
-  border-radius: 8px;
-  padding: 8px 10px;
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border: 1px solid #6ee7b7;
+  border-radius: 10px;
+  padding: 10px 12px;
   margin-top: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  animation: slideUp 0.3s ease-in-out;
+}
+
+.settings-success::before {
+  content: "✓";
+  flex-shrink: 0;
+  font-weight: bold;
+  font-size: 16px;
 }
 
 .settings-submodal-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(15, 23, 42, 0.35);
+  background: rgba(15, 23, 42, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
+  border-radius: 16px;
   z-index: 3;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.25s ease-in-out;
 }
 
 .settings-submodal {
-  width: min(92%, 420px);
+  width: min(92%, 440px);
   background: #ffffff;
-  border-radius: 12px;
+  border-radius: 14px;
   border: 1px solid #e5e7eb;
-  padding: 14px;
-  box-shadow: 0 12px 28px rgba(2, 6, 23, 0.22);
+  overflow: hidden;
+  box-shadow: 0 16px 48px rgba(2, 6, 23, 0.28), 0 0 1px rgba(2, 6, 23, 0.1);
+  animation: slideUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .settings-submodal h4 {
-  font-size: 15px;
-  color: #111827;
+  font-size: 16px;
+  color: #fff;
   font-weight: 700;
-  margin-bottom: 10px;
+  margin: 0;
+  padding: 16px;
+  background: linear-gradient(135deg, #50c878 0%, #45a76d 100%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-submodal-content {
+  padding: 16px;
 }
 
 .settings-submodal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
 }
 
 .settings-sub-btn {
   border: 1px solid #d1d5db;
-  background: #f9fafb;
+  background: #fff;
   color: #374151;
-  border-radius: 8px;
-  padding: 8px 12px;
+  border-radius: 10px;
+  padding: 9px 16px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-sub-btn:hover {
+  border-color: #bfdbfe;
+  background: #f0f9ff;
+  transform: translateY(-1px);
 }
 
 .settings-sub-btn.primary {
-  border-color: #86efac;
-  background: #dcfce7;
-  color: #166534;
+  border-color: #50c878;
+  background: linear-gradient(135deg, #50c878 0%, #45a76d 100%);
+  color: #fff;
+}
+
+.settings-sub-btn.primary:hover {
+  background: linear-gradient(135deg, #45a76d 0%, #3a9157 100%);
+  box-shadow: 0 4px 12px rgba(80, 200, 120, 0.3);
 }
 
 .settings-sub-btn:disabled {
   opacity: 0.65;
   cursor: not-allowed;
+  transform: none;
+}
+
+/* Submodal specific field styling */
+.settings-submodal .settings-field {
+  margin-bottom: 14px;
+}
+
+.settings-submodal .settings-field:last-of-type {
+  margin-bottom: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .settings-modal {
+    width: 95vw;
+  }
+  
+  .settings-modal-header {
+    padding: 16px;
+  }
+  
+  .settings-modal-header h3 {
+    font-size: 17px;
+  }
+  
+  .settings-section {
+    padding: 14px;
+  }
+  
+  .settings-inline-field {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .settings-inline-action {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .settings-submodal {
+    width: 95vw;
+  }
+  
+  .settings-submodal-actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+  
+  .settings-sub-btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 /* ── WELCOME SECTION ── */
