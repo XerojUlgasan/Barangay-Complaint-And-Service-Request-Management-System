@@ -227,12 +227,8 @@ const ResidentProfile = () => {
             <div className="profile-modal" onClick={(e) => e.stopPropagation()}>
               <div className="profile-modal-header">
                 <div className="profile-modal-title-block">
-                  <p className="profile-modal-kicker">Resident Profile</p>
-                  <h3>{fullName}</h3>
-                  <p className="profile-modal-subtitle">
-                    View the complete resident record from
-                    barangaylink.residents.
-                  </p>
+                  <p className="profile-modal-kicker">👤 RESIDENT PROFILE</p>
+                  <p className="profile-modal-subtitle">Personal Information & Details</p>
                 </div>
 
                 <button
@@ -264,6 +260,7 @@ const ResidentProfile = () => {
                       </div>
 
                       <div className="profile-summary-copy">
+                        <h4>{fullName}</h4>
                         <div className="profile-summary-meta">
                           <span>
                             Resident No. {formatValue(resident.resident_no)}
