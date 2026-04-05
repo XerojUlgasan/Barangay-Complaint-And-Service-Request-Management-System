@@ -15,13 +15,17 @@ const ResidentSettings = () => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [actionError, setActionError] = useState("");
-  const [actionSuccess, setActionSuccess] = useState("");
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [emailInput, setEmailInput] = useState("");
   const [contactInput, setContactInput] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [emailSuccess, setEmailSuccess] = useState("");
+  const [contactError, setContactError] = useState("");
+  const [contactSuccess, setContactSuccess] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
@@ -47,15 +51,9 @@ const ResidentSettings = () => {
     [details],
   );
 
-  const resetActionMessages = () => {
-    setActionError("");
-    setActionSuccess("");
-  };
-
   const loadAccountDetails = async () => {
     setLoading(true);
     setError("");
-    resetActionMessages();
 
     try {
       const { data: userData, error: authError } =
@@ -145,19 +143,22 @@ const ResidentSettings = () => {
   };
 
   const handleOpenEmailModal = () => {
-    resetActionMessages();
-    setEmailInput(details.authEmail || "");
+    setEmailError("");
+    setEmailSuccess("");
+    setEmailInput("");
     setEmailModalOpen(true);
   };
 
   const handleOpenContactModal = () => {
-    resetActionMessages();
+    setContactError("");
+    setContactSuccess("");
     setContactInput(details.contactNumber || "");
     setContactModalOpen(true);
   };
 
   const handleOpenPasswordModal = () => {
-    resetActionMessages();
+    setPasswordError("");
+    setPasswordSuccess("");
     setPasswordForm({
       currentPassword: "",
       newPassword: "",
@@ -171,22 +172,23 @@ const ResidentSettings = () => {
     const nextEmail = emailInput.trim().toLowerCase();
 
     if (!nextEmail) {
-      setActionError("Email is required.");
+      setEmailError("Email is required.");
       return;
     }
 
     if (!isValidEmail(nextEmail)) {
-      setActionError("Please enter a valid email address.");
+      setEmailError(`"${emailInput}" is not a valid email address. Please check and try again.`);
       return;
     }
 
     if (nextEmail === details.authEmail) {
-      setActionError("New email must be different from current email.");
+      setEmailError("New email must be different from current email.");
       return;
     }
 
     setSaving(true);
-    resetActionMessages();
+    setEmailError("");
+    setEmailSuccess("");
 
     try {
       // Update email in Supabase Auth
@@ -196,7 +198,7 @@ const ResidentSettings = () => {
 
       if (updateAuthError) {
         console.error("Auth email update error:", updateAuthError);
-        setActionError(
+        setEmailError(
           updateAuthError.message || "Unable to update email in auth.",
         );
         return;
@@ -213,7 +215,7 @@ const ResidentSettings = () => {
           "Registered residents email update error:",
           updateRegError,
         );
-        setActionError(
+        setEmailError(
           updateRegError.message || "Unable to update email in database.",
         );
         return;
@@ -241,14 +243,14 @@ const ResidentSettings = () => {
         authEmail: nextEmail,
         email: nextEmail,
       }));
-      setActionSuccess(
+      setEmailSuccess(
         "Email updated successfully. Please verify your new email.",
       );
       setEmailModalOpen(false);
       console.log("Email updated successfully");
     } catch (err) {
       console.error("Error updating email:", err);
-      setActionError("Failed to update email: " + err.message);
+      setEmailError("Failed to update email: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -259,19 +261,20 @@ const ResidentSettings = () => {
     const nextContact = contactInput.trim();
 
     if (!nextContact) {
-      setActionError("Contact number is required.");
+      setContactError("Contact number is required.");
       return;
     }
 
     if (!isValidPhilippineMobile(nextContact)) {
-      setActionError(
+      setContactError(
         "Please enter a valid Philippine mobile number, such as 09XXXXXXXXX or +639XXXXXXXXX.",
       );
       return;
     }
 
     setSaving(true);
-    resetActionMessages();
+    setContactError("");
+    setContactSuccess("");
 
     try {
       // Store contact in user_metadata (persists across sessions)
@@ -281,7 +284,7 @@ const ResidentSettings = () => {
 
       if (updateError) {
         console.error("Contact update error:", updateError);
-        setActionError(
+        setContactError(
           updateError.message || "Unable to update contact number.",
         );
         return;
@@ -296,7 +299,7 @@ const ResidentSettings = () => {
 
         if (updateResidentError) {
           console.error("Resident contact update error:", updateResidentError);
-          setActionError(
+          setContactError(
             updateResidentError.message ||
               "Unable to update resident contact number.",
           );
@@ -315,12 +318,12 @@ const ResidentSettings = () => {
         ...prev,
         contactNumber: nextContact,
       }));
-      setActionSuccess("Contact number updated successfully.");
+      setContactSuccess("Contact number updated successfully.");
       setContactModalOpen(false);
       console.log("Contact number updated successfully");
     } catch (err) {
       console.error("Error updating contact number:", err);
-      setActionError("Failed to update contact number: " + err.message);
+      setContactError("Failed to update contact number: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -333,29 +336,30 @@ const ResidentSettings = () => {
     const confirmPassword = passwordForm.confirmPassword;
 
     if (!currentPassword || !newPassword || !confirmPassword) {
-      setActionError("Please complete all password fields.");
+      setPasswordError("Please complete all password fields.");
       return;
     }
 
     if (newPassword.length < 6) {
-      setActionError("New password must be at least 6 characters.");
+      setPasswordError("New password must be at least 6 characters.");
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setActionError("New password and confirm password do not match.");
+      setPasswordError("New password and confirm password do not match.");
       return;
     }
 
     if (!details.authEmail) {
-      setActionError(
+      setPasswordError(
         "Cannot verify current password because no account email is available.",
       );
       return;
     }
 
     setSaving(true);
-    resetActionMessages();
+    setPasswordError("");
+    setPasswordSuccess("");
 
     try {
       const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -365,7 +369,7 @@ const ResidentSettings = () => {
 
       if (signInError) {
         console.error("Sign in error:", signInError);
-        setActionError("Current password is incorrect.");
+        setPasswordError("Current password is incorrect.");
         return;
       }
 
@@ -375,13 +379,13 @@ const ResidentSettings = () => {
 
       if (updatePasswordError) {
         console.error("Password update error:", updatePasswordError);
-        setActionError(
+        setPasswordError(
           updatePasswordError.message || "Unable to update password.",
         );
         return;
       }
 
-      setActionSuccess("Password changed successfully.");
+      setPasswordSuccess("Password changed successfully.");
       setPasswordModalOpen(false);
       setPasswordForm({
         currentPassword: "",
@@ -391,7 +395,7 @@ const ResidentSettings = () => {
       console.log("Password updated successfully");
     } catch (err) {
       console.error("Error updating password:", err);
-      setActionError("Failed to update password: " + err.message);
+      setPasswordError("Failed to update password: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -493,13 +497,6 @@ const ResidentSettings = () => {
                           </button>
                         </div>
                       </div>
-
-                      {actionError ? (
-                        <p className="settings-error">{actionError}</p>
-                      ) : null}
-                      {actionSuccess ? (
-                        <p className="settings-success">{actionSuccess}</p>
-                      ) : null}
                     </>
                   )}
                 </section>
@@ -529,6 +526,8 @@ const ResidentSettings = () => {
                           />
                         </div>
                       </div>
+                      {emailError ? <p className="settings-error">{emailError}</p> : null}
+                      {emailSuccess ? <p className="settings-success">{emailSuccess}</p> : null}
                       <div className="settings-submodal-actions">
                         <button
                           type="button"
@@ -577,6 +576,8 @@ const ResidentSettings = () => {
                           />
                         </div>
                       </div>
+                      {contactError ? <p className="settings-error">{contactError}</p> : null}
+                      {contactSuccess ? <p className="settings-success">{contactSuccess}</p> : null}
                       <div className="settings-submodal-actions">
                         <button
                           type="button"
@@ -685,6 +686,8 @@ const ResidentSettings = () => {
                           </div>
                         </div>
                       </div>
+                      {passwordError ? <p className="settings-error">{passwordError}</p> : null}
+                      {passwordSuccess ? <p className="settings-success">{passwordSuccess}</p> : null}
                       <div className="settings-submodal-actions">
                         <button
                           type="button"

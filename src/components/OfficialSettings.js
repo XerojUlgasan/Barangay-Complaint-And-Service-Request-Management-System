@@ -4,16 +4,19 @@ import { Settings, Eye, EyeOff } from "lucide-react";
 import supabase from "../supabse_db/supabase_client";
 
 const MASKED_PASSWORD = "••••••••";
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const OfficialSettings = () => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [actionError, setActionError] = useState("");
-  const [actionSuccess, setActionSuccess] = useState("");
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [emailInput, setEmailInput] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [emailSuccess, setEmailSuccess] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
@@ -27,15 +30,9 @@ const OfficialSettings = () => {
     details,
   ]);
 
-  const resetActionMessages = () => {
-    setActionError("");
-    setActionSuccess("");
-  };
-
   const loadAccountDetails = async () => {
     setLoading(true);
     setError("");
-    resetActionMessages();
 
     try {
       const { data: userData, error: authError } = await supabase.auth.getUser();
@@ -62,13 +59,15 @@ const OfficialSettings = () => {
   };
 
   const handleOpenEmailModal = () => {
-    resetActionMessages();
+    setEmailError("");
+    setEmailSuccess("");
     setEmailInput(details.authEmail || "");
     setEmailModalOpen(true);
   };
 
   const handleOpenPasswordModal = () => {
-    resetActionMessages();
+    setPasswordError("");
+    setPasswordSuccess("");
     setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
     setPasswordModalOpen(true);
   };
@@ -78,22 +77,21 @@ const OfficialSettings = () => {
     const nextEmail = emailInput.trim().toLowerCase();
 
     if (!nextEmail) {
-      setActionError("Email is required.");
+      setEmailError("Email is required.");
       return;
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
-      setActionError("Please enter a valid email address.");
+    if (!EMAIL_PATTERN.test(nextEmail)) {
+      setEmailError(`Email address "${nextEmail}" is invalid.`);
       return;
     }
 
     if (nextEmail === details.authEmail) {
-      setActionError("New email must be different from current email.");
+      setEmailError("New email must be different from current email.");
       return;
     }
 
     setSaving(true);
-    resetActionMessages();
 
     try {
       const { error: updateAuthError } = await supabase.auth.updateUser({
@@ -101,32 +99,29 @@ const OfficialSettings = () => {
       });
 
       if (updateAuthError) {
-        console.error("Auth email update error:", updateAuthError);
-        setActionError(updateAuthError.message || "Unable to update email in auth.");
+        const authMessage = updateAuthError.message || "";
+        const hasEmailValidationError =
+          /email/i.test(authMessage) && /invalid/i.test(authMessage);
+
+        if (hasEmailValidationError) {
+          setEmailError(`Email address "${nextEmail}" is invalid.`);
+        } else {
+          setEmailError(updateAuthError.message || "Failed to update email.");
+        }
         return;
       }
 
-      const { error: updateOfficialError } = await supabase
-        .from("barangay_officials")
-        .update({ email: nextEmail })
-        .eq("uid", details.authUid);
-
-      if (updateOfficialError) {
-        console.error("Official email sync error:", updateOfficialError);
-        setActionError(
-          updateOfficialError.message ||
-            "Email updated in auth but failed to sync official record.",
-        );
-        return;
-      }
-
-      setDetails((prev) => ({ ...prev, authEmail: nextEmail }));
-      setActionSuccess("Email updated successfully. Please verify your new email.");
+      setDetails((prev) => ({
+        ...prev,
+        authEmail: nextEmail,
+      }));
+      setEmailSuccess(
+        "Email updated successfully. Please verify your new email.",
+      );
       setEmailModalOpen(false);
-      console.log("Official email updated successfully");
     } catch (err) {
-      console.error("Error updating email:", err);
-      setActionError("Failed to update email: " + (err.message || err));
+      console.error("Error updating official email:", err);
+      setEmailError("Failed to update email: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -137,27 +132,26 @@ const OfficialSettings = () => {
     const { currentPassword, newPassword, confirmPassword } = passwordForm;
 
     if (!currentPassword || !newPassword || !confirmPassword) {
-      setActionError("Please complete all password fields.");
+      setPasswordError("Please complete all password fields.");
       return;
     }
 
     if (newPassword.length < 6) {
-      setActionError("New password must be at least 6 characters.");
+      setPasswordError("New password must be at least 6 characters.");
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setActionError("New password and confirm password do not match.");
+      setPasswordError("New password and confirm password do not match.");
       return;
     }
 
     if (!details.authEmail) {
-      setActionError("Cannot verify current password because no account email is available.");
+      setPasswordError("Cannot verify current password because no account email is available.");
       return;
     }
 
     setSaving(true);
-    resetActionMessages();
 
     try {
       const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -167,7 +161,7 @@ const OfficialSettings = () => {
 
       if (signInError) {
         console.error("Sign in error:", signInError);
-        setActionError("Current password is incorrect.");
+        setPasswordError("Current password is incorrect.");
         return;
       }
 
@@ -177,17 +171,17 @@ const OfficialSettings = () => {
 
       if (updatePasswordError) {
         console.error("Password update error:", updatePasswordError);
-        setActionError(updatePasswordError.message || "Unable to update password.");
+        setPasswordError(updatePasswordError.message || "Unable to update password.");
         return;
       }
 
-      setActionSuccess("Password changed successfully.");
+      setPasswordSuccess("Password changed successfully.");
       setPasswordModalOpen(false);
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
       console.log("Official password updated successfully");
     } catch (err) {
       console.error("Error updating password:", err);
-      setActionError("Failed to update password: " + (err.message || err));
+      setPasswordError("Failed to update password: " + (err.message || err));
     } finally {
       setSaving(false);
     }
@@ -264,9 +258,6 @@ const OfficialSettings = () => {
                           </button>
                         </div>
                       </div>
-
-                      {actionError ? <p className="settings-error">{actionError}</p> : null}
-                      {actionSuccess ? <p className="settings-success">{actionSuccess}</p> : null}
                     </>
                   )}
                 </section>
@@ -289,6 +280,16 @@ const OfficialSettings = () => {
                           />
                         </div>
                       </div>
+                      {emailError && (
+                        <p className="settings-error" style={{ padding: "0 16px", margin: "8px 0" }}>
+                          {emailError}
+                        </p>
+                      )}
+                      {emailSuccess && (
+                        <p className="settings-success" style={{ padding: "0 16px", margin: "8px 0" }}>
+                          {emailSuccess}
+                        </p>
+                      )}
                       <div className="settings-submodal-actions">
                         <button type="button" className="settings-sub-btn" onClick={() => setEmailModalOpen(false)}>
                           Cancel
@@ -368,6 +369,16 @@ const OfficialSettings = () => {
                           </div>
                         </div>
                       </div>
+                      {passwordError && (
+                        <p className="settings-error" style={{ padding: "0 16px", margin: "8px 0" }}>
+                          {passwordError}
+                        </p>
+                      )}
+                      {passwordSuccess && (
+                        <p className="settings-success" style={{ padding: "0 16px", margin: "8px 0" }}>
+                          {passwordSuccess}
+                        </p>
+                      )}
                       <div className="settings-submodal-actions">
                         <button type="button" className="settings-sub-btn" onClick={() => setPasswordModalOpen(false)}>
                           Cancel
