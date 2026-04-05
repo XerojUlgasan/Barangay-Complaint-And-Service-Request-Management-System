@@ -3,6 +3,12 @@ import { createPortal } from "react-dom";
 import supabase from "../supabse_db/supabase_client";
 
 const MASKED_PASSWORD = "••••••••";
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHILIPPINE_MOBILE_PATTERN = /^(09\d{9}|\+639\d{9})$/;
+
+const isValidEmail = (value) => EMAIL_PATTERN.test(value);
+const isValidPhilippineMobile = (value) =>
+  PHILIPPINE_MOBILE_PATTERN.test(value);
 
 const ResidentSettings = () => {
   const [open, setOpen] = useState(false);
@@ -81,9 +87,10 @@ const ResidentSettings = () => {
       // registration.id is the numeric resident ID
       const residentId = registration.id;
 
-      // Query the view to get display info (read-only)
+      // Query the resident row to get display info (read-only)
       const { data: resident, error: residentError } = await supabase
-        .from("residents_tbl_view")
+        .schema("barangaylink")
+        .from("residents")
         .select("id, email, contact_number")
         .eq("id", residentId)
         .maybeSingle();
@@ -155,7 +162,7 @@ const ResidentSettings = () => {
       return;
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
+    if (!isValidEmail(nextEmail)) {
       setActionError("Please enter a valid email address.");
       return;
     }
@@ -194,15 +201,19 @@ const ResidentSettings = () => {
         return;
       }
 
-      // Update email in residents_tbl if record exists
+      // Update email in barangaylink.residents so the profile stays in sync
       if (details.residentPk) {
         const { error: updateResError } = await supabase
-          .from("residents_tbl")
+          .schema("barangaylink")
+          .from("residents")
           .update({ email: nextEmail })
           .eq("id", details.residentPk);
 
         if (updateResError) {
-          console.warn("Resident email update warning (non-critical):", updateResError);
+          console.warn(
+            "Resident email update warning (non-critical):",
+            updateResError,
+          );
           // Don't fail here - auth email was already updated successfully
         }
       }
@@ -232,6 +243,13 @@ const ResidentSettings = () => {
       return;
     }
 
+    if (!isValidPhilippineMobile(nextContact)) {
+      setActionError(
+        "Please enter a valid Philippine mobile number, such as 09XXXXXXXXX or +639XXXXXXXXX.",
+      );
+      return;
+    }
+
     setSaving(true);
     resetActionMessages();
 
@@ -247,6 +265,26 @@ const ResidentSettings = () => {
           updateError.message || "Unable to update contact number.",
         );
         return;
+      }
+
+      if (details.residentPk) {
+        const { error: updateResidentError } = await supabase
+          .schema("barangaylink")
+          .from("residents")
+          .update({ contact_number: nextContact })
+          .eq("id", details.residentPk);
+
+        if (updateResidentError) {
+          console.error(
+            "Resident contact update error:",
+            updateResidentError,
+          );
+          setActionError(
+            updateResidentError.message ||
+              "Unable to update resident contact number.",
+          );
+          return;
+        }
       }
 
       // Refresh session to get updated metadata
@@ -481,6 +519,7 @@ const ResidentSettings = () => {
                             value={emailInput}
                             onChange={(e) => setEmailInput(e.target.value)}
                             placeholder="Enter new email"
+                            autoComplete="email"
                             required
                           />
                         </div>
@@ -524,6 +563,11 @@ const ResidentSettings = () => {
                             type="text"
                             value={contactInput}
                             onChange={(e) => setContactInput(e.target.value)}
+                            inputMode="tel"
+                            placeholder="09XXXXXXXXX or +639XXXXXXXXX"
+                            autoComplete="tel"
+                            pattern="^(09\\d{9}|\\+639\\d{9})$"
+                            title="Use 09XXXXXXXXX or +639XXXXXXXXX"
                             required
                           />
                         </div>
