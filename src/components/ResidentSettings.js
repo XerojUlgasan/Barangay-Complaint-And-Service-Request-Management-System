@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { Settings, Eye, EyeOff } from "lucide-react";
 import supabase from "../supabse_db/supabase_client";
 
 const MASKED_PASSWORD = "••••••••";
@@ -34,6 +35,7 @@ const ResidentSettings = () => {
     contactNumber: "",
     authUid: "",
   });
+  const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
 
   const displayContactNumber = useMemo(
     () => details.contactNumber || "Not available",
@@ -410,15 +412,7 @@ const ResidentSettings = () => {
         onClick={openSettings}
         aria-label="Open settings"
       >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-        </svg>
+        <Settings size={18} />
       </button>
 
       {open &&
@@ -618,45 +612,77 @@ const ResidentSettings = () => {
                       <div style={{ padding: "16px" }}>
                         <div className="settings-field">
                           <label>Current Password</label>
-                          <input
-                            type="password"
-                            value={passwordForm.currentPassword}
-                            onChange={(e) =>
-                              setPasswordForm((prev) => ({
-                                ...prev,
-                                currentPassword: e.target.value,
-                              }))
-                            }
-                            required
-                          />
+                          <div className="password-field">
+                            <input
+                              type={showPasswords.current ? "text" : "password"}
+                              value={passwordForm.currentPassword}
+                              onChange={(e) =>
+                                setPasswordForm((prev) => ({
+                                  ...prev,
+                                  currentPassword: e.target.value,
+                                }))
+                              }
+                              required
+                            />
+                            <button
+                              type="button"
+                              className="password-toggle-btn"
+                              aria-label={showPasswords.current ? "Hide current password" : "Show current password"}
+                              onClick={() => setShowPasswords((s) => ({ ...s, current: !s.current }))}
+                            >
+                              {showPasswords.current ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
+                          </div>
                         </div>
+
                         <div className="settings-field">
                           <label>New Password</label>
-                          <input
-                            type="password"
-                            value={passwordForm.newPassword}
-                            onChange={(e) =>
-                              setPasswordForm((prev) => ({
-                                ...prev,
-                                newPassword: e.target.value,
-                              }))
-                            }
-                            required
-                          />
+                          <div className="password-field">
+                            <input
+                              type={showPasswords.new ? "text" : "password"}
+                              value={passwordForm.newPassword}
+                              onChange={(e) =>
+                                setPasswordForm((prev) => ({
+                                  ...prev,
+                                  newPassword: e.target.value,
+                                }))
+                              }
+                              required
+                            />
+                            <button
+                              type="button"
+                              className="password-toggle-btn"
+                              aria-label={showPasswords.new ? "Hide new password" : "Show new password"}
+                              onClick={() => setShowPasswords((s) => ({ ...s, new: !s.new }))}
+                            >
+                              {showPasswords.new ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
+                          </div>
                         </div>
+
                         <div className="settings-field">
                           <label>Confirm Password</label>
-                          <input
-                            type="password"
-                            value={passwordForm.confirmPassword}
-                            onChange={(e) =>
-                              setPasswordForm((prev) => ({
-                                ...prev,
-                                confirmPassword: e.target.value,
-                              }))
-                            }
-                            required
-                          />
+                          <div className="password-field">
+                            <input
+                              type={showPasswords.confirm ? "text" : "password"}
+                              value={passwordForm.confirmPassword}
+                              onChange={(e) =>
+                                setPasswordForm((prev) => ({
+                                  ...prev,
+                                  confirmPassword: e.target.value,
+                                }))
+                              }
+                              required
+                            />
+                            <button
+                              type="button"
+                              className="password-toggle-btn"
+                              aria-label={showPasswords.confirm ? "Hide confirm password" : "Show confirm password"}
+                              onClick={() => setShowPasswords((s) => ({ ...s, confirm: !s.confirm }))}
+                            >
+                              {showPasswords.confirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
+                          </div>
                         </div>
                       </div>
                       <div className="settings-submodal-actions">

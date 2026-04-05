@@ -769,12 +769,13 @@
 .settings-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  /* slightly lighter backdrop so modals don't feel too heavy */
+  background: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2000;
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(10px);
   animation: fadeIn 0.3s ease-in-out;
 }
 
@@ -1107,15 +1108,16 @@
 }
 
 .settings-submodal-overlay {
-  position: absolute;
+  /* Use fixed so submodals overlay the top-level settings modal (which is portaled) */
+  position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.6);
+  /* lighter overlay so nested dialogs are visible but background isn't overly dark */
+  background: rgba(15, 23, 42, 0.32);
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 20px;
-  z-index: 3;
-  backdrop-filter: blur(8px);
+  z-index: 2100; /* sit above .settings-modal-overlay (2000) */
+  backdrop-filter: blur(6px);
   animation: fadeIn 0.25s ease-in-out;
 }
 
@@ -1125,10 +1127,8 @@
   border-radius: 18px;
   border: 1px solid #e5e7eb;
   overflow: hidden;
-  box-shadow: 
-    0 20px 60px rgba(80, 200, 120, 0.2),
-    0 0 1px rgba(2, 6, 23, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  /* more neutral, modern shadow */
+  box-shadow: 0 12px 30px rgba(16,24,40,0.08), 0 2px 6px rgba(2,6,23,0.04);
   animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
   position: relative;
 }
@@ -1166,6 +1166,36 @@
 
 .settings-submodal-content {
   padding: 16px;
+}
+
+/* Password field + visibility toggle */
+.password-field {
+  position: relative;
+}
+
+.password-field input {
+  padding-right: 44px; /* space for the toggle button */
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  padding: 6px;
+  border-radius: 8px;
+}
+
+.password-toggle-btn:hover {
+  background: rgba(2,6,23,0.04);
+  color: #111827;
 }
 
 .settings-submodal-actions {
@@ -1260,29 +1290,35 @@
 
 /* ── SETTINGS BUTTON ── */
 .settings-button {
-  background: linear-gradient(135deg, #50c878 0%, #3ab05a 100%);
-  border: 2px solid transparent;
-  color: #fff;
-  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #e6e9ee;
+  color: #374151;
+  border-radius: 8px;
   width: 40px;
   height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 12px rgba(80, 200, 120, 0.25);
-  font-size: 20px;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+  box-shadow: 0 1px 4px rgba(16, 24, 40, 0.06);
+  font-size: 18px;
 }
 
 .settings-button:hover {
-  background: linear-gradient(135deg, #3ab05a 0%, #2d8a47 100%);
-  transform: scale(1.1) rotate(15deg);
-  box-shadow: 0 6px 16px rgba(80, 200, 120, 0.35);
+  background: #f8fafc;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(16, 24, 40, 0.08);
 }
 
 .settings-button:active {
-  transform: scale(0.98) rotate(15deg);
+  transform: translateY(0);
+}
+
+.settings-button svg {
+  width: 18px;
+  height: 18px;
+  color: inherit;
 }
 
 /* Responsive adjustments */

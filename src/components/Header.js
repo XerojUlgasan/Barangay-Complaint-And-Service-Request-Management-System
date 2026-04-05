@@ -3,6 +3,7 @@ import { LogOut } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import SuperAdminSettings from "./SuperAdminSettings";
 import "../styles/Header.css";
+import OfficialSettings from "./OfficialSettings";
 
 /**
  * Header Component
@@ -87,11 +88,8 @@ const Header = ({
         {userRole === "superadmin" ? <SuperAdminSettings /> : null}
 
         {/* Logout button with icon */}
-        <button
-          className="logout-icon-btn"
-          onClick={handleLogout}
-          title="Logout"
-        >
+        {userRole === "official" && <OfficialSettings />}
+        <button className="logout-icon-btn" onClick={handleLogout} title="Logout">
           <LogOut size={20} />
         </button>
       </div>
