@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { createPortal } from "react-dom";
 import "../styles/ImageLightbox.css";
 
 const ImageLightbox = ({ images = [], isOpen, onClose }) => {
@@ -42,7 +43,7 @@ const ImageLightbox = ({ images = [], isOpen, onClose }) => {
     if (e.target === e.currentTarget) onClose();
   };
 
-  return (
+  return createPortal(
     <div className="lightbox-overlay" onClick={handleOverlayClick}>
       <div className="lightbox-container">
         {/* Close Button */}
@@ -101,7 +102,8 @@ const ImageLightbox = ({ images = [], isOpen, onClose }) => {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 
