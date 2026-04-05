@@ -4,37 +4,47 @@ import { Settings, Eye, EyeOff } from "lucide-react";
 import supabase from "../supabse_db/supabase_client";
 
 const MASKED_PASSWORD = "••••••••";
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_PATTERN = /^[a-zA-Z0-9._%-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+const MIN_PASSWORD_LENGTH = 6;
 
 const OfficialSettings = () => {
+  // UI State
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  // Modal States
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+
+  // Form Inputs
   const [emailInput, setEmailInput] = useState("");
-  const [emailError, setEmailError] = useState("");
-  const [emailSuccess, setEmailSuccess] = useState("");
-  const [passwordError, setPasswordError] = useState("");
-  const [passwordSuccess, setPasswordSuccess] = useState("");
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
-  const [saving, setSaving] = useState(false);
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
+
+  // Error & Success Messages
+  const [emailError, setEmailError] = useState("");
+  const [emailSuccess, setEmailSuccess] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
+
+  // Account Data
   const [details, setDetails] = useState({ authEmail: "", authUid: "" });
-  const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
 
   const displayEmail = useMemo(() => details.authEmail || "Not available", [
     details,
   ]);
 
-  const resetActionMessages = () => {
-    setActionError("");
-    setActionSuccess("");
-  };
-
+  // ==================== Data Loading ====================
   const loadAccountDetails = async () => {
     setLoading(true);
     setError("");
@@ -47,9 +57,23 @@ const OfficialSettings = () => {
       }
 
       const authUid = userData.user.id;
-      const authUserEmail = userData.user.email || "";
 
-      setDetails({ authEmail: authUserEmail, authUid });
+      // Fetch email from barangay_officials table (most up-to-date)
+      const { data: official, error: officialError } = await supabase
+        .from("barangay_officials")
+        .select("email")
+        .eq("uid", authUid)
+        .maybeSingle();
+
+      if (officialError) {
+        console.error("Error fetching official details:", officialError);
+        setError("Failed to load official details");
+        return;
+      }
+
+      const officialEmail = official?.email || userData.user.email || "";
+
+      setDetails({ authEmail: officialEmail, authUid });
     } catch (err) {
       console.error("Error loading official account details:", err);
       setError("Failed to load account details: " + (err.message || err));
@@ -63,15 +87,23 @@ const OfficialSettings = () => {
     await loadAccountDetails();
   };
 
+  const closeSettings = () => {
+    setOpen(false);
+    setEmailModalOpen(false);
+    setPasswordModalOpen(false);
+  };
+
+  // ==================== Modal Handlers ====================
   const handleOpenEmailModal = () => {
     setEmailError("");
     setEmailSuccess("");
-    setEmailInput(details.authEmail || "");
+    setEmailInput("");
     setEmailModalOpen(true);
   };
 
   const handleOpenPasswordModal = () => {
-    resetActionMessages();
+    setPasswordError("");
+    setPasswordSuccess("");
     setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
     setPasswordModalOpen(true);
   };
@@ -80,6 +112,7 @@ const OfficialSettings = () => {
     e.preventDefault();
     const nextEmail = emailInput.trim().toLowerCase();
 
+    // Validation
     if (!nextEmail) {
       setEmailError("Email is required.");
       return;
@@ -98,16 +131,18 @@ const OfficialSettings = () => {
     setSaving(true);
 
     try {
+      // Try to update Supabase Auth (may fail if current email has issues)
+      let authUpdateFailed = false;
       const { error: updateAuthError } = await supabase.auth.updateUser({
         email: nextEmail,
       });
 
       if (updateAuthError) {
         console.error("Auth email update error:", updateAuthError);
-        setActionError(updateAuthError.message || "Unable to update email in auth.");
-        return;
+        authUpdateFailed = true;
       }
 
+      // Always update the database record (this is our source of truth)
       const { error: updateOfficialError } = await supabase
         .from("barangay_officials")
         .update({ email: nextEmail })
@@ -115,15 +150,22 @@ const OfficialSettings = () => {
 
       if (updateOfficialError) {
         console.error("Official email sync error:", updateOfficialError);
-        setActionError(
-          updateOfficialError.message ||
-            "Email updated in auth but failed to sync official record.",
+        setEmailError(
+          updateOfficialError.message || "Failed to update email in database."
         );
         return;
       }
 
+      // Success
       setDetails((prev) => ({ ...prev, authEmail: nextEmail }));
-      setActionSuccess("Email updated successfully. Please verify your new email.");
+
+      let successMsg =
+        "Email updated successfully. Please verify your new email.";
+      if (authUpdateFailed) {
+        successMsg +=
+          " (Note: Verification email may not be sent - please contact support if needed.)";
+      }
+      setEmailSuccess(successMsg);
       setEmailModalOpen(false);
     } catch (err) {
       console.error("Error updating official email:", err);
@@ -133,17 +175,21 @@ const OfficialSettings = () => {
     }
   };
 
+  // ==================== Email Update ====================
   const handleChangePassword = async (e) => {
     e.preventDefault();
     const { currentPassword, newPassword, confirmPassword } = passwordForm;
 
+    // Validation
     if (!currentPassword || !newPassword || !confirmPassword) {
       setPasswordError("Please complete all password fields.");
       return;
     }
 
-    if (newPassword.length < 6) {
-      setPasswordError("New password must be at least 6 characters.");
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      setPasswordError(
+        `New password must be at least ${MIN_PASSWORD_LENGTH} characters.`
+      );
       return;
     }
 
@@ -153,13 +199,14 @@ const OfficialSettings = () => {
     }
 
     if (!details.authEmail) {
-      setActionError("Cannot verify current password because no account email is available.");
+      setPasswordError("Cannot verify current password because no account email is available.");
       return;
     }
 
     setSaving(true);
 
     try {
+      // Verify current password
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: details.authEmail,
         password: currentPassword,
@@ -171,16 +218,18 @@ const OfficialSettings = () => {
         return;
       }
 
+      // Update password
       const { error: updatePasswordError } = await supabase.auth.updateUser({
         password: newPassword,
       });
 
       if (updatePasswordError) {
         console.error("Password update error:", updatePasswordError);
-        setActionError(updatePasswordError.message || "Unable to update password.");
+        setPasswordError(updatePasswordError.message || "Unable to update password.");
         return;
       }
 
+      // Success
       setPasswordSuccess("Password changed successfully.");
       setPasswordModalOpen(false);
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
@@ -193,11 +242,28 @@ const OfficialSettings = () => {
     }
   };
 
-  const closeSettings = () => {
-    setOpen(false);
-    setEmailModalOpen(false);
-    setPasswordModalOpen(false);
-  };
+  // ==================== Reusable Components ====================
+  const PasswordField = ({ label, value, onChange, showPassword, onToggle }) => (
+    <div className="settings-field">
+      <label>{label}</label>
+      <div className="password-field">
+        <input
+          type={showPassword ? "text" : "password"}
+          value={value}
+          onChange={onChange}
+          required
+        />
+        <button
+          type="button"
+          className="password-toggle-btn"
+          aria-label={showPassword ? `Hide ${label}` : `Show ${label}`}
+          onClick={onToggle}
+        >
+          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -264,9 +330,6 @@ const OfficialSettings = () => {
                           </button>
                         </div>
                       </div>
-
-                      {actionError ? <p className="settings-error">{actionError}</p> : null}
-                      {actionSuccess ? <p className="settings-success">{actionSuccess}</p> : null}
                     </>
                   )}
                 </section>
@@ -318,65 +381,48 @@ const OfficialSettings = () => {
                     <h4>Change Password</h4>
                     <form onSubmit={handleChangePassword}>
                       <div style={{ padding: "16px" }}>
-                        <div className="settings-field">
-                          <label>Current Password</label>
-                          <div className="password-field">
-                            <input
-                              type={showPasswords.current ? "text" : "password"}
-                              value={passwordForm.currentPassword}
-                              onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
-                              required
-                            />
-                            <button
-                              type="button"
-                              className="password-toggle-btn"
-                              aria-label={showPasswords.current ? "Hide current password" : "Show current password"}
-                              onClick={() => setShowPasswords((s) => ({ ...s, current: !s.current }))}
-                            >
-                              {showPasswords.current ? <EyeOff size={16} /> : <Eye size={16} />}
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="settings-field">
-                          <label>New Password</label>
-                          <div className="password-field">
-                            <input
-                              type={showPasswords.new ? "text" : "password"}
-                              value={passwordForm.newPassword}
-                              onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
-                              required
-                            />
-                            <button
-                              type="button"
-                              className="password-toggle-btn"
-                              aria-label={showPasswords.new ? "Hide new password" : "Show new password"}
-                              onClick={() => setShowPasswords((s) => ({ ...s, new: !s.new }))}
-                            >
-                              {showPasswords.new ? <EyeOff size={16} /> : <Eye size={16} />}
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="settings-field">
-                          <label>Confirm Password</label>
-                          <div className="password-field">
-                            <input
-                              type={showPasswords.confirm ? "text" : "password"}
-                              value={passwordForm.confirmPassword}
-                              onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
-                              required
-                            />
-                            <button
-                              type="button"
-                              className="password-toggle-btn"
-                              aria-label={showPasswords.confirm ? "Hide confirm password" : "Show confirm password"}
-                              onClick={() => setShowPasswords((s) => ({ ...s, confirm: !s.confirm }))}
-                            >
-                              {showPasswords.confirm ? <EyeOff size={16} /> : <Eye size={16} />}
-                            </button>
-                          </div>
-                        </div>
+                        <PasswordField
+                          label="Current Password"
+                          value={passwordForm.currentPassword}
+                          onChange={(e) =>
+                            setPasswordForm((prev) => ({
+                              ...prev,
+                              currentPassword: e.target.value,
+                            }))
+                          }
+                          showPassword={showPasswords.current}
+                          onToggle={() =>
+                            setShowPasswords((s) => ({ ...s, current: !s.current }))
+                          }
+                        />
+                        <PasswordField
+                          label="New Password"
+                          value={passwordForm.newPassword}
+                          onChange={(e) =>
+                            setPasswordForm((prev) => ({
+                              ...prev,
+                              newPassword: e.target.value,
+                            }))
+                          }
+                          showPassword={showPasswords.new}
+                          onToggle={() =>
+                            setShowPasswords((s) => ({ ...s, new: !s.new }))
+                          }
+                        />
+                        <PasswordField
+                          label="Confirm Password"
+                          value={passwordForm.confirmPassword}
+                          onChange={(e) =>
+                            setPasswordForm((prev) => ({
+                              ...prev,
+                              confirmPassword: e.target.value,
+                            }))
+                          }
+                          showPassword={showPasswords.confirm}
+                          onToggle={() =>
+                            setShowPasswords((s) => ({ ...s, confirm: !s.confirm }))
+                          }
+                        />
                       </div>
                       {passwordError && (
                         <p className="settings-error" style={{ padding: "0 16px", margin: "8px 0" }}>
