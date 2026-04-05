@@ -21,11 +21,16 @@ const OfficialSettings = () => {
   });
   const [saving, setSaving] = useState(false);
   const [details, setDetails] = useState({ authEmail: "", authUid: "" });
-  const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
 
-  const displayEmail = useMemo(() => details.authEmail || "Not available", [
-    details,
-  ]);
+  const displayEmail = useMemo(
+    () => details.authEmail || "Not available",
+    [details],
+  );
 
   const resetActionMessages = () => {
     setActionError("");
@@ -38,7 +43,8 @@ const OfficialSettings = () => {
     resetActionMessages();
 
     try {
-      const { data: userData, error: authError } = await supabase.auth.getUser();
+      const { data: userData, error: authError } =
+        await supabase.auth.getUser();
       if (authError || !userData?.user?.id) {
         setError("Unable to identify current user.");
         return;
@@ -69,7 +75,11 @@ const OfficialSettings = () => {
 
   const handleOpenPasswordModal = () => {
     resetActionMessages();
-    setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    setPasswordForm({
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    });
     setPasswordModalOpen(true);
   };
 
@@ -102,7 +112,9 @@ const OfficialSettings = () => {
 
       if (updateAuthError) {
         console.error("Auth email update error:", updateAuthError);
-        setActionError(updateAuthError.message || "Unable to update email in auth.");
+        setActionError(
+          updateAuthError.message || "Unable to update email in auth.",
+        );
         return;
       }
 
@@ -121,7 +133,9 @@ const OfficialSettings = () => {
       }
 
       setDetails((prev) => ({ ...prev, authEmail: nextEmail }));
-      setActionSuccess("Email updated successfully. Please verify your new email.");
+      setActionSuccess(
+        "Email updated successfully. Please verify your new email.",
+      );
       setEmailModalOpen(false);
       console.log("Official email updated successfully");
     } catch (err) {
@@ -152,7 +166,9 @@ const OfficialSettings = () => {
     }
 
     if (!details.authEmail) {
-      setActionError("Cannot verify current password because no account email is available.");
+      setActionError(
+        "Cannot verify current password because no account email is available.",
+      );
       return;
     }
 
@@ -177,13 +193,19 @@ const OfficialSettings = () => {
 
       if (updatePasswordError) {
         console.error("Password update error:", updatePasswordError);
-        setActionError(updatePasswordError.message || "Unable to update password.");
+        setActionError(
+          updatePasswordError.message || "Unable to update password.",
+        );
         return;
       }
 
       setActionSuccess("Password changed successfully.");
       setPasswordModalOpen(false);
-      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
       console.log("Official password updated successfully");
     } catch (err) {
       console.error("Error updating password:", err);
@@ -214,7 +236,10 @@ const OfficialSettings = () => {
       {open &&
         createPortal(
           <div className="settings-modal-overlay" onClick={closeSettings}>
-            <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="settings-modal"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="settings-modal-header">
                 <h3>Settings</h3>
                 <button
@@ -254,7 +279,11 @@ const OfficialSettings = () => {
                       <div className="settings-field">
                         <label>Change Password</label>
                         <div className="settings-inline-field">
-                          <input type="password" value={MASKED_PASSWORD} readOnly />
+                          <input
+                            type="password"
+                            value={MASKED_PASSWORD}
+                            readOnly
+                          />
                           <button
                             type="button"
                             className="settings-inline-action"
@@ -265,16 +294,26 @@ const OfficialSettings = () => {
                         </div>
                       </div>
 
-                      {actionError ? <p className="settings-error">{actionError}</p> : null}
-                      {actionSuccess ? <p className="settings-success">{actionSuccess}</p> : null}
+                      {actionError ? (
+                        <p className="settings-error">{actionError}</p>
+                      ) : null}
+                      {actionSuccess ? (
+                        <p className="settings-success">{actionSuccess}</p>
+                      ) : null}
                     </>
                   )}
                 </section>
               </div>
 
               {emailModalOpen && (
-                <div className="settings-submodal-overlay" onClick={() => setEmailModalOpen(false)}>
-                  <div className="settings-submodal" onClick={(e) => e.stopPropagation()}>
+                <div
+                  className="settings-submodal-overlay"
+                  onClick={() => setEmailModalOpen(false)}
+                >
+                  <div
+                    className="settings-submodal"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <h4>Change Email</h4>
                     <form onSubmit={handleChangeEmail}>
                       <div style={{ padding: "16px" }}>
@@ -290,10 +329,18 @@ const OfficialSettings = () => {
                         </div>
                       </div>
                       <div className="settings-submodal-actions">
-                        <button type="button" className="settings-sub-btn" onClick={() => setEmailModalOpen(false)}>
+                        <button
+                          type="button"
+                          className="settings-sub-btn"
+                          onClick={() => setEmailModalOpen(false)}
+                        >
                           Cancel
                         </button>
-                        <button type="submit" className="settings-sub-btn primary" disabled={saving}>
+                        <button
+                          type="submit"
+                          className="settings-sub-btn primary"
+                          disabled={saving}
+                        >
                           {saving ? "Saving..." : "Save"}
                         </button>
                       </div>
@@ -303,8 +350,14 @@ const OfficialSettings = () => {
               )}
 
               {passwordModalOpen && (
-                <div className="settings-submodal-overlay" onClick={() => setPasswordModalOpen(false)}>
-                  <div className="settings-submodal" onClick={(e) => e.stopPropagation()}>
+                <div
+                  className="settings-submodal-overlay"
+                  onClick={() => setPasswordModalOpen(false)}
+                >
+                  <div
+                    className="settings-submodal"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <h4>Change Password</h4>
                     <form onSubmit={handleChangePassword}>
                       <div style={{ padding: "16px" }}>
@@ -314,16 +367,34 @@ const OfficialSettings = () => {
                             <input
                               type={showPasswords.current ? "text" : "password"}
                               value={passwordForm.currentPassword}
-                              onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
+                              onChange={(e) =>
+                                setPasswordForm((prev) => ({
+                                  ...prev,
+                                  currentPassword: e.target.value,
+                                }))
+                              }
                               required
                             />
                             <button
                               type="button"
                               className="password-toggle-btn"
-                              aria-label={showPasswords.current ? "Hide current password" : "Show current password"}
-                              onClick={() => setShowPasswords((s) => ({ ...s, current: !s.current }))}
+                              aria-label={
+                                showPasswords.current
+                                  ? "Hide current password"
+                                  : "Show current password"
+                              }
+                              onClick={() =>
+                                setShowPasswords((s) => ({
+                                  ...s,
+                                  current: !s.current,
+                                }))
+                              }
                             >
-                              {showPasswords.current ? <EyeOff size={16} /> : <Eye size={16} />}
+                              {showPasswords.current ? (
+                                <EyeOff size={16} />
+                              ) : (
+                                <Eye size={16} />
+                              )}
                             </button>
                           </div>
                         </div>
@@ -334,16 +405,31 @@ const OfficialSettings = () => {
                             <input
                               type={showPasswords.new ? "text" : "password"}
                               value={passwordForm.newPassword}
-                              onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
+                              onChange={(e) =>
+                                setPasswordForm((prev) => ({
+                                  ...prev,
+                                  newPassword: e.target.value,
+                                }))
+                              }
                               required
                             />
                             <button
                               type="button"
                               className="password-toggle-btn"
-                              aria-label={showPasswords.new ? "Hide new password" : "Show new password"}
-                              onClick={() => setShowPasswords((s) => ({ ...s, new: !s.new }))}
+                              aria-label={
+                                showPasswords.new
+                                  ? "Hide new password"
+                                  : "Show new password"
+                              }
+                              onClick={() =>
+                                setShowPasswords((s) => ({ ...s, new: !s.new }))
+                              }
                             >
-                              {showPasswords.new ? <EyeOff size={16} /> : <Eye size={16} />}
+                              {showPasswords.new ? (
+                                <EyeOff size={16} />
+                              ) : (
+                                <Eye size={16} />
+                              )}
                             </button>
                           </div>
                         </div>
@@ -354,25 +440,51 @@ const OfficialSettings = () => {
                             <input
                               type={showPasswords.confirm ? "text" : "password"}
                               value={passwordForm.confirmPassword}
-                              onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                              onChange={(e) =>
+                                setPasswordForm((prev) => ({
+                                  ...prev,
+                                  confirmPassword: e.target.value,
+                                }))
+                              }
                               required
                             />
                             <button
                               type="button"
                               className="password-toggle-btn"
-                              aria-label={showPasswords.confirm ? "Hide confirm password" : "Show confirm password"}
-                              onClick={() => setShowPasswords((s) => ({ ...s, confirm: !s.confirm }))}
+                              aria-label={
+                                showPasswords.confirm
+                                  ? "Hide confirm password"
+                                  : "Show confirm password"
+                              }
+                              onClick={() =>
+                                setShowPasswords((s) => ({
+                                  ...s,
+                                  confirm: !s.confirm,
+                                }))
+                              }
                             >
-                              {showPasswords.confirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                              {showPasswords.confirm ? (
+                                <EyeOff size={16} />
+                              ) : (
+                                <Eye size={16} />
+                              )}
                             </button>
                           </div>
                         </div>
                       </div>
                       <div className="settings-submodal-actions">
-                        <button type="button" className="settings-sub-btn" onClick={() => setPasswordModalOpen(false)}>
+                        <button
+                          type="button"
+                          className="settings-sub-btn"
+                          onClick={() => setPasswordModalOpen(false)}
+                        >
                           Cancel
                         </button>
-                        <button type="submit" className="settings-sub-btn primary" disabled={saving}>
+                        <button
+                          type="submit"
+                          className="settings-sub-btn primary"
+                          disabled={saving}
+                        >
                           {saving ? "Saving..." : "Save"}
                         </button>
                       </div>
