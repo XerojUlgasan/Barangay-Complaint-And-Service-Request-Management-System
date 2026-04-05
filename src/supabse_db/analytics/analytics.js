@@ -324,7 +324,13 @@ export const analyzeComplaintsByLocation = (complaints = []) => {
   const locationCounts = {};
 
   complaints.forEach((comp) => {
-    const location = comp.incident_location || "Unknown";
+    const location = (comp.incident_location || "").trim();
+
+    // Filter out invalid/empty locations
+    if (!location || location === "Unknown" || location.length < 3) {
+      return;
+    }
+
     locationCounts[location] = (locationCounts[location] || 0) + 1;
   });
 
@@ -342,7 +348,13 @@ export const analyzeComplaintsByType = (complaints = []) => {
   const typeCounts = {};
 
   complaints.forEach((comp) => {
-    const type = comp.complaint_type || "Unknown";
+    const type = (comp.complaint_type || "").trim();
+
+    // Filter out invalid/empty types
+    if (!type || type === "Unknown" || type.length < 3) {
+      return;
+    }
+
     typeCounts[type] = (typeCounts[type] || 0) + 1;
   });
 
@@ -356,7 +368,13 @@ export const analyzeRequestsByType = (requests = []) => {
   const typeCounts = {};
 
   requests.forEach((req) => {
-    const type = req.certificate_type || "Unknown";
+    const type = (req.certificate_type || "").trim();
+
+    // Filter out invalid/empty types
+    if (!type || type === "Unknown" || type.length < 3) {
+      return;
+    }
+
     typeCounts[type] = (typeCounts[type] || 0) + 1;
   });
 

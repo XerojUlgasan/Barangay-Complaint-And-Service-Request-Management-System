@@ -165,11 +165,12 @@ export const getResidentByAuthUid = async (authUid, options = {}) => {
       return buildResidentResult(cachedResident, registrationData);
     }
 
-    const { data: residentData, error: residentError } = await supabase
-      .from("residents_tbl")
-      .select("*")
-      .eq("id", registrationData.id)
-      .maybeSingle();
+    const { data: residentData, error: residentError } =
+      await household_supabase
+        .from("residents")
+        .select("*")
+        .eq("id", registrationData.id)
+        .maybeSingle();
 
     if (residentError) {
       return { success: false, message: residentError.message, data: null };
@@ -255,8 +256,8 @@ export const getResidentsByAuthUids = async (authUids = [], options = {}) => {
   });
 
   if (missingResidentIds.length > 0) {
-    const { data: residents, error: residentError } = await supabase
-      .from("residents_tbl")
+    const { data: residents, error: residentError } = await household_supabase
+      .from("residents")
       .select("*")
       .in("id", missingResidentIds);
 
@@ -310,8 +311,8 @@ export const getResidentsByIds = async (residentIds = [], options = {}) => {
     return { success: true, data: mapped };
   }
 
-  const { data: residents, error: residentError } = await supabase
-    .from("residents_tbl")
+  const { data: residents, error: residentError } = await household_supabase
+    .from("residents")
     .select("*")
     .in("id", missingResidentIds);
 

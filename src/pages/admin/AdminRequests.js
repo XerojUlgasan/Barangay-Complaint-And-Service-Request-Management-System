@@ -738,7 +738,10 @@ export default function AdminRequests() {
               Manage Certificates
             </button>
 
-            <div className="status-filter-wrapper" style={{ marginBottom: 0, position: "relative" }}>
+            <div
+              className="status-filter-wrapper"
+              style={{ marginBottom: 0, position: "relative" }}
+            >
               <button
                 className="status-filter-btn"
                 onClick={() => setRequestDropdownOpen(!requestDropdownOpen)}
@@ -754,7 +757,13 @@ export default function AdminRequests() {
                   />
                   <div
                     className="status-filter-dropdown"
-                    style={{ zIndex: 1000, position: "absolute", top: "100%", left: 0, marginTop: "0.25rem" }}
+                    style={{
+                      zIndex: 1000,
+                      position: "absolute",
+                      top: "100%",
+                      left: 0,
+                      marginTop: "0.25rem",
+                    }}
                   >
                     {statusOptions.map((option) => (
                       <div
@@ -924,7 +933,8 @@ export default function AdminRequests() {
               color: "#6b7280",
             }}
           >
-            Showing {filteredRequests.length} of {requests.length} request{requests.length === 1 ? '' : 's'}
+            Showing {filteredRequests.length} of {requests.length} request
+            {requests.length === 1 ? "" : "s"}
           </div>
 
           <div className="requests-table-card">
@@ -935,6 +945,7 @@ export default function AdminRequests() {
                   <th>Request Details</th>
                   <th>Status</th>
                   <th>Submitted By</th>
+                  <th>Assigned To</th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -962,6 +973,9 @@ export default function AdminRequests() {
                         </span>
                       </td>
                       <td className="req-submitted">{request.submittedBy}</td>
+                      <td className="req-submitted">
+                        {request.assignedOfficial || "Unassigned"}
+                      </td>
                       <td className="req-action">
                         <button
                           className="btn-save ar-table-action-btn"
@@ -975,7 +989,7 @@ export default function AdminRequests() {
                 ) : (
                   <tr>
                     <td
-                      colSpan="5"
+                      colSpan="6"
                       style={{
                         padding: "2rem",
                         textAlign: "center",
@@ -1271,13 +1285,14 @@ export default function AdminRequests() {
         createPortal(
           <div
             className="ar-modal-overlay"
+            style={{ zIndex: 11000 }}
             onClick={() =>
               setAssignPopup({ open: false, title: "", message: "" })
             }
           >
             <div
               className="ar-modal"
-              style={{ maxWidth: "460px", width: "92vw" }}
+              style={{ maxWidth: "460px", width: "92vw", zIndex: 11001 }}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="ar-modal-header">
@@ -1398,76 +1413,77 @@ export default function AdminRequests() {
                   style={{
                     display: "grid",
                     gap: "0.75rem",
-                    position: "relative",
                   }}
                 >
-                  <input
-                    type="text"
-                    placeholder="Search active official by name or position"
-                    value={officialSearch}
-                    onFocus={() => setShowOfficialOptions(true)}
-                    onChange={(e) => {
-                      setOfficialSearch(e.target.value);
-                      setSelectedOfficialUid("");
-                      setShowOfficialOptions(true);
-                    }}
-                    className="ar-input"
-                    style={{
-                      width: "100%",
-                      border: "1px solid #cbd5e1",
-                      borderRadius: "0.5rem",
-                      padding: "0.625rem 0.75rem",
-                    }}
-                  />
-
-                  {showOfficialOptions && !loadingOfficials && (
-                    <div
+                  <div style={{ position: "relative" }}>
+                    <input
+                      type="text"
+                      placeholder="Search active official by name or position"
+                      value={officialSearch}
+                      onFocus={() => setShowOfficialOptions(true)}
+                      onChange={(e) => {
+                        setOfficialSearch(e.target.value);
+                        setSelectedOfficialUid("");
+                        setShowOfficialOptions(true);
+                      }}
+                      className="ar-input"
                       style={{
-                        position: "absolute",
-                        top: "calc(100% - 0.2rem)",
-                        left: 0,
-                        right: 0,
-                        maxHeight: "180px",
-                        overflowY: "auto",
-                        background: "#fff",
+                        width: "100%",
                         border: "1px solid #cbd5e1",
                         borderRadius: "0.5rem",
-                        zIndex: 20,
-                        boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+                        padding: "0.625rem 0.75rem",
                       }}
-                    >
-                      {filteredOfficials.length > 0 ? (
-                        filteredOfficials.map((official) => (
-                          <button
-                            key={official.uid}
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => handlePickOfficial(official)}
+                    />
+
+                    {showOfficialOptions && !loadingOfficials && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "calc(100% + 0.3rem)",
+                          left: 0,
+                          right: 0,
+                          maxHeight: "180px",
+                          overflowY: "auto",
+                          background: "#fff",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "0.5rem",
+                          zIndex: 20,
+                          boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+                        }}
+                      >
+                        {filteredOfficials.length > 0 ? (
+                          filteredOfficials.map((official) => (
+                            <button
+                              key={official.uid}
+                              type="button"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => handlePickOfficial(official)}
+                              style={{
+                                width: "100%",
+                                textAlign: "left",
+                                padding: "0.625rem 0.75rem",
+                                border: "none",
+                                borderBottom: "1px solid #f1f5f9",
+                                background: "#fff",
+                                cursor: "pointer",
+                              }}
+                            >
+                              {getOfficialLabel(official)}
+                            </button>
+                          ))
+                        ) : (
+                          <div
                             style={{
-                              width: "100%",
-                              textAlign: "left",
                               padding: "0.625rem 0.75rem",
-                              border: "none",
-                              borderBottom: "1px solid #f1f5f9",
-                              background: "#fff",
-                              cursor: "pointer",
+                              color: "#64748b",
                             }}
                           >
-                            {getOfficialLabel(official)}
-                          </button>
-                        ))
-                      ) : (
-                        <div
-                          style={{
-                            padding: "0.625rem 0.75rem",
-                            color: "#64748b",
-                          }}
-                        >
-                          No matching active officials.
-                        </div>
-                      )}
-                    </div>
-                  )}
+                            No matching active officials.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
                   <button
                     className="btn-save"

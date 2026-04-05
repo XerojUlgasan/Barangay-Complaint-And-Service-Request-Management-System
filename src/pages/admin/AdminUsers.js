@@ -64,9 +64,9 @@ export default function AdminUsers() {
   const [deactivateSuccess, setDeactivateSuccess] = useState(false);
   const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
 
-  const normalizeOfficialStatus = (status) => {
-    if (!status) return "ACTIVE";
-    return String(status).trim().toUpperCase();
+  const hasOfficialUid = (uid) => {
+    if (uid === null || uid === undefined) return false;
+    return String(uid).trim() !== "";
   };
 
   useEffect(() => {
@@ -156,7 +156,9 @@ export default function AdminUsers() {
           id: official.id,
           officialCode: official.official_code || "N/A",
           name: official.full_name || "Unknown",
-          status: normalizeOfficialStatus(official.status),
+          status: hasOfficialUid(official.uid)
+            ? "Registered"
+            : "Not Registered",
           email: official.email || "N/A",
           role: official.role || "Official",
         }));
@@ -389,14 +391,11 @@ export default function AdminUsers() {
       .trim()
       .toUpperCase();
 
-    if (normalized === "ACTIVE")
+    if (normalized === "REGISTERED")
       return {
         className: "status-badge available",
         icon: <CheckCircle size={14} />,
       };
-
-    if (normalized === "PENDING")
-      return { className: "status-badge busy", icon: <Clock size={14} /> };
 
     return { className: "status-badge offline", icon: <XCircle size={14} /> };
   };
@@ -1949,19 +1948,6 @@ export default function AdminUsers() {
             <div>
               {/* Action buttons row — Activate + Manage */}
               <div className="ao-trigger-row" style={{ gap: 10 }}>
-                <button
-                  type="button"
-                  className="ao-trigger-btn"
-                  onClick={openManageModal}
-                  style={{
-                    background:
-                      "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
-                    boxShadow: "0 4px 14px rgba(239,68,68,0.35)",
-                  }}
-                >
-                  <ShieldOff size={16} />
-                  Manage Officials
-                </button>
                 <button
                   type="button"
                   className="ao-trigger-btn"

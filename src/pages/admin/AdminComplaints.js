@@ -564,7 +564,10 @@ export default function AdminComplaints() {
               flexWrap: "wrap",
             }}
           >
-            <div className="status-filter-wrapper" style={{ marginBottom: 0, position: "relative" }}>
+            <div
+              className="status-filter-wrapper"
+              style={{ marginBottom: 0, position: "relative" }}
+            >
               <button
                 className="status-filter-btn"
                 onClick={() => setComplaintDropdownOpen(!complaintDropdownOpen)}
@@ -580,7 +583,13 @@ export default function AdminComplaints() {
                   />
                   <div
                     className="status-filter-dropdown"
-                    style={{ zIndex: 1000, position: "absolute", top: "100%", left: 0, marginTop: "0.25rem" }}
+                    style={{
+                      zIndex: 1000,
+                      position: "absolute",
+                      top: "100%",
+                      left: 0,
+                      marginTop: "0.25rem",
+                    }}
                   >
                     {statusOptions.map((option) => (
                       <div
@@ -750,7 +759,8 @@ export default function AdminComplaints() {
               color: "#6b7280",
             }}
           >
-            Showing {filteredComplaints.length} of {complaints.length} complaint{complaints.length === 1 ? '' : 's'}
+            Showing {filteredComplaints.length} of {complaints.length} complaint
+            {complaints.length === 1 ? "" : "s"}
           </div>
 
           <div className="requests-table-card">
@@ -758,10 +768,10 @@ export default function AdminComplaints() {
               <thead>
                 <tr>
                   <th>ID</th>
-                  <th>Complaint Details</th>
+                  <th>Request Details</th>
                   <th>Status</th>
                   <th>Complainant</th>
-                  <th>Priority</th>
+                  <th>Assigned To</th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -789,29 +799,8 @@ export default function AdminComplaints() {
                         </span>
                       </td>
                       <td className="req-submitted">{complaint.complainant}</td>
-                      <td style={{ textAlign: "center" }}>
-                        <span
-                          style={{
-                            padding: "0.25rem 0.75rem",
-                            borderRadius: "0.25rem",
-                            backgroundColor:
-                              complaint.priority === "High"
-                                ? "#fee2e2"
-                                : complaint.priority === "Medium"
-                                  ? "#fef3c7"
-                                  : "#d1fae5",
-                            color:
-                              complaint.priority === "High"
-                                ? "#991b1b"
-                                : complaint.priority === "Medium"
-                                  ? "#92400e"
-                                  : "#065f46",
-                            fontSize: "0.875rem",
-                            fontWeight: "500",
-                          }}
-                        >
-                          {complaint.priority}
-                        </span>
+                      <td className="req-submitted">
+                        {complaint.assignedOfficial || "Unassigned"}
                       </td>
                       <td className="req-action">
                         <button
@@ -849,13 +838,14 @@ export default function AdminComplaints() {
         createPortal(
           <div
             className="ar-modal-overlay"
+            style={{ zIndex: 11000 }}
             onClick={() =>
               setAssignPopup({ open: false, title: "", message: "" })
             }
           >
             <div
               className="ar-modal"
-              style={{ maxWidth: "460px", width: "92vw" }}
+              style={{ maxWidth: "460px", width: "92vw", zIndex: 11001 }}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="ar-modal-header">
@@ -988,76 +978,77 @@ export default function AdminComplaints() {
                   style={{
                     display: "grid",
                     gap: "0.75rem",
-                    position: "relative",
                   }}
                 >
-                  <input
-                    type="text"
-                    placeholder="Search active official by name or position"
-                    value={officialSearch}
-                    onFocus={() => setShowOfficialOptions(true)}
-                    onChange={(e) => {
-                      setOfficialSearch(e.target.value);
-                      setSelectedOfficialUid("");
-                      setShowOfficialOptions(true);
-                    }}
-                    className="ar-input"
-                    style={{
-                      width: "100%",
-                      border: "1px solid #cbd5e1",
-                      borderRadius: "0.5rem",
-                      padding: "0.625rem 0.75rem",
-                    }}
-                  />
-
-                  {showOfficialOptions && !loadingOfficials && (
-                    <div
+                  <div style={{ position: "relative" }}>
+                    <input
+                      type="text"
+                      placeholder="Search active official by name or position"
+                      value={officialSearch}
+                      onFocus={() => setShowOfficialOptions(true)}
+                      onChange={(e) => {
+                        setOfficialSearch(e.target.value);
+                        setSelectedOfficialUid("");
+                        setShowOfficialOptions(true);
+                      }}
+                      className="ar-input"
                       style={{
-                        position: "absolute",
-                        top: "calc(100% - 0.2rem)",
-                        left: 0,
-                        right: 0,
-                        maxHeight: "180px",
-                        overflowY: "auto",
-                        background: "#fff",
+                        width: "100%",
                         border: "1px solid #cbd5e1",
                         borderRadius: "0.5rem",
-                        zIndex: 20,
-                        boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+                        padding: "0.625rem 0.75rem",
                       }}
-                    >
-                      {filteredOfficials.length > 0 ? (
-                        filteredOfficials.map((official) => (
-                          <button
-                            key={official.uid}
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => handlePickOfficial(official)}
+                    />
+
+                    {showOfficialOptions && !loadingOfficials && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "calc(100% + 0.3rem)",
+                          left: 0,
+                          right: 0,
+                          maxHeight: "180px",
+                          overflowY: "auto",
+                          background: "#fff",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "0.5rem",
+                          zIndex: 20,
+                          boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+                        }}
+                      >
+                        {filteredOfficials.length > 0 ? (
+                          filteredOfficials.map((official) => (
+                            <button
+                              key={official.uid}
+                              type="button"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => handlePickOfficial(official)}
+                              style={{
+                                width: "100%",
+                                textAlign: "left",
+                                padding: "0.625rem 0.75rem",
+                                border: "none",
+                                borderBottom: "1px solid #f1f5f9",
+                                background: "#fff",
+                                cursor: "pointer",
+                              }}
+                            >
+                              {getOfficialLabel(official)}
+                            </button>
+                          ))
+                        ) : (
+                          <div
                             style={{
-                              width: "100%",
-                              textAlign: "left",
                               padding: "0.625rem 0.75rem",
-                              border: "none",
-                              borderBottom: "1px solid #f1f5f9",
-                              background: "#fff",
-                              cursor: "pointer",
+                              color: "#64748b",
                             }}
                           >
-                            {getOfficialLabel(official)}
-                          </button>
-                        ))
-                      ) : (
-                        <div
-                          style={{
-                            padding: "0.625rem 0.75rem",
-                            color: "#64748b",
-                          }}
-                        >
-                          No matching active officials.
-                        </div>
-                      )}
-                    </div>
-                  )}
+                            No matching active officials.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
                   <button
                     className="btn-save"

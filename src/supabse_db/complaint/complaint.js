@@ -385,12 +385,19 @@ export const transferComplaintAssignment = async (
     return { success: false, message: "Selected official is not ACTIVE" };
   }
 
+  // complaint_tbl.updated_by references barangay_officials.uid, so only official UIDs are valid here.
+  const { data: actorOfficial } = await supabase
+    .from("barangay_officials")
+    .select("uid")
+    .eq("uid", userData.user.id)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("complaint_tbl")
     .update({
       assigned_official_id: newOfficialUid,
       updated_at: new Date().toISOString(),
-      updated_by: userData.user.id,
+      updated_by: actorOfficial?.uid || null,
     })
     .eq("id", complaintId);
 

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   Clock,
   AlertCircle,
@@ -25,6 +25,17 @@ import {
   calculateAverageResolutionTime,
 } from "../../supabse_db/analytics/analytics";
 import { getAnnouncements } from "../../supabse_db/announcement/announcement";
+
+const FINISHED_STATUSES = new Set(["completed", "rejected", "non_compliant"]);
+
+const normalizeStatus = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .trim();
+
+const isFinishedStatus = (status) =>
+  FINISHED_STATUSES.has(normalizeStatus(status));
 
 const PERIOD_FILTERS = [
   { key: "today", label: "Today" },
@@ -314,6 +325,213 @@ const isWithinPeriod = (dateValue, period) => {
   return true;
 };
 
+// ==================== ADVANCED INSIGHTS HELPERS ====================
+
+const calculateDaysElapsed = (dateValue) => {
+  if (!dateValue) return 0;
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return 0;
+  const now = new Date();
+  return Math.floor((now - date) / (1000 * 60 * 60 * 24));
+};
+
+const calculateHoursElapsed = (dateValue) => {
+  if (!dateValue) return 0;
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return 0;
+  const now = new Date();
+  return Math.floor((now - date) / (1000 * 60 * 60));
+};
+
+// Find aging/at-risk cases (pending for too long)
+const findAgingCases = (items = [], statusField = "status", maxDaysSLA = 5) => {
+  const statusKey = statusField === "status" ? "status" : "request_status";
+  return items.filter((item) => {
+    const status = normalizeStatus(item[statusKey] || "pending");
+    const daysElapsed = calculateDaysElapsed(item.created_at);
+    return status === "pending" && daysElapsed >= maxDaysSLA;
+  });
+};
+
+// Find high-priority items pending
+const findHighPriorityPending = (items = []) => {
+  return items.filter((item) => {
+    const status = normalizeStatus(item.status || item.request_status);
+    const priority = String(item.priority_level || "").toLowerCase();
+    return (
+      status === "pending" && (priority === "high" || priority === "urgent")
+    );
+  });
+};
+
+// Calculate average resolution time in days
+const calculateAvgResolutionDays = (items = []) => {
+  const completed = items.filter((item) => {
+    const status = normalizeStatus(item.status || item.request_status);
+    return FINISHED_STATUSES.has(status);
+  });
+
+  if (completed.length === 0) return 0;
+
+  const totalDays = completed.reduce((sum, item) => {
+    return sum + calculateDaysElapsed(item.created_at);
+  }, 0);
+
+  return Math.round(totalDays / completed.length);
+};
+
+// Calculate first response time (for complaints with assigned_official_id)
+const calculateAvgFirstResponseTime = (items = []) => {
+  const assigned = items.filter((item) => item.assigned_official_id);
+  if (assigned.length === 0) return 0;
+
+  const totalHours = assigned.reduce((sum, item) => {
+    return sum + calculateHoursElapsed(item.created_at);
+  }, 0);
+
+  const avgHours = Math.round(totalHours / assigned.length);
+  return avgHours < 24 ? `${avgHours}h` : `${Math.round(avgHours / 24)}d`;
+};
+
+// Find bottleneck types (certificate or complaint types with highest pending)
+const findBottleneckTypes = (
+  items = [],
+  typeField = "certificate_type",
+  limit = 3,
+) => {
+  const typeMap = {};
+  items.forEach((item) => {
+    const status = normalizeStatus(item.status || item.request_status);
+    if (status === "pending") {
+      const type = item[typeField] || "Unspecified";
+      typeMap[type] = (typeMap[type] || 0) + 1;
+    }
+  });
+
+  return Object.entries(typeMap)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([type, count]) => ({ type, pendingCount: count }));
+};
+
+// Get busiest day of week from created dates
+const findBusiestDay = (items = []) => {
+  const dayMap = {
+    0: { name: "Sunday", count: 0 },
+    1: { name: "Monday", count: 0 },
+    2: { name: "Tuesday", count: 0 },
+    3: { name: "Wednesday", count: 0 },
+    4: { name: "Thursday", count: 0 },
+    5: { name: "Friday", count: 0 },
+    6: { name: "Saturday", count: 0 },
+  };
+
+  items.forEach((item) => {
+    const date = new Date(item.created_at);
+    if (!Number.isNaN(date.getTime())) {
+      const dayOfWeek = date.getDay();
+      dayMap[dayOfWeek].count += 1;
+    }
+  });
+
+  const sorted = Object.values(dayMap).sort((a, b) => b.count - a.count);
+  return sorted[0];
+};
+
+// Detect reporting delays for complaints (incident_date vs created_at)
+const findReportingDelayInsights = (complaints = []) => {
+  const delayedReports = complaints.filter((c) => {
+    const incidentDate = new Date(c.incident_date);
+    const createdDate = new Date(c.created_at);
+    if (
+      Number.isNaN(incidentDate.getTime()) ||
+      Number.isNaN(createdDate.getTime())
+    ) {
+      return false;
+    }
+    const delayDays = Math.floor(
+      (createdDate - incidentDate) / (1000 * 60 * 60 * 24),
+    );
+    return delayDays > 3; // Delay if reported more than 3 days after incident
+  });
+
+  if (delayedReports.length === 0) return null;
+
+  const avgDelay = Math.round(
+    delayedReports.reduce((sum, c) => {
+      const delayDays = Math.floor(
+        (new Date(c.created_at) - new Date(c.incident_date)) /
+          (1000 * 60 * 60 * 24),
+      );
+      return sum + delayDays;
+    }, 0) / delayedReports.length,
+  );
+
+  return { count: delayedReports.length, avgDelay };
+};
+
+// Analyze official workload unevenness
+const analyzeWorkloadDistribution = (
+  officials = [],
+  allRequests = [],
+  allComplaints = [],
+) => {
+  if (officials.length === 0) return null;
+
+  const workloads = officials.map((official) => {
+    const assignedRequests = allRequests.filter(
+      (r) => r.assigned_official_id === official.id,
+    ).length;
+    const assignedComplaints = allComplaints.filter(
+      (c) => c.assigned_official_id === official.id,
+    ).length;
+    return {
+      name: official.full_name || `${official.firstname} ${official.lastname}`,
+      totalCases: assignedRequests + assignedComplaints,
+    };
+  });
+
+  const cases = workloads.map((w) => w.totalCases);
+  const avgWorkload = Math.round(
+    cases.reduce((a, b) => a + b, 0) / cases.length,
+  );
+  const maxWorkload = Math.max(...cases);
+  const minWorkload = Math.min(...cases);
+
+  const unevenness = ((maxWorkload - minWorkload) / avgWorkload) * 100;
+
+  return {
+    average: avgWorkload,
+    max: maxWorkload,
+    min: minWorkload,
+    unevenness: Math.round(unevenness),
+    overloadedCount: workloads.filter((w) => w.totalCases > avgWorkload * 1.5)
+      .length,
+  };
+};
+
+// Check for critically aged high-priority items
+const findCriticalRiskItems = (requests = [], complaints = []) => {
+  const criticalRequests = requests.filter((r) => {
+    const daysElapsed = calculateDaysElapsed(r.created_at);
+    const status = normalizeStatus(r.status || r.request_status);
+    return status === "pending" && daysElapsed > 7; // More than week old
+  });
+
+  const criticalComplaints = complaints.filter((c) => {
+    const daysElapsed = calculateDaysElapsed(c.created_at);
+    const status = normalizeStatus(c.status || c.complaint_status);
+    const priority = String(c.priority_level || "").toLowerCase();
+    return status !== "resolved" && priority === "high" && daysElapsed > 5;
+  });
+
+  return {
+    totalCritical: criticalRequests.length + criticalComplaints.length,
+    agingRequests: criticalRequests.length,
+    highPriorityComplaints: criticalComplaints.length,
+  };
+};
+
 function TimeFilterDropdown({ timeFilter, setTimeFilter }) {
   return (
     <div style={{ minWidth: "180px" }}>
@@ -540,6 +758,146 @@ function LineChart({ data = [], labels = [] }) {
   );
 }
 
+function CombinedLineChart({
+  labels = [],
+  requestsData = [],
+  complaintsData = [],
+}) {
+  const max = Math.max(...requestsData, ...complaintsData, 1);
+  const min = 0;
+  const w = 360;
+  const h = 170;
+  const padding = 20;
+  const pointSpacing = (w - padding * 2) / (labels.length - 1 || 1);
+  const ref = useRef();
+  const [tip, setTip] = useState({
+    visible: false,
+    x: 0,
+    y: 0,
+    idx: -1,
+  });
+
+  const range = max - min || 1;
+
+  const buildPoints = (series) =>
+    series.map((v, i) => ({
+      x: padding + i * pointSpacing,
+      y: h - padding - ((v - min) / range) * (h - padding * 2),
+      value: v,
+      label: labels[i] || "",
+      index: i,
+    }));
+
+  const requestPoints = buildPoints(requestsData);
+  const complaintPoints = buildPoints(complaintsData);
+
+  const toPath = (points) =>
+    points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+
+  const onPointEnter = (e, idx) => {
+    const box = ref.current.getBoundingClientRect();
+    const x = e.clientX - box.left;
+    const y = e.clientY - box.top - 10;
+    setTip({ visible: true, x, y, idx });
+  };
+
+  const onPointLeave = () => setTip({ visible: false, x: 0, y: 0, idx: -1 });
+
+  const tipLabel = labels[tip.idx] || "";
+  const tipReq = requestsData[tip.idx] ?? 0;
+  const tipComp = complaintsData[tip.idx] ?? 0;
+
+  return (
+    <div className="chart-wrapper" ref={ref}>
+      <svg viewBox={`0 0 ${w} ${h}`} width="100%" height="100%">
+        {[0, 1, 2, 3, 4].map((i) => {
+          const y = padding + (h - padding * 2) * (i / 4);
+          return (
+            <line
+              key={i}
+              x1={padding}
+              x2={w - padding}
+              y1={y}
+              y2={y}
+              stroke="#eef2f7"
+            />
+          );
+        })}
+
+        <path
+          d={toPath(requestPoints)}
+          stroke="#2563eb"
+          strokeWidth="2.5"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d={toPath(complaintPoints)}
+          stroke="#dc2626"
+          strokeWidth="2.5"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+
+        {requestPoints.map((p, i) => (
+          <circle
+            key={`r-${i}`}
+            cx={p.x}
+            cy={p.y}
+            r="4"
+            fill="#2563eb"
+            style={{ cursor: "pointer" }}
+            onMouseEnter={(e) => onPointEnter(e, i)}
+            onMouseMove={(e) => onPointEnter(e, i)}
+            onMouseLeave={onPointLeave}
+          />
+        ))}
+
+        {complaintPoints.map((p, i) => (
+          <circle
+            key={`c-${i}`}
+            cx={p.x}
+            cy={p.y}
+            r="4"
+            fill="#dc2626"
+            style={{ cursor: "pointer" }}
+            onMouseEnter={(e) => onPointEnter(e, i)}
+            onMouseMove={(e) => onPointEnter(e, i)}
+            onMouseLeave={onPointLeave}
+          />
+        ))}
+
+        {requestPoints.map((p, i) => (
+          <text
+            key={`label-${i}`}
+            x={p.x}
+            y={h - 6}
+            fontSize="9"
+            textAnchor="middle"
+            fill="#4b5563"
+          >
+            {p.label}
+          </text>
+        ))}
+      </svg>
+
+      {tip.visible && (
+        <div className="chart-tooltip" style={{ left: tip.x, top: tip.y }}>
+          <div className="tt-label">{tipLabel}</div>
+          <div className="tt-value" style={{ color: "#2563eb" }}>
+            Requests: {tipReq}
+          </div>
+          <div className="tt-value" style={{ color: "#dc2626" }}>
+            Complaints: {tipComp}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Minimal DonutChart SVG
 function DonutChart({
   segments = [],
@@ -560,22 +918,35 @@ function DonutChart({
     value: 0,
   });
 
-  const arcs = segments.map((seg, idx) => {
-    const frac = seg.value / total;
-    const start = angle;
-    const end = angle + frac * 360;
-    angle = end;
+  const nonZeroSegments = segments
+    .map((seg, idx) => ({ ...seg, idx }))
+    .filter((seg) => Number(seg.value) > 0);
+
+  const buildArcPath = (start, end) => {
     const large = end - start > 180 ? 1 : 0;
     const sx = cx + r * Math.cos((Math.PI / 180) * start);
     const sy = cy + r * Math.sin((Math.PI / 180) * start);
     const ex = cx + r * Math.cos((Math.PI / 180) * end);
     const ey = cy + r * Math.sin((Math.PI / 180) * end);
-    const d = `M ${sx} ${sy} A ${r} ${r} 0 ${large} 1 ${ex} ${ey}`;
+    return `M ${sx} ${sy} A ${r} ${r} 0 ${large} 1 ${ex} ${ey}`;
+  };
+
+  const arcs = nonZeroSegments.map((seg) => {
+    const frac = seg.value / total;
+    const start = angle;
+    const end = angle + frac * 360;
+    angle = end;
+
+    const d =
+      frac >= 0.999999
+        ? `M ${cx} ${cy - r} A ${r} ${r} 0 1 1 ${cx} ${cy + r} A ${r} ${r} 0 1 1 ${cx} ${cy - r}`
+        : buildArcPath(start, end);
+
     return {
       d,
       color: seg.color || "#ccc",
       value: seg.value,
-      label: labels[idx] || "",
+      label: labels[seg.idx] || "",
     };
   });
 
@@ -939,352 +1310,7 @@ function DashboardView({
   );
 }
 
-function ComplaintsView({
-  complaints = [],
-  allComplaints = [],
-  timeFilter = "month",
-  setTimeFilter = () => {},
-}) {
-  const [showInsights, setShowInsights] = useState(false);
-
-  const locationStats = analyzeComplaintsByLocation(complaints);
-  const typeStats = analyzeComplaintsByType(complaints);
-
-  const complaintInsights = (() => {
-    const windows = getComparisonWindows(timeFilter);
-
-    const currentTotal = countItemsInRange(
-      allComplaints,
-      windows.currentStart,
-      windows.currentEnd,
-    );
-    const previousTotal = countItemsInRange(
-      allComplaints,
-      windows.previousStart,
-      windows.previousEnd,
-    );
-
-    const currentResolved = allComplaints.filter((c) => {
-      const date = new Date(c.created_at);
-      if (Number.isNaN(date.getTime())) return false;
-      const resolved = c.status === "resolved" || c.status === "completed";
-      return (
-        resolved && date >= windows.currentStart && date <= windows.currentEnd
-      );
-    }).length;
-
-    const previousResolved = allComplaints.filter((c) => {
-      const date = new Date(c.created_at);
-      if (Number.isNaN(date.getTime())) return false;
-      const resolved = c.status === "resolved" || c.status === "completed";
-      return (
-        resolved && date >= windows.previousStart && date <= windows.previousEnd
-      );
-    }).length;
-
-    const currentPending = allComplaints.filter((c) => {
-      const date = new Date(c.created_at);
-      if (Number.isNaN(date.getTime())) return false;
-      return (
-        c.status === "pending" &&
-        date >= windows.currentStart &&
-        date <= windows.currentEnd
-      );
-    }).length;
-
-    return [
-      formatDeltaText(
-        currentTotal,
-        previousTotal,
-        "complaints",
-        windows.previousLabel,
-      ),
-      formatDeltaText(
-        currentResolved,
-        previousResolved,
-        "resolved complaints",
-        windows.previousLabel,
-      ),
-      currentPending > 0
-        ? `${currentPending} complaint${currentPending > 1 ? "s" : ""} are still pending in this period.`
-        : "No pending complaints in this period.",
-    ];
-  })();
-
-  // Aggregate complaints by date for line chart
-  const complaintsByDate = complaints.reduce((acc, complaint) => {
-    const dateStr = new Date(complaint.created_at).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-    });
-    const existing = acc.find((item) => item.date === dateStr);
-    if (existing) {
-      existing.count += 1;
-    } else {
-      acc.push({ date: dateStr, count: 1 });
-    }
-    return acc;
-  }, []);
-
-  // Sort by date and get last 12 dates
-  const sortedByDate = complaintsByDate
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(-12);
-
-  const pendingCount = complaints.filter((c) => c.status === "pending").length;
-  const activeCount = complaints.filter(
-    (c) => c.status === "in_progress" || c.status === "investigating",
-  ).length;
-  const resolvedCount = complaints.filter(
-    (c) => c.status === "resolved" || c.status === "completed",
-  ).length;
-
-  return (
-    <div className="admin-page">
-      <div
-        className="analytics-header"
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: "1rem",
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
-          <h3>Complaints Analytics</h3>
-          <p className="muted">
-            Monitor and analyze community complaints (
-            {PERIOD_LABEL_MAP[timeFilter]})
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end" }}>
-          <button
-            onClick={() => setShowInsights((prev) => !prev)}
-            style={{
-              border: "1px solid #d1d5db",
-              backgroundColor: showInsights ? "#eff6ff" : "#ffffff",
-              color: "#1f2937",
-              borderRadius: "0.5rem",
-              padding: "0.5rem 0.75rem",
-              fontSize: "0.875rem",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            {showInsights ? "Hide Insights" : "View Insights"}
-          </button>
-          <TimeFilterDropdown
-            timeFilter={timeFilter}
-            setTimeFilter={setTimeFilter}
-          />
-        </div>
-      </div>
-
-      {showInsights && (
-        <div
-          className="chart-card"
-          style={{
-            marginBottom: "1rem",
-            background: "#f8fafc",
-            border: "1px solid #dbeafe",
-          }}
-        >
-          <div className="chart-header" style={{ color: "#1d4ed8" }}>
-            Insights ({PERIOD_LABEL_MAP[timeFilter]})
-          </div>
-          <div className="chart-body">
-            <div
-              style={{
-                display: "grid",
-                gap: "0.5rem",
-                color: "#334155",
-                fontSize: "0.92rem",
-              }}
-            >
-              {complaintInsights.map((line, idx) => (
-                <div key={idx}>• {line}</div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Summary Stats */}
-      <div className="stat-row">
-        <div className="stat-box yellow">
-          <span className="stat-icon">
-            <Clock size={18} />
-          </span>
-          <div className="stat-label">Pending</div>
-          <div className="stat-num">{pendingCount}</div>
-        </div>
-        <div className="stat-box blue">
-          <span className="stat-icon">
-            <AlertCircle size={18} />
-          </span>
-          <div className="stat-label">Active</div>
-          <div className="stat-num">{activeCount}</div>
-        </div>
-        <div className="stat-box green">
-          <span className="stat-icon">
-            <CheckCircle size={18} />
-          </span>
-          <div className="stat-label">Resolved</div>
-          <div className="stat-num">{resolvedCount}</div>
-        </div>
-        <div className="stat-box">
-          <span className="stat-icon">
-            <MessageSquare size={18} />
-          </span>
-          <div className="stat-label">Total</div>
-          <div className="stat-num">{complaints.length}</div>
-        </div>
-      </div>
-
-      {/* Analytics Charts */}
-      <div className="charts-grid">
-        <div className="chart-card big">
-          <div className="chart-header">
-            <BarChart3 size={18} />
-            Complaints Over Time
-          </div>
-          <div className="chart-body">
-            {sortedByDate.length > 0 ? (
-              <LineChart
-                data={sortedByDate.map((d) => d.count)}
-                labels={sortedByDate.map((d) => d.date)}
-              />
-            ) : (
-              <div
-                style={{ padding: "2rem", textAlign: "center", color: "#999" }}
-              >
-                No complaint data available
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="chart-card big">
-          <div className="chart-header">
-            <BarChart3 size={18} />
-            Complaints by Type Distribution
-          </div>
-          <div className="chart-body donut">
-            {typeStats.length > 0 ? (
-              <DonutChart
-                segments={typeStats.slice(0, 4).map((t, idx) => ({
-                  value: t.count,
-                  color: ["#f59e0b", "#0ea5e9", "#10b981", "#ef4444"][idx],
-                }))}
-                labels={typeStats.slice(0, 4).map((t) => t.type)}
-              />
-            ) : (
-              <div
-                style={{ padding: "2rem", textAlign: "center", color: "#999" }}
-              >
-                No data
-              </div>
-            )}
-          </div>
-          {typeStats.length > 0 && (
-            <div className="status-legend">
-              {typeStats.slice(0, 4).map((t, idx) => (
-                <div key={idx} className="legend-item">
-                  <span
-                    className="legend-color"
-                    style={{
-                      background: ["#f59e0b", "#0ea5e9", "#10b981", "#ef4444"][
-                        idx
-                      ],
-                    }}
-                  ></span>
-                  <span className="legend-label">
-                    {t.type} ({t.count})
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Complaints Feed */}
-      <div className="live-feed">
-        <div
-          className="live-header"
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: "1rem",
-          }}
-        >
-          <div>
-            All Complaints <span className="badge">REAL-TIME</span>
-          </div>
-          <Link
-            to="/BarangayAdmin/complaints"
-            style={{
-              fontSize: "0.85rem",
-              fontWeight: 600,
-              color: "#2563eb",
-              textDecoration: "none",
-            }}
-          >
-            View More
-          </Link>
-        </div>
-        <div className="feed-list">
-          {complaints.length > 0 ? (
-            complaints.slice(0, 10).map((c) => (
-              <div className="feed-item" key={c.id}>
-                <div className="feed-icon">🚨</div>
-                <div className="feed-body">
-                  <div className="feed-title">
-                    {c.complaint_type || "Complaint"}
-                  </div>
-                  <div className="feed-sub muted">
-                    {c.incident_location || "Unknown Location"} •{" "}
-                    {new Date(c.created_at).toLocaleDateString()}
-                  </div>
-                  <div
-                    className="feed-sub"
-                    style={{
-                      marginTop: "0.25rem",
-                      fontSize: "0.85rem",
-                      color: "#666",
-                    }}
-                  >
-                    {c.complainant_name || "Unknown"}
-                  </div>
-                </div>
-                <div
-                  className={`feed-status ${(c.status || "pending")
-                    .toLowerCase()
-                    .replace(/[_ ]/g, "-")}`}
-                >
-                  {c.status || "Pending"}
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="feed-item">
-              <div className="feed-body">
-                <div className="feed-title">No complaints yet</div>
-                <div className="feed-sub muted">
-                  Complaints will appear here
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function RequestsView({
+function CasesOverviewView({
   requests = [],
   complaints = [],
   allRequests = [],
@@ -1303,100 +1329,211 @@ function RequestsView({
   const navigate = useNavigate();
   const [showInsights, setShowInsights] = useState(false);
 
-  const requestInsights = (() => {
-    const windows = getComparisonWindows(timeFilter);
+  const getRequestStatus = (item) =>
+    normalizeStatus(item.status || item.request_status);
+  const getComplaintStatus = (item) =>
+    normalizeStatus(item.status || item.complaint_status);
 
-    const currentTotal = countItemsInRange(
-      allRequests,
-      windows.currentStart,
-      windows.currentEnd,
+  const finishedRequests = requests.filter((r) =>
+    isFinishedStatus(getRequestStatus(r)),
+  ).length;
+  const finishedComplaints = complaints.filter((c) =>
+    isFinishedStatus(getComplaintStatus(c)),
+  ).length;
+
+  const unfinishedRequests = requests.length - finishedRequests;
+  const unfinishedComplaints = complaints.length - finishedComplaints;
+
+  const totalCases = requests.length + complaints.length;
+  const totalFinished = finishedRequests + finishedComplaints;
+  const completionRate =
+    totalCases > 0 ? ((totalFinished / totalCases) * 100).toFixed(0) : 0;
+
+  const insights = (() => {
+    // Get items within period
+    const requestsInPeriod = allRequests.filter((r) =>
+      isWithinPeriod(r.created_at, timeFilter),
     );
-    const previousTotal = countItemsInRange(
-      allRequests,
-      windows.previousStart,
-      windows.previousEnd,
+    const complaintsInPeriod = allComplaints.filter((c) =>
+      isWithinPeriod(c.created_at, timeFilter),
     );
 
-    const currentCompleted = allRequests.filter((r) => {
-      const date = new Date(r.created_at);
-      if (Number.isNaN(date.getTime())) return false;
-      const completed =
-        r.status === "completed" || r.request_status === "completed";
-      return (
-        completed && date >= windows.currentStart && date <= windows.currentEnd
-      );
-    }).length;
+    const insightsList = [];
 
-    const previousCompleted = allRequests.filter((r) => {
-      const date = new Date(r.created_at);
-      if (Number.isNaN(date.getTime())) return false;
-      const completed =
-        r.status === "completed" || r.request_status === "completed";
-      return (
-        completed &&
-        date >= windows.previousStart &&
-        date <= windows.previousEnd
+    // 1. CRITICAL RISK ALERT
+    const criticalRisk = findCriticalRiskItems(
+      requestsInPeriod,
+      complaintsInPeriod,
+    );
+    if (criticalRisk.totalCritical > 0) {
+      insightsList.push(
+        `CRITICAL ALERT: ${criticalRisk.totalCritical} item${criticalRisk.totalCritical > 1 ? "s" : ""} critically aged. ${criticalRisk.agingRequests} request${criticalRisk.agingRequests > 1 ? "s" : ""} pending 7+ days, ${criticalRisk.highPriorityComplaints} high-priority complaint${criticalRisk.highPriorityComplaints > 1 ? "s" : ""} unresolved 5+ days. Immediate intervention required.`,
       );
-    }).length;
+    }
 
-    const currentPending = allRequests.filter((r) => {
-      const date = new Date(r.created_at);
-      if (Number.isNaN(date.getTime())) return false;
-      const pending = r.status === "pending" || r.request_status === "pending";
-      return (
-        pending && date >= windows.currentStart && date <= windows.currentEnd
+    // 2. AGING CASES
+    const agingRequests = findAgingCases(requestsInPeriod, "request_status", 5);
+    const agingComplaints = findAgingCases(complaintsInPeriod, "status", 7);
+    if (agingRequests.length > 0 || agingComplaints.length > 0) {
+      insightsList.push(
+        `Backlog Alert: ${agingRequests.length} request${agingRequests.length > 1 ? "s" : ""} pending 5+ days, ${agingComplaints.length} complaint${agingComplaints.length > 1 ? "s" : ""} pending 7+ days. Recommend prioritization.`,
       );
-    }).length;
+    }
 
-    return [
-      formatDeltaText(
-        currentTotal,
-        previousTotal,
-        "requests",
-        windows.previousLabel,
-      ),
-      formatDeltaText(
-        currentCompleted,
-        previousCompleted,
-        "completed requests",
-        windows.previousLabel,
-      ),
-      currentPending > 0
-        ? `${currentPending} request${currentPending > 1 ? "s" : ""} are still pending in this period.`
-        : "No pending requests in this period.",
-    ];
+    // 3. HIGH-PRIORITY ITEMS
+    const highPriorityRequests = findHighPriorityPending(requestsInPeriod);
+    const highPriorityComplaints = findHighPriorityPending(complaintsInPeriod);
+    if (highPriorityRequests.length > 0 || highPriorityComplaints.length > 0) {
+      insightsList.push(
+        `${highPriorityRequests.length + highPriorityComplaints.length} high-priority item${highPriorityRequests.length + highPriorityComplaints.length > 1 ? "s" : ""} require immediate attention. Review and reassign as necessary.`,
+      );
+    }
+
+    // 4. BOTTLENECK ANALYSIS (Request Types)
+    const requestBottlenecks = findBottleneckTypes(
+      requestsInPeriod,
+      "certificate_type",
+      2,
+    );
+    if (requestBottlenecks.length > 0) {
+      const bottleneckStr = requestBottlenecks
+        .map((b) => `${b.type} (${b.pendingCount})`)
+        .join(", ");
+      insightsList.push(
+        `Request Bottleneck Identified: ${bottleneckStr} have the highest pending volume. Consider process optimization.`,
+      );
+    }
+
+    // 5. COMPLAINT BOTTLENECK
+    const complaintBottlenecks = findBottleneckTypes(
+      complaintsInPeriod,
+      "complaint_type",
+      1,
+    );
+    if (complaintBottlenecks.length > 0) {
+      insightsList.push(
+        `Complaint Category Concentration: ${complaintBottlenecks[0].type} accounts for ${complaintBottlenecks[0].pendingCount} pending cases. Recommend focused resolution strategy.`,
+      );
+    }
+
+    // 6. RESOLUTION PERFORMANCE
+    const avgResolutionDays = calculateAvgResolutionDays(requestsInPeriod);
+    if (avgResolutionDays > 0) {
+      const trend =
+        avgResolutionDays > 7
+          ? "increasing (slowing trend detected)"
+          : "within acceptable range";
+      insightsList.push(
+        `Case Resolution Performance: Average ${avgResolutionDays} days to completion, currently ${trend}.`,
+      );
+    }
+
+    // 7. FIRST RESPONSE TIME
+    const avgFirstResponse = calculateAvgFirstResponseTime(complaintsInPeriod);
+    if (avgFirstResponse) {
+      insightsList.push(
+        `Response Efficiency: Average assignment/initial response time is ${avgFirstResponse} from complaint submission.`,
+      );
+    }
+
+    // 8. BUSIEST DAY PATTERN
+    const busiestDay = findBusiestDay([
+      ...requestsInPeriod,
+      ...complaintsInPeriod,
+    ]);
+    if (busiestDay && busiestDay.count > 0) {
+      insightsList.push(
+        `Submission Pattern: ${busiestDay.name} records the highest volume with ${busiestDay.count} submissions. Monitor staffing on peak days.`,
+      );
+    }
+
+    // 9. REPORTING DELAY (Complaints)
+    const delayInsights = findReportingDelayInsights(complaintsInPeriod);
+    if (delayInsights) {
+      insightsList.push(
+        `Reporting Lag Analysis: ${delayInsights.count} complaint${delayInsights.count > 1 ? "s" : ""} reported 3+ days after incident occurrence (average delay: ${delayInsights.avgDelay} days). Consider community awareness initiatives.`,
+      );
+    }
+
+    // 10. COMPLETION RATE TREND
+    const totalCases = requestsInPeriod.length + complaintsInPeriod.length;
+    const completedRequests = requestsInPeriod.filter((r) =>
+      FINISHED_STATUSES.has(normalizeStatus(r.status || r.request_status)),
+    ).length;
+    const completedComplaints = complaintsInPeriod.filter((c) =>
+      FINISHED_STATUSES.has(normalizeStatus(c.status || c.complaint_status)),
+    ).length;
+    const completionRate =
+      totalCases > 0
+        ? Math.round(
+            ((completedRequests + completedComplaints) / totalCases) * 100,
+          )
+        : 0;
+
+    if (completionRate < 50) {
+      insightsList.push(
+        `Case Completion Rate: ${completionRate}% - Below target. Recommend acceleration measures and resource review.`,
+      );
+    } else if (completionRate > 75) {
+      insightsList.push(
+        `Case Completion Rate: ${completionRate}% - Exceeding targets. Current operational efficiency is strong.`,
+      );
+    }
+
+    // Default message if no insights
+    if (insightsList.length === 0) {
+      insightsList.push(
+        "System Status: All operations within normal parameters. No critical issues detected.",
+      );
+    }
+
+    return insightsList;
   })();
 
-  // Calculate request status counts
-  const pendingCount = requests.filter(
-    (r) => r.status === "pending" || r.request_status === "pending",
-  ).length;
-  const inProgressCount = requests.filter(
-    (r) => r.status === "in_progress" || r.request_status === "in_progress",
-  ).length;
-  const completedCount = requests.filter(
-    (r) => r.status === "completed" || r.request_status === "completed",
-  ).length;
-  const rejectedCount = requests.filter(
-    (r) => r.status === "rejected" || r.request_status === "rejected",
-  ).length;
-  const totalRequests = requests.length;
-
-  // Calculate performance metrics
-  const avgResponseTime = calculateAverageResponseTime(requests);
-  const avgResolutionTime = calculateAverageResolutionTime(requests);
-
-  // Get request types breakdown
   const requestTypes = analyzeRequestsByType(requests).slice(0, 5);
+  const complaintTypes = analyzeComplaintsByType(complaints).slice(0, 5);
 
-  // Combined feed: requests and complaints
+  const trendMap = {};
+  const addToTrend = (items, kind) => {
+    items.forEach((item) => {
+      if (!item.created_at) return;
+      const dt = new Date(item.created_at);
+      if (Number.isNaN(dt.getTime())) return;
+
+      const key = `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`;
+      if (!trendMap[key]) {
+        trendMap[key] = {
+          ts: new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime(),
+          label: dt.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          }),
+          requests: 0,
+          complaints: 0,
+        };
+      }
+      trendMap[key][kind] += 1;
+    });
+  };
+
+  addToTrend(requests, "requests");
+  addToTrend(complaints, "complaints");
+
+  const trendRows = Object.values(trendMap)
+    .sort((a, b) => a.ts - b.ts)
+    .slice(-12);
+
+  const trendLabels = trendRows.map((row) => row.label);
+  const requestTrendData = trendRows.map((row) => row.requests);
+  const complaintTrendData = trendRows.map((row) => row.complaints);
+
   const combinedFeed = [
     ...requests.map((item) => ({
       ...item,
       type: "request",
       title: item.subject || "Request",
       subtype: item.certificate_type || "Service Request",
-      status: item.status || item.request_status || "pending",
+      status: normalizeStatus(item.status || item.request_status || "pending"),
       date: item.created_at,
     })),
     ...complaints.map((item) => ({
@@ -1404,22 +1541,19 @@ function RequestsView({
       type: "complaint",
       title: item.subject || "Complaint",
       subtype: item.complaint_type || "General Complaint",
-      status: item.status || item.complaint_status || "pending",
+      status: normalizeStatus(
+        item.status || item.complaint_status || "pending",
+      ),
       date: item.created_at,
     })),
-  ].sort((a, b) => {
-    const da = new Date(a.date).getTime() || 0;
-    const db = new Date(b.date).getTime() || 0;
-    return db - da;
-  });
+  ];
 
   const filteredFeed = combinedFeed
     .filter((item) => {
       const search = feedSearch.trim().toLowerCase();
-      if (feedFilterType !== "all" && item.type !== feedFilterType) {
+      if (feedFilterType !== "all" && item.type !== feedFilterType)
         return false;
-      }
-      if (feedFilterStatus !== "all" && item.status.toLowerCase() !== feedFilterStatus.toLowerCase()) {
+      if (feedFilterStatus !== "all" && item.status !== feedFilterStatus) {
         return false;
       }
       if (!search) return true;
@@ -1429,59 +1563,55 @@ function RequestsView({
         .includes(search);
     })
     .sort((a, b) => {
-      if (feedSortBy === "oldest") {
-        return new Date(a.date).getTime() - new Date(b.date).getTime();
-      }
-      return new Date(b.date).getTime() - new Date(a.date).getTime();
+      const aDate = new Date(a.date).getTime() || 0;
+      const bDate = new Date(b.date).getTime() || 0;
+      return feedSortBy === "oldest" ? aDate - bDate : bDate - aDate;
     });
 
-  const liveFeedItems = filteredFeed.slice(0, 5);
+  const liveFeedItems = filteredFeed.slice(0, 8);
 
-  // Build monthly trend chart from currently filtered requests
-  const monthlyTrendsMap = requests.reduce((acc, request) => {
-    if (!request.created_at) return acc;
+  const statusOptions = [
+    "pending",
+    "in_progress",
+    "completed",
+    "rejected",
+    "for_compliance",
+    "non_compliant",
+    "for_validation",
+    "resident_complied",
+  ];
 
-    const createdAt = new Date(request.created_at);
-    if (Number.isNaN(createdAt.getTime())) return acc;
+  const STATUS_COLORS = {
+    pending: "#f59e0b",
+    in_progress: "#0ea5e9",
+    completed: "#10b981",
+    rejected: "#ef4444",
+    for_compliance: "#8b5cf6",
+    non_compliant: "#ec4899",
+    for_validation: "#06b6d4",
+    resident_complied: "#14b8a6",
+  };
 
-    const key = `${createdAt.getFullYear()}-${createdAt.getMonth()}`;
-    const label = createdAt.toLocaleDateString("en-US", {
-      month: "short",
-      year: "2-digit",
-    });
+  const displayStatus = (status) =>
+    String(status)
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (match) => match.toUpperCase());
 
-    if (!acc[key]) {
-      acc[key] = { label, count: 0, ts: createdAt.getTime() };
-    }
-    acc[key].count += 1;
-    return acc;
-  }, {});
+  const statusSegments = statusOptions.map((status) => {
+    const requestCount = requests.filter(
+      (r) => normalizeStatus(r.status || r.request_status) === status,
+    ).length;
+    const complaintCount = complaints.filter(
+      (c) => normalizeStatus(c.status || c.complaint_status) === status,
+    ).length;
 
-  const monthlyTrends = Object.values(monthlyTrendsMap)
-    .sort((a, b) => a.ts - b.ts)
-    .slice(-6);
-
-  const trendLabels = monthlyTrends.map((t) => t.label);
-  const trendData = monthlyTrends.map((t) => t.count);
-
-  // Aggregate requests by date for line chart
-  const requestsByDate = requests.reduce((acc, request) => {
-    const dateStr = new Date(request.created_at).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-    });
-    const existing = acc.find((item) => item.date === dateStr);
-    if (existing) {
-      existing.count += 1;
-    } else {
-      acc.push({ date: dateStr, count: 1 });
-    }
-    return acc;
-  }, []);
-
-  const sortedByDate = requestsByDate
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(-12);
+    return {
+      key: status,
+      value: requestCount + complaintCount,
+      color: STATUS_COLORS[status],
+      label: displayStatus(status),
+    };
+  });
 
   return (
     <div className="admin-page">
@@ -1497,10 +1627,10 @@ function RequestsView({
           }}
         >
           <div>
-            <h3>Requests Analytics</h3>
+            <h3>Requests and Complaints Dashboard</h3>
             <p className="muted">
-              Monitor and analyze service requests (
-              {PERIOD_LABEL_MAP[timeFilter]})
+              Unified operational view for service requests and community
+              complaints ({PERIOD_LABEL_MAP[timeFilter]})
             </p>
           </div>
           <div
@@ -1549,7 +1679,7 @@ function RequestsView({
                   fontSize: "0.92rem",
                 }}
               >
-                {requestInsights.map((line, idx) => (
+                {insights.map((line, idx) => (
                   <div key={idx}>• {line}</div>
                 ))}
               </div>
@@ -1557,172 +1687,52 @@ function RequestsView({
           </div>
         )}
 
-        {/* Summary Stats */}
         <div className="stat-row" style={{ marginBottom: "2rem" }}>
           <div className="stat-box yellow">
             <span className="stat-icon">
-              <FileText size={18} />
-            </span>
-            <div className="stat-label">Total Requests</div>
-            <div className="stat-num">{totalRequests}</div>
-            <div className="stat-sub">
-              {completedCount} completed • {pendingCount} pending
-            </div>
-          </div>
-
-          <div className="stat-box blue">
-            <span className="stat-icon">
               <Clock size={18} />
             </span>
-            <div className="stat-label">Pending</div>
-            <div className="stat-num">{pendingCount}</div>
-            <div className="stat-sub">Awaiting processing</div>
+            <div className="stat-label">Unfinished Requests</div>
+            <div className="stat-num">{unfinishedRequests}</div>
           </div>
 
-          <div className="stat-box orange">
-            <span className="stat-icon">
-              <AlertCircle size={18} />
-            </span>
-            <div className="stat-label">In Progress</div>
-            <div className="stat-num">{inProgressCount}</div>
-            <div className="stat-sub">Currently being processed</div>
-          </div>
-
-          <div className="stat-box green">
-            <span className="stat-icon">
-              <CheckCircle size={18} />
-            </span>
-            <div className="stat-label">Completed</div>
-            <div className="stat-num">{completedCount}</div>
-            <div className="stat-sub">Successfully fulfilled</div>
-          </div>
-        </div>
-
-        {/* Performance Metrics */}
-        <div className="stat-row">
-          <div className="stat-box yellow">
-            <span className="stat-icon">
-              <Clock size={18} />
-            </span>
-            <div className="stat-label">Avg Response</div>
-            <div className="stat-num">{avgResponseTime}h</div>
-          </div>
-          <div className="stat-box blue">
-            <span className="stat-icon">
-              <TrendingUp size={18} />
-            </span>
-            <div className="stat-label">Avg Resolution</div>
-            <div className="stat-num">{avgResolutionTime}d</div>
-          </div>
-          <div className="stat-box green">
-            <span className="stat-icon">
-              <CheckCircle size={18} />
-            </span>
-            <div className="stat-label">Completion Rate</div>
-            <div className="stat-num">
-              {totalRequests > 0
-                ? ((completedCount / totalRequests) * 100).toFixed(0)
-                : 0}
-              %
-            </div>
-          </div>
           <div className="stat-box red">
             <span className="stat-icon">
               <AlertCircle size={18} />
             </span>
-            <div className="stat-label">Rejected</div>
-            <div className="stat-num">{rejectedCount}</div>
+            <div className="stat-label">Unfinished Complaints</div>
+            <div className="stat-num">{unfinishedComplaints}</div>
+          </div>
+
+          <div className="stat-box blue">
+            <span className="stat-icon">
+              <CheckCircle size={18} />
+            </span>
+            <div className="stat-label">Completed Requests</div>
+            <div className="stat-num">{finishedRequests}</div>
+          </div>
+
+          <div className="stat-box green">
+            <span className="stat-icon">
+              <CheckCircle size={18} />
+            </span>
+            <div className="stat-label">Completed Complaints</div>
+            <div className="stat-num">{finishedComplaints}</div>
           </div>
         </div>
 
-        {/* Charts Grid */}
-        <div className="charts-grid">
-          <div className="chart-card big">
-            <div className="chart-header">
-              <FileText size={18} />
-              Request Submission Trends
-            </div>
-            <div className="chart-body">
-              {trendData.length > 0 ? (
-                <BarChart data={trendData} labels={trendLabels} />
-              ) : (
-                <div
-                  style={{
-                    padding: "2rem",
-                    textAlign: "center",
-                    color: "#999",
-                  }}
-                >
-                  No request trend data available
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="chart-card big">
-            <div className="chart-header">
-              <BarChart3 size={18} />
-              Request Status Distribution
-            </div>
-            <div className="chart-body donut">
-              <DonutChart
-                segments={[
-                  { value: pendingCount, color: "#f59e0b" },
-                  { value: inProgressCount, color: "#0ea5e9" },
-                  { value: completedCount, color: "#10b981" },
-                  { value: rejectedCount, color: "#ef4444" },
-                ]}
-              />
-            </div>
-            <div className="status-legend">
-              <div className="legend-item">
-                <span
-                  className="legend-color"
-                  style={{ background: "#f59e0b" }}
-                ></span>
-                <span className="legend-label">Pending ({pendingCount})</span>
-              </div>
-              <div className="legend-item">
-                <span
-                  className="legend-color"
-                  style={{ background: "#0ea5e9" }}
-                ></span>
-                <span className="legend-label">
-                  In Progress ({inProgressCount})
-                </span>
-              </div>
-              <div className="legend-item">
-                <span
-                  className="legend-color"
-                  style={{ background: "#10b981" }}
-                ></span>
-                <span className="legend-label">
-                  Completed ({completedCount})
-                </span>
-              </div>
-              <div className="legend-item">
-                <span
-                  className="legend-color"
-                  style={{ background: "#ef4444" }}
-                ></span>
-                <span className="legend-label">Rejected ({rejectedCount})</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Time Series and Request Types */}
         <div className="charts-grid">
           <div className="chart-card big">
             <div className="chart-header">
               <BarChart3 size={18} />
-              Requests Over Time (Last 12 Days)
+              Case Trend (Blue: Requests, Red: Complaints)
             </div>
             <div className="chart-body">
-              {sortedByDate.length > 0 ? (
-                <LineChart
-                  data={sortedByDate.map((d) => d.count)}
-                  labels={sortedByDate.map((d) => d.date)}
+              {trendRows.length > 0 ? (
+                <CombinedLineChart
+                  labels={trendLabels}
+                  requestsData={requestTrendData}
+                  complaintsData={complaintTrendData}
                 />
               ) : (
                 <div
@@ -1732,12 +1742,65 @@ function RequestsView({
                     color: "#999",
                   }}
                 >
-                  No request data available
+                  No case trend data available
                 </div>
               )}
             </div>
+            <div
+              className="status-legend"
+              style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}
+            >
+              <div className="legend-item">
+                <span
+                  className="legend-color"
+                  style={{ background: "#2563eb" }}
+                ></span>
+                <span className="legend-label">Requests</span>
+              </div>
+              <div className="legend-item">
+                <span
+                  className="legend-color"
+                  style={{ background: "#dc2626" }}
+                ></span>
+                <span className="legend-label">Complaints</span>
+              </div>
+            </div>
           </div>
 
+          <div className="chart-card big">
+            <div className="chart-header">
+              <TrendingUp size={18} />
+              Case Status Distribution
+            </div>
+            <div className="chart-body donut">
+              <DonutChart
+                segments={statusSegments.map((seg) => ({
+                  value: seg.value,
+                  color: seg.color,
+                }))}
+                labels={statusSegments.map((seg) => seg.label)}
+              />
+            </div>
+            <div
+              className="status-legend"
+              style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}
+            >
+              {statusSegments.map((seg) => (
+                <div className="legend-item" key={seg.key}>
+                  <span
+                    className="legend-color"
+                    style={{ background: seg.color }}
+                  ></span>
+                  <span className="legend-label">
+                    {seg.label} ({seg.value})
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="charts-grid">
           <div className="chart-card">
             <div className="chart-header">
               <FileText size={18} />
@@ -1767,9 +1830,38 @@ function RequestsView({
               )}
             </div>
           </div>
+
+          <div className="chart-card">
+            <div className="chart-header">
+              <MessageSquare size={18} />
+              Popular Complaint Types
+            </div>
+            <div className="chart-body">
+              {complaintTypes.length > 0 ? (
+                <div className="location-list">
+                  {complaintTypes.map((type, idx) => (
+                    <div key={idx} className="location-item">
+                      <div className="location-rank">#{idx + 1}</div>
+                      <div className="location-name">{type.type}</div>
+                      <div className="location-count">{type.count}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    padding: "2rem",
+                    textAlign: "center",
+                    color: "#999",
+                  }}
+                >
+                  No complaint data available
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Live Requests and Complaints */}
         <div className="live-feed">
           <div
             className="live-header"
@@ -1782,10 +1874,16 @@ function RequestsView({
             }}
           >
             <div>
-              Live Requests and Complaints <span className="badge">REAL-TIME</span>
+              Live Cases Feed <span className="badge">REAL-TIME</span>
             </div>
-            {/* Search, Filter, Sort Controls */}
-            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "0.5rem",
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
               <input
                 type="text"
                 placeholder="Search..."
@@ -1796,7 +1894,7 @@ function RequestsView({
                   border: "1px solid #d1d5db",
                   borderRadius: "0.375rem",
                   fontSize: "0.875rem",
-                  width: "150px",
+                  width: "170px",
                 }}
               />
               <select
@@ -1815,7 +1913,9 @@ function RequestsView({
               </select>
               <select
                 value={feedFilterStatus}
-                onChange={(e) => setFeedFilterStatus(e.target.value)}
+                onChange={(e) =>
+                  setFeedFilterStatus(normalizeStatus(e.target.value))
+                }
                 style={{
                   padding: "0.5rem",
                   border: "1px solid #d1d5db",
@@ -1824,10 +1924,11 @@ function RequestsView({
                 }}
               >
                 <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="rejected">Rejected</option>
+                {statusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {displayStatus(status)}
+                  </option>
+                ))}
               </select>
               <select
                 value={feedSortBy}
@@ -1844,6 +1945,7 @@ function RequestsView({
               </select>
             </div>
           </div>
+
           <div className="feed-list">
             {liveFeedItems.length > 0 ? (
               liveFeedItems.map((item) => (
@@ -1876,7 +1978,7 @@ function RequestsView({
                       .toLowerCase()
                       .replace(/[_ ]/g, "-")}`}
                   >
-                    {item.status}
+                    {displayStatus(item.status)}
                   </div>
                 </div>
               ))
@@ -1913,24 +2015,145 @@ function OfficialsView({
     timeFilter,
   );
 
-  const officialsInsights = [
-    formatDeltaText(
-      officialsInsightData.current.totalCases,
-      officialsInsightData.previous.totalCases,
-      "total assigned cases",
-      officialsInsightData.previousLabel,
-    ),
-    formatDeltaText(
-      officialsInsightData.current.activeOfficials,
-      officialsInsightData.previous.activeOfficials,
-      "active officials handling cases",
-      officialsInsightData.previousLabel,
-    ),
-    `Completion rate is ${officialsInsightData.current.completionRate}% this period (${officialsInsightData.previous.completionRate}% in ${officialsInsightData.previousLabel}).`,
-    officialsInsightData.current.busiestOfficial
-      ? `${officialsInsightData.current.busiestOfficial.name} has the highest workload with ${officialsInsightData.current.busiestOfficial.total} case${officialsInsightData.current.busiestOfficial.total > 1 ? "s" : ""}.`
-      : "No assigned official workload recorded for this period.",
-  ];
+  const officialsInsights = (() => {
+    const insightsList = [];
+    const officialsList = officials.filter((o) => o.stats?.totalCases > 0);
+
+    // 1. WORKLOAD BALANCE ANALYSIS
+    if (officialsList.length > 0) {
+      const caseloads = officialsList.map((o) => o.stats?.totalCases || 0);
+      const avgCaseload = Math.round(
+        caseloads.reduce((a, b) => a + b, 0) / officialsList.length,
+      );
+      const maxCaseload = Math.max(...caseloads);
+      const minCaseload = Math.min(...caseloads);
+      const overloaded = officialsList.filter(
+        (o) => (o.stats?.totalCases || 0) > avgCaseload * 1.5,
+      );
+
+      if (overloaded.length > 0) {
+        insightsList.push(
+          `Workload Imbalance Detected: ${overloaded.length} official${overloaded.length > 1 ? "s" : ""} carrying excess assignments (avg: ${avgCaseload}, max: ${maxCaseload}). Recommend case reassignment.`,
+        );
+      } else if (maxCaseload - minCaseload > avgCaseload * 0.5) {
+        insightsList.push(
+          `Workload Distribution: Case distribution variance detected (range: ${minCaseload} to ${maxCaseload}, avg: ${avgCaseload}). Monitor for optimization opportunities.`,
+        );
+      } else {
+        insightsList.push(
+          `Workload Distribution: Case assignments are well-balanced across ${officialsList.length} active officials (avg: ${avgCaseload} per official).`,
+        );
+      }
+    }
+
+    // 2. COMPLETION PERFORMANCE
+    const overallCompletionRate = officialsInsightData.current.completionRate;
+    if (overallCompletionRate < 40) {
+      insightsList.push(
+        `Completion Performance Alert: Only ${overallCompletionRate}% case completion rate. Investigate operational bottlenecks and provide necessary support.`,
+      );
+    } else if (overallCompletionRate > 80) {
+      insightsList.push(
+        `Completion Performance: ${overallCompletionRate}% completion rate demonstrates strong operational efficiency and target achievement.`,
+      );
+    } else {
+      insightsList.push(
+        `Completion Performance: ${overallCompletionRate}% on pace (${officialsInsightData.previous.completionRate}% in previous period).`,
+      );
+    }
+
+    // 3. BUSIEST OFFICIAL
+    if (officialsInsightData.current.busiestOfficial) {
+      const busyOfficial = officialsInsightData.current.busiestOfficial;
+      insightsList.push(
+        `Highest Workload Assignment: ${busyOfficial.name} managing ${busyOfficial.total} case${busyOfficial.total > 1 ? "s" : ""}. Monitor for potential burnout and consider load redistribution.`,
+      );
+    }
+
+    // 4. ACTIVE OFFICIALS ANALYSIS
+    const activeCount = officialsInsightData.current.activeOfficials;
+    const activeCountPrev = officialsInsightData.previous.activeOfficials;
+    if (activeCount < officials.length * 0.5) {
+      insightsList.push(
+        `Staffing Utilization: Only ${activeCount} of ${officials.length} officials actively assigned to cases. Assess availability and case distribution.`,
+      );
+    } else {
+      const change = activeCount - activeCountPrev;
+      const changeStr =
+        change > 0
+          ? `increased by ${change}`
+          : change < 0
+            ? `decreased by ${Math.abs(change)}`
+            : "stable";
+      insightsList.push(
+        `Active Staffing: ${activeCount}/${officials.length} officials engaged in case management (${changeStr} vs previous period).`,
+      );
+    }
+
+    // 5. CASE VOLUME TREND
+    const caseVolChange =
+      officialsInsightData.current.totalCases -
+      officialsInsightData.previous.totalCases;
+    if (caseVolChange > 0) {
+      insightsList.push(
+        `Case Assignment Volume: ${officialsInsightData.current.totalCases} active assignments this period (increase of ${caseVolChange} vs previous period).`,
+      );
+    } else if (caseVolChange < 0) {
+      insightsList.push(
+        `Case Assignment Volume: ${officialsInsightData.current.totalCases} active assignments (decrease of ${Math.abs(caseVolChange)} vs previous period).`,
+      );
+    }
+
+    // 6. REQUEST VS COMPLAINT HANDLING
+    const requestRecords = officials.filter(
+      (o) => (o.stats?.totalRequests || 0) > 0,
+    ).length;
+    const complaintRecords = officials.filter(
+      (o) => (o.stats?.totalComplaints || 0) > 0,
+    ).length;
+    if (requestRecords > 0 || complaintRecords > 0) {
+      insightsList.push(
+        `Case Type Distribution: ${requestRecords} official${requestRecords > 1 ? "s" : ""} handling requests, ${complaintRecords} official${complaintRecords > 1 ? "s" : ""} handling complaints.`,
+      );
+    }
+
+    // 7. UNDERPERFORMING OFFICIALS
+    const underperforming = officialsList.filter((o) => {
+      const rate = parseFloat(o.stats?.completionRate || 0);
+      return rate < 50 && (o.stats?.totalCases || 0) > 0;
+    });
+    if (underperforming.length > 0) {
+      const names = underperforming
+        .map((o) => o.full_name || `${o.firstname} ${o.lastname}`)
+        .join(", ");
+      insightsList.push(
+        `Performance Intervention Needed: ${names} showing below-target completion rates (<50%). Recommend performance review and coaching.`,
+      );
+    }
+
+    // 8. PENDING CASES ANALYSIS
+    const totalPending = officialsList.reduce(
+      (sum, o) => sum + (o.stats?.pendingCases || 0),
+      0,
+    );
+    if (totalPending > 0) {
+      const avgPendingPerOfficial = Math.round(
+        totalPending / officialsList.length,
+      );
+      insightsList.push(
+        `Pending Workload: ${totalPending} cases in active progress across team (avg ${avgPendingPerOfficial} per official).`,
+      );
+    }
+
+    // Default message
+    if (insightsList.length === 0) {
+      insightsList.push(
+        "Official Performance: Team metrics within normal parameters. Operations functioning as expected.",
+      );
+    }
+
+    return insightsList;
+  })();
 
   const totalCases = officials.reduce(
     (sum, o) => sum + (o.stats?.totalCases || 0),
@@ -2146,7 +2369,7 @@ function OfficialsView({
 }
 
 export default function AdminDashboard() {
-  const [active, setActive] = useState("Requests");
+  const [active, setActive] = useState("Cases");
   const [timeFilter, setTimeFilter] = useState("month");
   const [requests, setRequests] = useState([]);
   const [complaints, setComplaints] = useState([]);
@@ -2371,11 +2594,11 @@ export default function AdminDashboard() {
 
   // Render appropriate view based on active tab
   let Content = null;
-  if (active === "Requests") {
+  if (active === "Cases") {
     Content = (
-      <RequestsView
-        requests={requests}
-        complaints={complaints}
+      <CasesOverviewView
+        requests={filteredRequests}
+        complaints={filteredComplaints}
         allRequests={requests}
         allComplaints={complaints}
         timeFilter={timeFilter}
@@ -2388,15 +2611,6 @@ export default function AdminDashboard() {
         setFeedFilterStatus={setFeedFilterStatus}
         feedSortBy={feedSortBy}
         setFeedSortBy={setFeedSortBy}
-      />
-    );
-  } else if (active === "Complaints") {
-    Content = (
-      <ComplaintsView
-        complaints={filteredComplaints}
-        allComplaints={complaints}
-        timeFilter={timeFilter}
-        setTimeFilter={setTimeFilter}
       />
     );
   } else if (active === "Officials") {
@@ -2439,8 +2653,7 @@ export default function AdminDashboard() {
 // Horizontal Tabs Component
 function HorizontalTabs({ active, setActive }) {
   const tabs = [
-    { name: "Requests", icon: FileText },
-    { name: "Complaints", icon: AlertCircle },
+    { name: "Cases", icon: BarChart3 },
     { name: "Officials", icon: Users },
   ];
 
