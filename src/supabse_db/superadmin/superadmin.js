@@ -104,6 +104,34 @@ export const getRegisteredResidents = async () => {
   return getAllResidents();
 };
 
+export const getResidentsUsersTable = async () => {
+  const accessResult = await ensureSuperAdminAccess();
+
+  if (!accessResult.success) {
+    return accessResult;
+  }
+
+  const { data, error } = await supabase
+    .from("residents_tbl_view")
+    .select(
+      "id, first_name, middle_name, last_name, suffix, contact_number, email, status, is_activated, auth_uid, auth_email",
+    )
+    .order("last_name", { ascending: true })
+    .order("first_name", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching resident users view:", error);
+    return { success: false, message: "Failed to fetch resident users" };
+  }
+
+  const mapped = (data || []).map((resident) => ({
+    ...resident,
+    full_name: formatResidentFullName(resident) || "Unknown",
+  }));
+
+  return { success: true, data: mapped };
+};
+
 export const getUnregisteredResidents = async () => {
   const accessResult = await ensureSuperAdminAccess();
 
@@ -196,7 +224,8 @@ export const getResidentById = async (residentId) => {
   }
 
   const { data, error } = await supabase
-    .from("residents_tbl")
+    .schema("barangaylink")
+    .from("residents")
     .select("*")
     .eq("id", residentId)
     .single();
