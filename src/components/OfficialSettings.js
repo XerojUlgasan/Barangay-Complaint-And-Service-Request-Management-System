@@ -106,6 +106,20 @@ const OfficialSettings = () => {
         return;
       }
 
+      const { error: updateOfficialError } = await supabase
+        .from("barangay_officials")
+        .update({ email: nextEmail })
+        .eq("uid", details.authUid);
+
+      if (updateOfficialError) {
+        console.error("Official email sync error:", updateOfficialError);
+        setActionError(
+          updateOfficialError.message ||
+            "Email updated in auth but failed to sync official record.",
+        );
+        return;
+      }
+
       setDetails((prev) => ({ ...prev, authEmail: nextEmail }));
       setActionSuccess("Email updated successfully. Please verify your new email.");
       setEmailModalOpen(false);
