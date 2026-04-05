@@ -1,0 +1,10 @@
+.superadmin-settings-modal .settings-submodal h4::before {
+  content: none;
+}
+
+.superadmin-submodal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2201;
+  border-radius: 0;
+}

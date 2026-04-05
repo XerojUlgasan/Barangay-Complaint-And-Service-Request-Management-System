@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Settings } from "lucide-react";
 import supabase from "../supabse_db/supabase_client";
 import "../styles/UserPages.css";
+import "../styles/SuperAdminSettings.css";
 
 const MASKED_PASSWORD = "••••••••";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -43,7 +44,8 @@ const SuperAdminSettings = () => {
     resetActionMessages();
 
     try {
-      const { data: userData, error: authError } = await supabase.auth.getUser();
+      const { data: userData, error: authError } =
+        await supabase.auth.getUser();
 
       if (authError || !userData?.user?.id) {
         setError("Unable to identify current user.");
@@ -99,7 +101,7 @@ const SuperAdminSettings = () => {
     }
 
     if (!EMAIL_PATTERN.test(nextEmail)) {
-      setActionError("Please enter a valid email address.");
+      setActionError(`Email address "${nextEmail}" is invalid.`);
       return;
     }
 
@@ -117,7 +119,15 @@ const SuperAdminSettings = () => {
       });
 
       if (updateAuthError) {
-        setActionError(updateAuthError.message || "Unable to update email in auth.");
+        const authMessage = updateAuthError.message || "";
+        const hasEmailValidationError =
+          /email/i.test(authMessage) && /invalid/i.test(authMessage);
+
+        if (hasEmailValidationError) {
+          setActionError(`Email address "${nextEmail}" is invalid.`);
+        } else {
+          setActionError(authMessage || "Unable to update email in auth.");
+        }
         return;
       }
 
@@ -125,7 +135,9 @@ const SuperAdminSettings = () => {
         ...prev,
         authEmail: nextEmail,
       }));
-      setActionSuccess("Email updated successfully. Please verify your new email.");
+      setActionSuccess(
+        "Email updated successfully. Please verify your new email.",
+      );
       setEmailModalOpen(false);
     } catch (err) {
       console.error("Error updating superadmin email:", err);
@@ -158,7 +170,9 @@ const SuperAdminSettings = () => {
     }
 
     if (!details.authEmail) {
-      setActionError("Cannot verify current password because no account email is available.");
+      setActionError(
+        "Cannot verify current password because no account email is available.",
+      );
       return;
     }
 
@@ -181,7 +195,9 @@ const SuperAdminSettings = () => {
       });
 
       if (updatePasswordError) {
-        setActionError(updatePasswordError.message || "Unable to update password.");
+        setActionError(
+          updatePasswordError.message || "Unable to update password.",
+        );
         return;
       }
 
@@ -214,59 +230,96 @@ const SuperAdminSettings = () => {
 
       {open &&
         createPortal(
-          <div className="settings-modal-overlay" onClick={closeSettings}>
-            <div
-              className="settings-modal"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="settings-modal-header">
-                <h3>Settings</h3>
-                <button
-                  type="button"
-                  className="settings-close-btn"
-                  aria-label="Close settings"
-                  onClick={closeSettings}
-                >
-                  ×
-                </button>
+          <>
+            <div className="settings-modal-overlay" onClick={closeSettings}>
+              <div
+                className="settings-modal superadmin-settings-modal"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="settings-modal-header">
+                  <h3>Settings</h3>
+                  <button
+                    type="button"
+                    className="settings-close-btn"
+                    aria-label="Close settings"
+                    onClick={closeSettings}
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div style={{ padding: "20px" }}>
+                  <section className="settings-section">
+                    <h4>Account Details</h4>
+
+                    {loading ? (
+                      <p className="settings-note">
+                        Loading account details...
+                      </p>
+                    ) : error ? (
+                      <p className="settings-error">{error}</p>
+                    ) : (
+                      <>
+                        <div className="settings-field">
+                          <label>Email</label>
+                          <div className="settings-inline-field">
+                            <input type="text" value={displayEmail} readOnly />
+                            <button
+                              type="button"
+                              className="settings-inline-action"
+                              onClick={handleOpenEmailModal}
+                            >
+                              Change Email
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="settings-field">
+                          <label>Password</label>
+                          <div className="settings-inline-field">
+                            <input
+                              type="password"
+                              value={MASKED_PASSWORD}
+                              readOnly
+                            />
+                            <button
+                              type="button"
+                              className="settings-inline-action"
+                              onClick={handleOpenPasswordModal}
+                            >
+                              Change Password
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </section>
+                </div>
               </div>
+            </div>
 
-              <div style={{ padding: "20px" }}>
-                <section className="settings-section">
-                  <h4>Account Details</h4>
-
-                  {loading ? (
-                    <p className="settings-note">Loading account details...</p>
-                  ) : error ? (
-                    <p className="settings-error">{error}</p>
-                  ) : (
-                    <>
+            {emailModalOpen && (
+              <div
+                className="settings-submodal-overlay superadmin-submodal-overlay"
+                onClick={() => setEmailModalOpen(false)}
+              >
+                <div
+                  className="settings-submodal superadmin-settings-submodal"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h4>Change Email</h4>
+                  <form onSubmit={handleChangeEmail}>
+                    <div style={{ padding: "16px" }}>
                       <div className="settings-field">
-                        <label>Email</label>
-                        <div className="settings-inline-field">
-                          <input type="text" value={displayEmail} readOnly />
-                          <button
-                            type="button"
-                            className="settings-inline-action"
-                            onClick={handleOpenEmailModal}
-                          >
-                            Change Email
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="settings-field">
-                        <label>Password</label>
-                        <div className="settings-inline-field">
-                          <input type="password" value={MASKED_PASSWORD} readOnly />
-                          <button
-                            type="button"
-                            className="settings-inline-action"
-                            onClick={handleOpenPasswordModal}
-                          >
-                            Change Password
-                          </button>
-                        </div>
+                        <label>New Email Address</label>
+                        <input
+                          type="email"
+                          value={emailInput}
+                          onChange={(e) => setEmailInput(e.target.value)}
+                          placeholder="Enter new email"
+                          autoComplete="email"
+                          required
+                        />
                       </div>
 
                       {actionError ? (
@@ -275,135 +328,113 @@ const SuperAdminSettings = () => {
                       {actionSuccess ? (
                         <p className="settings-success">{actionSuccess}</p>
                       ) : null}
-                    </>
-                  )}
-                </section>
+                    </div>
+                    <div className="settings-submodal-actions">
+                      <button
+                        type="button"
+                        className="settings-sub-btn"
+                        onClick={() => setEmailModalOpen(false)}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="settings-sub-btn primary"
+                        disabled={saving}
+                      >
+                        {saving ? "Saving..." : "Save"}
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
+            )}
 
-              {emailModalOpen && (
+            {passwordModalOpen && (
+              <div
+                className="settings-submodal-overlay superadmin-submodal-overlay"
+                onClick={() => setPasswordModalOpen(false)}
+              >
                 <div
-                  className="settings-submodal-overlay"
-                  onClick={() => setEmailModalOpen(false)}
+                  className="settings-submodal superadmin-settings-submodal"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  <div
-                    className="settings-submodal"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <h4>Change Email</h4>
-                    <form onSubmit={handleChangeEmail}>
-                      <div style={{ padding: "16px" }}>
-                        <div className="settings-field">
-                          <label>New Email Address</label>
-                          <input
-                            type="email"
-                            value={emailInput}
-                            onChange={(e) => setEmailInput(e.target.value)}
-                            placeholder="Enter new email"
-                            autoComplete="email"
-                            required
-                          />
-                        </div>
+                  <h4>Change Password</h4>
+                  <form onSubmit={handleChangePassword}>
+                    <div style={{ padding: "16px" }}>
+                      <div className="settings-field">
+                        <label>Current Password</label>
+                        <input
+                          type="password"
+                          value={passwordForm.currentPassword}
+                          onChange={(e) =>
+                            setPasswordForm((prev) => ({
+                              ...prev,
+                              currentPassword: e.target.value,
+                            }))
+                          }
+                          required
+                        />
                       </div>
-                      <div className="settings-submodal-actions">
-                        <button
-                          type="button"
-                          className="settings-sub-btn"
-                          onClick={() => setEmailModalOpen(false)}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          className="settings-sub-btn primary"
-                          disabled={saving}
-                        >
-                          {saving ? "Saving..." : "Save"}
-                        </button>
+                      <div className="settings-field">
+                        <label>New Password</label>
+                        <input
+                          type="password"
+                          value={passwordForm.newPassword}
+                          onChange={(e) =>
+                            setPasswordForm((prev) => ({
+                              ...prev,
+                              newPassword: e.target.value,
+                            }))
+                          }
+                          minLength={6}
+                          required
+                        />
                       </div>
-                    </form>
-                  </div>
-                </div>
-              )}
+                      <div className="settings-field">
+                        <label>Confirm Password</label>
+                        <input
+                          type="password"
+                          value={passwordForm.confirmPassword}
+                          onChange={(e) =>
+                            setPasswordForm((prev) => ({
+                              ...prev,
+                              confirmPassword: e.target.value,
+                            }))
+                          }
+                          minLength={6}
+                          required
+                        />
+                      </div>
 
-              {passwordModalOpen && (
-                <div
-                  className="settings-submodal-overlay"
-                  onClick={() => setPasswordModalOpen(false)}
-                >
-                  <div
-                    className="settings-submodal"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <h4>Change Password</h4>
-                    <form onSubmit={handleChangePassword}>
-                      <div style={{ padding: "16px" }}>
-                        <div className="settings-field">
-                          <label>Current Password</label>
-                          <input
-                            type="password"
-                            value={passwordForm.currentPassword}
-                            onChange={(e) =>
-                              setPasswordForm((prev) => ({
-                                ...prev,
-                                currentPassword: e.target.value,
-                              }))
-                            }
-                            required
-                          />
-                        </div>
-                        <div className="settings-field">
-                          <label>New Password</label>
-                          <input
-                            type="password"
-                            value={passwordForm.newPassword}
-                            onChange={(e) =>
-                              setPasswordForm((prev) => ({
-                                ...prev,
-                                newPassword: e.target.value,
-                              }))
-                            }
-                            minLength={6}
-                            required
-                          />
-                        </div>
-                        <div className="settings-field">
-                          <label>Confirm Password</label>
-                          <input
-                            type="password"
-                            value={passwordForm.confirmPassword}
-                            onChange={(e) =>
-                              setPasswordForm((prev) => ({
-                                ...prev,
-                                confirmPassword: e.target.value,
-                              }))
-                            }
-                            minLength={6}
-                            required
-                          />
-                        </div>
-                      </div>
-                      <div className="settings-submodal-actions">
-                        <button
-                          type="button"
-                          className="settings-sub-btn"
-                          onClick={() => setPasswordModalOpen(false)}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          className="settings-sub-btn primary"
-                          disabled={saving}
-                        >
-                          {saving ? "Saving..." : "Save"}
-                        </button>
-                      </div>
-                    </form>
-                  </div>
+                      {actionError ? (
+                        <p className="settings-error">{actionError}</p>
+                      ) : null}
+                      {actionSuccess ? (
+                        <p className="settings-success">{actionSuccess}</p>
+                      ) : null}
+                    </div>
+                    <div className="settings-submodal-actions">
+                      <button
+                        type="button"
+                        className="settings-sub-btn"
+                        onClick={() => setPasswordModalOpen(false)}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="settings-sub-btn primary"
+                        disabled={saving}
+                      >
+                        {saving ? "Saving..." : "Save"}
+                      </button>
+                    </div>
+                  </form>
                 </div>
-              )}
-            </div>
-          </div>,
+              </div>
+            )}
+          </>,
           document.body,
         )}
     </>
