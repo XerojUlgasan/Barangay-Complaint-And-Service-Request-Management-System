@@ -185,7 +185,7 @@
   border-color: #10b981;
   box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15);
 }
-.status-dropdown {
+.status-filter-dropdown {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
@@ -200,12 +200,12 @@
   overflow-y: auto;
   padding: 4px;
 }
-.status-option {
+.status-filter-item {
   display: block;
   width: 100%;
   text-align: left;
   padding: 9px 14px;
-  background: transparent;
+  background: #ffffff;
   border: none;
   border-radius: 7px;
   font-size: 14px;
@@ -214,11 +214,11 @@
   cursor: pointer;
   transition: background 0.12s ease, color 0.12s ease;
 }
-.status-option:hover {
+.status-filter-item:hover {
   background: #f3f4f6;
   color: #111827;
 }
-.status-option.active {
+.status-filter-item.active {
   background: #d1fae5;
   color: #065f46;
   font-weight: 700;

@@ -714,7 +714,7 @@ export default function AdminRequests() {
           <div
             style={{
               display: "flex",
-              justifyContent: "space-between",
+              justifyContent: "flex-start",
               alignItems: "center",
               gap: "0.75rem",
               marginBottom: "1rem",
@@ -738,7 +738,7 @@ export default function AdminRequests() {
               Manage Certificates
             </button>
 
-            <div className="status-filter-wrapper" style={{ marginBottom: 0 }}>
+            <div className="status-filter-wrapper" style={{ marginBottom: 0, position: "relative" }}>
               <button
                 className="status-filter-btn"
                 onClick={() => setRequestDropdownOpen(!requestDropdownOpen)}
@@ -754,7 +754,7 @@ export default function AdminRequests() {
                   />
                   <div
                     className="status-filter-dropdown"
-                    style={{ zIndex: 1000 }}
+                    style={{ zIndex: 1000, position: "absolute", top: "100%", left: 0, marginTop: "0.25rem" }}
                   >
                     {statusOptions.map((option) => (
                       <div
@@ -772,29 +772,6 @@ export default function AdminRequests() {
                 </>
               )}
             </div>
-
-            <button
-              type="button"
-              onClick={handleAssignAllUnassigned}
-              disabled={assigningRequests || loadingRequests}
-              style={{
-                padding: "0.625rem 1rem",
-                borderRadius: "0.5rem",
-                border: "1px solid #cbd5e1",
-                background: assigningRequests ? "#e2e8f0" : "#0f172a",
-                color: assigningRequests ? "#475569" : "#f8fafc",
-                fontSize: "0.875rem",
-                fontWeight: 600,
-                cursor:
-                  assigningRequests || loadingRequests
-                    ? "not-allowed"
-                    : "pointer",
-              }}
-            >
-              {assigningRequests
-                ? "Assigning..."
-                : "Assign All Unassigned Request"}
-            </button>
           </div>
 
           {errorRequests && (
@@ -820,101 +797,125 @@ export default function AdminRequests() {
             </div>
           )}
 
-          <div
-            style={{
-              marginBottom: "1.25rem",
-              padding: "1rem",
-              border: "1px solid #f3c969",
-              borderRadius: "0.75rem",
-              background: "#fffbeb",
-            }}
-          >
+          {unassignedRequests.length > 0 ? (
             <div
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: "1rem",
-                alignItems: "center",
-                marginBottom: "0.75rem",
-                flexWrap: "wrap",
+                marginBottom: "1.5rem",
+                padding: "1.75rem",
+                border: "2px solid #f59e0b",
+                borderRadius: "0.75rem",
+                background: "#fffbeb",
               }}
             >
-              <div>
-                <h4 style={{ margin: 0, color: "#92400e" }}>
-                  Unassigned Requests
-                </h4>
-                <p style={{ margin: "0.25rem 0 0", color: "#b45309" }}>
-                  Requests that still need an official assignment.
-                </p>
-              </div>
-              <span
+              <div
                 style={{
-                  padding: "0.35rem 0.75rem",
-                  borderRadius: "999px",
-                  background: "#fef3c7",
-                  color: "#92400e",
-                  fontWeight: 700,
-                  fontSize: "0.875rem",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "1.5rem",
+                  alignItems: "center",
+                  marginBottom: "1.25rem",
+                  flexWrap: "wrap",
                 }}
               >
-                {unassignedRequests.length}
-              </span>
-            </div>
-
-            {unassignedRequests.length > 0 ? (
-              <div className="requests-table-card" style={{ marginBottom: 0 }}>
-                <table className="requests-table">
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Request Details</th>
-                      <th>Status</th>
-                      <th>Submitted By</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {unassignedRequests.map((request) => (
-                      <tr key={request.id}>
-                        <td>
-                          <span className="req-id-chip">{request.id}</span>
-                        </td>
-                        <td className="req-details">
-                          <div className="req-title">{request.title}</div>
-                          <div className="req-subtitle">{request.subtitle}</div>
-                        </td>
-                        <td className="req-status">
-                          <span
-                            className="ar-status-badge"
-                            style={{
-                              backgroundColor: getStatusColor(request.status),
-                              color: getStatusTextColor(request.status),
-                              borderColor: "rgba(0,0,0,0.10)",
-                            }}
-                          >
-                            {request.status}
-                          </span>
-                        </td>
-                        <td className="req-submitted">{request.submittedBy}</td>
-                        <td className="req-action">
-                          <button
-                            className="btn-save ar-table-action-btn"
-                            onClick={() => openModal(request)}
-                          >
-                            View Details
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div style={{ flex: 1 }}>
+                  <h4
+                    style={{
+                      margin: 0,
+                      color: "#92400e",
+                      fontSize: "1.25rem",
+                      fontWeight: 700,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                    }}
+                  >
+                    <span style={{ fontSize: "1.75rem" }}>⚠️</span>
+                    Unassigned Requests
+                  </h4>
+                  <p
+                    style={{
+                      margin: "0.625rem 0 0",
+                      color: "#b45309",
+                      fontSize: "1rem",
+                      lineHeight: "1.6",
+                    }}
+                  >
+                    There {unassignedRequests.length === 1 ? "is" : "are"}{" "}
+                    <strong style={{ fontSize: "1.25rem" }}>
+                      {unassignedRequests.length}
+                    </strong>{" "}
+                    request{unassignedRequests.length === 1 ? "" : "s"} that
+                    still need{unassignedRequests.length === 1 ? "s" : ""} an
+                    official assignment.
+                  </p>
+                </div>
+                <span
+                  style={{
+                    padding: "0.875rem 1.5rem",
+                    borderRadius: "999px",
+                    background: "#fef3c7",
+                    color: "#92400e",
+                    fontWeight: 700,
+                    fontSize: "1.75rem",
+                    minWidth: "70px",
+                    textAlign: "center",
+                  }}
+                >
+                  {unassignedRequests.length}
+                </span>
               </div>
-            ) : (
-              <p style={{ margin: 0, color: "#92400e" }}>
-                No unassigned requests at the moment.
+              <button
+                type="button"
+                onClick={handleAssignAllUnassigned}
+                disabled={assigningRequests || loadingRequests}
+                style={{
+                  padding: "0.875rem 1.5rem",
+                  borderRadius: "0.5rem",
+                  border: "1px solid #cbd5e1",
+                  background: assigningRequests ? "#e2e8f0" : "#0f172a",
+                  color: assigningRequests ? "#475569" : "#f8fafc",
+                  fontSize: "1rem",
+                  fontWeight: 600,
+                  cursor:
+                    assigningRequests || loadingRequests
+                      ? "not-allowed"
+                      : "pointer",
+                  width: "100%",
+                }}
+              >
+                {assigningRequests
+                  ? "Assigning..."
+                  : "Assign All Unassigned Requests"}
+              </button>
+            </div>
+          ) : (
+            <div
+              style={{
+                marginBottom: "1.5rem",
+                padding: "1.5rem",
+                border: "2px solid #10b981",
+                borderRadius: "0.75rem",
+                background: "#ecfdf5",
+                textAlign: "center",
+              }}
+            >
+              <p
+                style={{
+                  margin: 0,
+                  color: "#065f46",
+                  fontSize: "1rem",
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.5rem",
+                }}
+              >
+                <span style={{ fontSize: "1.25rem" }}>✓</span>
+                No unassigned requests right now.
               </p>
-            )}
-          </div>
+            </div>
+          )}
 
           <div
             style={{
@@ -923,7 +924,7 @@ export default function AdminRequests() {
               color: "#6b7280",
             }}
           >
-            Showing {filteredRequests.length} of {requests.length} requests
+            Showing {filteredRequests.length} of {requests.length} request{requests.length === 1 ? '' : 's'}
           </div>
 
           <div className="requests-table-card">

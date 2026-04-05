@@ -557,14 +557,14 @@ export default function AdminComplaints() {
           <div
             style={{
               display: "flex",
-              justifyContent: "space-between",
+              justifyContent: "flex-start",
               alignItems: "center",
               gap: "0.75rem",
               marginBottom: "1rem",
               flexWrap: "wrap",
             }}
           >
-            <div className="status-filter-wrapper" style={{ marginBottom: 0 }}>
+            <div className="status-filter-wrapper" style={{ marginBottom: 0, position: "relative" }}>
               <button
                 className="status-filter-btn"
                 onClick={() => setComplaintDropdownOpen(!complaintDropdownOpen)}
@@ -580,7 +580,7 @@ export default function AdminComplaints() {
                   />
                   <div
                     className="status-filter-dropdown"
-                    style={{ zIndex: 1000 }}
+                    style={{ zIndex: 1000, position: "absolute", top: "100%", left: 0, marginTop: "0.25rem" }}
                   >
                     {statusOptions.map((option) => (
                       <div
@@ -598,29 +598,6 @@ export default function AdminComplaints() {
                 </>
               )}
             </div>
-
-            <button
-              type="button"
-              onClick={handleAssignAllUnassigned}
-              disabled={assigningComplaints || loadingComplaints}
-              style={{
-                padding: "0.625rem 1rem",
-                borderRadius: "0.5rem",
-                border: "1px solid #cbd5e1",
-                background: assigningComplaints ? "#e2e8f0" : "#0f172a",
-                color: assigningComplaints ? "#475569" : "#f8fafc",
-                fontSize: "0.875rem",
-                fontWeight: 600,
-                cursor:
-                  assigningComplaints || loadingComplaints
-                    ? "not-allowed"
-                    : "pointer",
-              }}
-            >
-              {assigningComplaints
-                ? "Assigning..."
-                : "Assign All Unassigned Complaint"}
-            </button>
           </div>
 
           {errorComplaints && (
@@ -646,130 +623,125 @@ export default function AdminComplaints() {
             </div>
           )}
 
-          <div
-            style={{
-              marginBottom: "1.25rem",
-              padding: "1rem",
-              border: "1px solid #f3c969",
-              borderRadius: "0.75rem",
-              background: "#fffbeb",
-            }}
-          >
+          {unassignedComplaints.length > 0 ? (
             <div
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: "1rem",
-                alignItems: "center",
-                marginBottom: "0.75rem",
-                flexWrap: "wrap",
+                marginBottom: "1.5rem",
+                padding: "1.75rem",
+                border: "2px solid #f59e0b",
+                borderRadius: "0.75rem",
+                background: "#fffbeb",
               }}
             >
-              <div>
-                <h4 style={{ margin: 0, color: "#92400e" }}>
-                  Unassigned Complaints
-                </h4>
-                <p style={{ margin: "0.25rem 0 0", color: "#b45309" }}>
-                  Complaints that still need an official assignment.
-                </p>
-              </div>
-              <span
+              <div
                 style={{
-                  padding: "0.35rem 0.75rem",
-                  borderRadius: "999px",
-                  background: "#fef3c7",
-                  color: "#92400e",
-                  fontWeight: 700,
-                  fontSize: "0.875rem",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "1.5rem",
+                  alignItems: "center",
+                  marginBottom: "1.25rem",
+                  flexWrap: "wrap",
                 }}
               >
-                {unassignedComplaints.length}
-              </span>
-            </div>
-
-            {unassignedComplaints.length > 0 ? (
-              <div className="requests-table-card" style={{ marginBottom: 0 }}>
-                <table className="requests-table">
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Complaint Details</th>
-                      <th>Status</th>
-                      <th>Complainant</th>
-                      <th>Priority</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {unassignedComplaints.map((complaint) => (
-                      <tr key={complaint.id}>
-                        <td>
-                          <span className="req-id-chip">{complaint.id}</span>
-                        </td>
-                        <td className="req-details">
-                          <div className="req-title">{complaint.title}</div>
-                          <div className="req-subtitle">
-                            {complaint.location}
-                          </div>
-                        </td>
-                        <td className="req-status">
-                          <span
-                            className="ar-status-badge"
-                            style={{
-                              backgroundColor: getStatusColor(complaint.status),
-                              color: getStatusTextColor(complaint.status),
-                              borderColor: "rgba(0,0,0,0.10)",
-                            }}
-                          >
-                            {complaint.status}
-                          </span>
-                        </td>
-                        <td className="req-submitted">
-                          {complaint.complainant}
-                        </td>
-                        <td style={{ textAlign: "center" }}>
-                          <span
-                            style={{
-                              padding: "0.25rem 0.75rem",
-                              borderRadius: "0.25rem",
-                              backgroundColor:
-                                complaint.priority === "High"
-                                  ? "#fee2e2"
-                                  : complaint.priority === "Medium"
-                                    ? "#fef3c7"
-                                    : "#d1fae5",
-                              color:
-                                complaint.priority === "High"
-                                  ? "#991b1b"
-                                  : complaint.priority === "Medium"
-                                    ? "#92400e"
-                                    : "#065f46",
-                              fontSize: "0.875rem",
-                              fontWeight: "500",
-                            }}
-                          >
-                            {complaint.priority}
-                          </span>
-                        </td>
-                        <td className="req-action">
-                          <button
-                            className="btn-save ar-table-action-btn"
-                            onClick={() => openModal(complaint)}
-                          >
-                            View Details
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div style={{ flex: 1 }}>
+                  <h4
+                    style={{
+                      margin: 0,
+                      color: "#92400e",
+                      fontSize: "1.25rem",
+                      fontWeight: 700,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                    }}
+                  >
+                    <span style={{ fontSize: "1.75rem" }}>⚠️</span>
+                    Unassigned Complaints
+                  </h4>
+                  <p
+                    style={{
+                      margin: "0.625rem 0 0",
+                      color: "#b45309",
+                      fontSize: "1rem",
+                      lineHeight: "1.6",
+                    }}
+                  >
+                    There {unassignedComplaints.length === 1 ? "is" : "are"}{" "}
+                    <strong style={{ fontSize: "1.25rem" }}>
+                      {unassignedComplaints.length}
+                    </strong>{" "}
+                    complaint{unassignedComplaints.length === 1 ? "" : "s"} that
+                    still need{unassignedComplaints.length === 1 ? "s" : ""} an
+                    official assignment.
+                  </p>
+                </div>
+                <span
+                  style={{
+                    padding: "0.875rem 1.5rem",
+                    borderRadius: "999px",
+                    background: "#fef3c7",
+                    color: "#92400e",
+                    fontWeight: 700,
+                    fontSize: "1.75rem",
+                    minWidth: "70px",
+                    textAlign: "center",
+                  }}
+                >
+                  {unassignedComplaints.length}
+                </span>
               </div>
-            ) : (
-              <p style={{ margin: 0, color: "#92400e" }}>
-                No unassigned complaints at the moment.
+              <button
+                type="button"
+                onClick={handleAssignAllUnassigned}
+                disabled={assigningComplaints || loadingComplaints}
+                style={{
+                  padding: "0.875rem 1.5rem",
+                  borderRadius: "0.5rem",
+                  border: "1px solid #cbd5e1",
+                  background: assigningComplaints ? "#e2e8f0" : "#0f172a",
+                  color: assigningComplaints ? "#475569" : "#f8fafc",
+                  fontSize: "1rem",
+                  fontWeight: 600,
+                  cursor:
+                    assigningComplaints || loadingComplaints
+                      ? "not-allowed"
+                      : "pointer",
+                  width: "100%",
+                }}
+              >
+                {assigningComplaints
+                  ? "Assigning..."
+                  : "Assign All Unassigned Complaints"}
+              </button>
+            </div>
+          ) : (
+            <div
+              style={{
+                marginBottom: "1.5rem",
+                padding: "1.5rem",
+                border: "2px solid #10b981",
+                borderRadius: "0.75rem",
+                background: "#ecfdf5",
+                textAlign: "center",
+              }}
+            >
+              <p
+                style={{
+                  margin: 0,
+                  color: "#065f46",
+                  fontSize: "1rem",
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.5rem",
+                }}
+              >
+                <span style={{ fontSize: "1.25rem" }}>✓</span>
+                No unassigned complaints right now.
               </p>
-            )}
-          </div>
+            </div>
+          )}
 
           <div
             style={{
@@ -778,8 +750,7 @@ export default function AdminComplaints() {
               color: "#6b7280",
             }}
           >
-            Showing {filteredComplaints.length} of {complaints.length}{" "}
-            complaints
+            Showing {filteredComplaints.length} of {complaints.length} complaint{complaints.length === 1 ? '' : 's'}
           </div>
 
           <div className="requests-table-card">
