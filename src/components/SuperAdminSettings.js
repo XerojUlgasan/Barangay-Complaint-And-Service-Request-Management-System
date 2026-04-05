@@ -1,26 +1,21 @@
 import React, { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { Settings } from "lucide-react";
 import supabase from "../supabse_db/supabase_client";
+import "../styles/UserPages.css";
 
 const MASKED_PASSWORD = "••••••••";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHILIPPINE_MOBILE_PATTERN = /^(09\d{9}|\+639\d{9})$/;
 
-const isValidEmail = (value) => EMAIL_PATTERN.test(value);
-const isValidPhilippineMobile = (value) =>
-  PHILIPPINE_MOBILE_PATTERN.test(value);
-
-const ResidentSettings = () => {
+const SuperAdminSettings = () => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
   const [actionSuccess, setActionSuccess] = useState("");
   const [emailModalOpen, setEmailModalOpen] = useState(false);
-  const [contactModalOpen, setContactModalOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [emailInput, setEmailInput] = useState("");
-  const [contactInput, setContactInput] = useState("");
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
@@ -28,17 +23,9 @@ const ResidentSettings = () => {
   });
   const [saving, setSaving] = useState(false);
   const [details, setDetails] = useState({
-    residentPk: "",
-    email: "",
-    authEmail: "",
-    contactNumber: "",
     authUid: "",
+    authEmail: "",
   });
-
-  const displayContactNumber = useMemo(
-    () => details.contactNumber || "Not available",
-    [details],
-  );
 
   const displayEmail = useMemo(
     () => details.authEmail || "Not available",
@@ -56,81 +43,19 @@ const ResidentSettings = () => {
     resetActionMessages();
 
     try {
-      const { data: userData, error: authError } =
-        await supabase.auth.getUser();
+      const { data: userData, error: authError } = await supabase.auth.getUser();
+
       if (authError || !userData?.user?.id) {
         setError("Unable to identify current user.");
         return;
       }
 
-      const authUid = userData.user.id;
-      const authUserEmail = userData.user.email || "";
-      const authUserContact = userData.user.user_metadata?.contact_number || "";
-
-      const { data: registration, error: registrationError } = await supabase
-        .from("registered_residents")
-        .select("id, email, auth_uid")
-        .eq("auth_uid", authUid)
-        .maybeSingle();
-
-      if (registrationError) {
-        console.error("Registration query error:", registrationError);
-        setError(
-          "Error loading resident mapping: " + registrationError.message,
-        );
-        return;
-      }
-
-      if (!registration?.id) {
-        setError("Resident account mapping not found. Please contact support.");
-        return;
-      }
-
-      // registration.id is the numeric resident ID
-      const residentId = registration.id;
-
-      // Query the resident row to get display info (read-only)
-      const { data: resident, error: residentError } = await supabase
-        .schema("barangaylink")
-        .from("residents")
-        .select("id, email, contact_number")
-        .eq("id", residentId)
-        .maybeSingle();
-
-      if (residentError) {
-        // If resident view record not found, just log warning
-        console.warn(
-          "Resident view query warning (non-critical):",
-          residentError,
-        );
-      }
-
-      // Priority: user_metadata contact > resident view contact > empty
-      const finalContactNumber =
-        authUserContact || resident?.contact_number || "";
-      const finalEmail =
-        authUserEmail || registration.email || resident?.email || "";
-
       setDetails({
-        residentPk: residentId,
-        email: finalEmail,
-        authEmail: authUserEmail || registration.email || resident?.email || "",
-        contactNumber: finalContactNumber,
-        authUid,
-      });
-
-      console.log("Account details loaded successfully:", {
-        residentId,
-        authEmail: authUserEmail,
-        contactNumber: finalContactNumber,
-        source: authUserContact
-          ? "user_metadata"
-          : resident?.contact_number
-            ? "resident_view"
-            : "none",
+        authUid: userData.user.id,
+        authEmail: userData.user.email || "",
       });
     } catch (err) {
-      console.error("Error loading resident account details:", err);
+      console.error("Error loading superadmin account details:", err);
       setError("Failed to load account details: " + err.message);
     } finally {
       setLoading(false);
@@ -142,16 +67,16 @@ const ResidentSettings = () => {
     await loadAccountDetails();
   };
 
+  const closeSettings = () => {
+    setOpen(false);
+    setEmailModalOpen(false);
+    setPasswordModalOpen(false);
+  };
+
   const handleOpenEmailModal = () => {
     resetActionMessages();
     setEmailInput(details.authEmail || "");
     setEmailModalOpen(true);
-  };
-
-  const handleOpenContactModal = () => {
-    resetActionMessages();
-    setContactInput(details.contactNumber || "");
-    setContactModalOpen(true);
   };
 
   const handleOpenPasswordModal = () => {
@@ -173,7 +98,7 @@ const ResidentSettings = () => {
       return;
     }
 
-    if (!isValidEmail(nextEmail)) {
+    if (!EMAIL_PATTERN.test(nextEmail)) {
       setActionError("Please enter a valid email address.");
       return;
     }
@@ -187,138 +112,24 @@ const ResidentSettings = () => {
     resetActionMessages();
 
     try {
-      // Update email in Supabase Auth
       const { error: updateAuthError } = await supabase.auth.updateUser({
         email: nextEmail,
       });
 
       if (updateAuthError) {
-        console.error("Auth email update error:", updateAuthError);
-        setActionError(
-          updateAuthError.message || "Unable to update email in auth.",
-        );
+        setActionError(updateAuthError.message || "Unable to update email in auth.");
         return;
-      }
-
-      // Update email in registered_residents table
-      const { error: updateRegError } = await supabase
-        .from("registered_residents")
-        .update({ email: nextEmail })
-        .eq("auth_uid", details.authUid);
-
-      if (updateRegError) {
-        console.error(
-          "Registered residents email update error:",
-          updateRegError,
-        );
-        setActionError(
-          updateRegError.message || "Unable to update email in database.",
-        );
-        return;
-      }
-
-      // Update email in barangaylink.residents so the profile stays in sync
-      if (details.residentPk) {
-        const { error: updateResError } = await supabase
-          .schema("barangaylink")
-          .from("residents")
-          .update({ email: nextEmail })
-          .eq("id", details.residentPk);
-
-        if (updateResError) {
-          console.warn(
-            "Resident email update warning (non-critical):",
-            updateResError,
-          );
-          // Don't fail here - auth email was already updated successfully
-        }
       }
 
       setDetails((prev) => ({
         ...prev,
         authEmail: nextEmail,
-        email: nextEmail,
       }));
-      setActionSuccess(
-        "Email updated successfully. Please verify your new email.",
-      );
+      setActionSuccess("Email updated successfully. Please verify your new email.");
       setEmailModalOpen(false);
-      console.log("Email updated successfully");
     } catch (err) {
-      console.error("Error updating email:", err);
+      console.error("Error updating superadmin email:", err);
       setActionError("Failed to update email: " + err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleChangeContact = async (e) => {
-    e.preventDefault();
-    const nextContact = contactInput.trim();
-
-    if (!nextContact) {
-      setActionError("Contact number is required.");
-      return;
-    }
-
-    if (!isValidPhilippineMobile(nextContact)) {
-      setActionError(
-        "Please enter a valid Philippine mobile number, such as 09XXXXXXXXX or +639XXXXXXXXX.",
-      );
-      return;
-    }
-
-    setSaving(true);
-    resetActionMessages();
-
-    try {
-      // Store contact in user_metadata (persists across sessions)
-      const { error: updateError } = await supabase.auth.updateUser({
-        data: { contact_number: nextContact },
-      });
-
-      if (updateError) {
-        console.error("Contact update error:", updateError);
-        setActionError(
-          updateError.message || "Unable to update contact number.",
-        );
-        return;
-      }
-
-      if (details.residentPk) {
-        const { error: updateResidentError } = await supabase
-          .schema("barangaylink")
-          .from("residents")
-          .update({ contact_number: nextContact })
-          .eq("id", details.residentPk);
-
-        if (updateResidentError) {
-          console.error("Resident contact update error:", updateResidentError);
-          setActionError(
-            updateResidentError.message ||
-              "Unable to update resident contact number.",
-          );
-          return;
-        }
-      }
-
-      // Refresh session to get updated metadata
-      const { error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError) {
-        console.warn("Session refresh warning:", refreshError);
-        // Don't fail - contact was updated successfully
-      }
-
-      setDetails((prev) => ({
-        ...prev,
-        contactNumber: nextContact,
-      }));
-      setActionSuccess("Contact number updated successfully.");
-      setContactModalOpen(false);
-      console.log("Contact number updated successfully");
-    } catch (err) {
-      console.error("Error updating contact number:", err);
-      setActionError("Failed to update contact number: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -326,6 +137,7 @@ const ResidentSettings = () => {
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
+
     const currentPassword = passwordForm.currentPassword;
     const newPassword = passwordForm.newPassword;
     const confirmPassword = passwordForm.confirmPassword;
@@ -346,9 +158,7 @@ const ResidentSettings = () => {
     }
 
     if (!details.authEmail) {
-      setActionError(
-        "Cannot verify current password because no account email is available.",
-      );
+      setActionError("Cannot verify current password because no account email is available.");
       return;
     }
 
@@ -362,7 +172,6 @@ const ResidentSettings = () => {
       });
 
       if (signInError) {
-        console.error("Sign in error:", signInError);
         setActionError("Current password is incorrect.");
         return;
       }
@@ -372,10 +181,7 @@ const ResidentSettings = () => {
       });
 
       if (updatePasswordError) {
-        console.error("Password update error:", updatePasswordError);
-        setActionError(
-          updatePasswordError.message || "Unable to update password.",
-        );
+        setActionError(updatePasswordError.message || "Unable to update password.");
         return;
       }
 
@@ -386,19 +192,12 @@ const ResidentSettings = () => {
         newPassword: "",
         confirmPassword: "",
       });
-      console.log("Password updated successfully");
     } catch (err) {
-      console.error("Error updating password:", err);
+      console.error("Error updating superadmin password:", err);
       setActionError("Failed to update password: " + err.message);
     } finally {
       setSaving(false);
     }
-  };
-  const closeSettings = () => {
-    setOpen(false);
-    setEmailModalOpen(false);
-    setContactModalOpen(false);
-    setPasswordModalOpen(false);
   };
 
   return (
@@ -410,15 +209,7 @@ const ResidentSettings = () => {
         onClick={openSettings}
         aria-label="Open settings"
       >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-        </svg>
+        <Settings size={18} />
       </button>
 
       {open &&
@@ -465,31 +256,9 @@ const ResidentSettings = () => {
                       </div>
 
                       <div className="settings-field">
-                        <label>Contact Number</label>
+                        <label>Password</label>
                         <div className="settings-inline-field">
-                          <input
-                            type="text"
-                            value={displayContactNumber}
-                            readOnly
-                          />
-                          <button
-                            type="button"
-                            className="settings-inline-action"
-                            onClick={handleOpenContactModal}
-                          >
-                            Change Contact Number
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="settings-field">
-                        <label>Change Password</label>
-                        <div className="settings-inline-field">
-                          <input
-                            type="password"
-                            value={MASKED_PASSWORD}
-                            readOnly
-                          />
+                          <input type="password" value={MASKED_PASSWORD} readOnly />
                           <button
                             type="button"
                             className="settings-inline-action"
@@ -556,54 +325,6 @@ const ResidentSettings = () => {
                 </div>
               )}
 
-              {contactModalOpen && (
-                <div
-                  className="settings-submodal-overlay"
-                  onClick={() => setContactModalOpen(false)}
-                >
-                  <div
-                    className="settings-submodal"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <h4>Change Contact Number</h4>
-                    <form onSubmit={handleChangeContact}>
-                      <div style={{ padding: "16px" }}>
-                        <div className="settings-field">
-                          <label>New Contact Number</label>
-                          <input
-                            type="text"
-                            value={contactInput}
-                            onChange={(e) => setContactInput(e.target.value)}
-                            inputMode="tel"
-                            placeholder="09XXXXXXXXX or +639XXXXXXXXX"
-                            autoComplete="tel"
-                            pattern="^(09\\d{9}|\\+639\\d{9})$"
-                            title="Use 09XXXXXXXXX or +639XXXXXXXXX"
-                            required
-                          />
-                        </div>
-                      </div>
-                      <div className="settings-submodal-actions">
-                        <button
-                          type="button"
-                          className="settings-sub-btn"
-                          onClick={() => setContactModalOpen(false)}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          className="settings-sub-btn primary"
-                          disabled={saving}
-                        >
-                          {saving ? "Saving..." : "Save"}
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              )}
-
               {passwordModalOpen && (
                 <div
                   className="settings-submodal-overlay"
@@ -641,6 +362,7 @@ const ResidentSettings = () => {
                                 newPassword: e.target.value,
                               }))
                             }
+                            minLength={6}
                             required
                           />
                         </div>
@@ -655,6 +377,7 @@ const ResidentSettings = () => {
                                 confirmPassword: e.target.value,
                               }))
                             }
+                            minLength={6}
                             required
                           />
                         </div>
@@ -687,4 +410,4 @@ const ResidentSettings = () => {
   );
 };
 
-export default ResidentSettings;
+export default SuperAdminSettings;

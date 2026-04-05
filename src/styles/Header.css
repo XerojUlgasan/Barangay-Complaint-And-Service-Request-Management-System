@@ -82,6 +82,38 @@
   color: #dc2626;
 }
 
+.header .settings-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  cursor: pointer;
+  color: #6b7280;
+  box-shadow: none;
+}
+
+.header .settings-button:hover {
+  background: #e0f2fe;
+  border-color: #93c5fd;
+  color: #0369a1;
+  transform: none;
+}
+
+.header .settings-button:active {
+  transform: none;
+}
+
+.header .settings-button svg {
+  width: 18px;
+  height: 18px;
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
   .header {
@@ -147,6 +179,11 @@
     height: 36px;
     flex-shrink: 0;
   }
+
+  .header .settings-button {
+    width: 36px;
+    height: 36px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -176,6 +213,11 @@
   }
 
   .logout-icon-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .header .settings-button {
     width: 32px;
     height: 32px;
   }

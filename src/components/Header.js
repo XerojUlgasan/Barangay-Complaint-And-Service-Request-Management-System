@@ -1,6 +1,7 @@
 import React from "react";
 import { LogOut } from "lucide-react";
 import { useLocation } from "react-router-dom";
+import SuperAdminSettings from "./SuperAdminSettings";
 import "../styles/Header.css";
 
 /**
@@ -82,6 +83,8 @@ const Header = ({
             </span>
           )}
         </div>
+
+        {userRole === "superadmin" ? <SuperAdminSettings /> : null}
 
         {/* Logout button with icon */}
         <button
