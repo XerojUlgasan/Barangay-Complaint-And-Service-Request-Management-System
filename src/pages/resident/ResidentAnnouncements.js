@@ -211,13 +211,39 @@ const Announcements = () => {
     { key: "alert", label: "Alerts" },
   ];
 
+  const getAnnouncementTitle = (announcement) => {
+    const title =
+      announcement?.title ||
+      announcement?.subject ||
+      announcement?.name ||
+      "";
+
+    if (String(title).trim()) return String(title).trim();
+
+    const category = String(announcement?.category || "").toLowerCase();
+    return category === "event" ? "Untitled Event" : "Untitled Announcement";
+  };
+
+  const getAnnouncementDescription = (announcement) => {
+    const description =
+      announcement?.content ||
+      announcement?.description ||
+      announcement?.body ||
+      "";
+
+    return String(description).trim() || "No description provided.";
+  };
+
   const filteredAnnouncements = announcements.filter((ann) => {
     const cat = (ann.category || "general").toLowerCase();
     const matchesFilter = activeFilter === "all" || cat === activeFilter;
+    const resolvedTitle = getAnnouncementTitle(ann).toLowerCase();
+    const resolvedDescription = getAnnouncementDescription(ann).toLowerCase();
+    const normalizedSearch = searchQuery.toLowerCase();
     const matchesSearch =
       !searchQuery ||
-      ann.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ann.content?.toLowerCase().includes(searchQuery.toLowerCase());
+      resolvedTitle.includes(normalizedSearch) ||
+      resolvedDescription.includes(normalizedSearch);
     return matchesFilter && matchesSearch;
   });
 
@@ -417,7 +443,11 @@ const Announcements = () => {
                       {/* Image / Placeholder */}
                       <div className="ann-card-img-wrap">
                         {hasImage ? (
-                          <img src={announcementImages[ann.id]} alt={ann.title} className="ann-card-img" />
+                          <img
+                            src={announcementImages[ann.id]}
+                            alt={getAnnouncementTitle(ann)}
+                            className="ann-card-img"
+                          />
                         ) : (
                           <div className="ann-card-img-placeholder" style={{ background: catConfig.bg }}>
                             <span className="ann-card-img-emoji">{catConfig.icon}</span>
@@ -453,8 +483,12 @@ const Announcements = () => {
                           <span className="ann-card-date">{formatDateShort(ann.created_at)}</span>
                         </div>
 
-                        <h3 className="ann-card-title">{ann.title}</h3>
-                        <p className="ann-card-desc">{ann.content}</p>
+                        <h3 className="ann-card-title">
+                          {getAnnouncementTitle(ann)}
+                        </h3>
+                        <p className="ann-card-desc">
+                          {getAnnouncementDescription(ann)}
+                        </p>
 
                         {/* Event details */}
                         {isEvent && ann.event_start && (
@@ -562,7 +596,7 @@ const Announcements = () => {
                 {signupAction === "signup"
                   ? "sign up for"
                   : "cancel your signup for"}{" "}
-                <b>{selectedAnnouncement.title}</b>?
+                <b>{getAnnouncementTitle(selectedAnnouncement)}</b>?
               </p>
               {signupMessage && (
                 <p style={{ color: signupMessage.success ? "green" : "red" }}>
@@ -666,7 +700,7 @@ const Announcements = () => {
                     </span>
                   </div>
                   <h3 className="history-modal-title resident-ann-details-title">
-                    {selectedAnnouncement.title}
+                    {getAnnouncementTitle(selectedAnnouncement)}
                   </h3>
                   <p className="history-modal-sub resident-ann-details-sub">
                     Posted{" "}
@@ -728,7 +762,7 @@ const Announcements = () => {
                 <div className="resident-ann-section">
                   <div className="resident-ann-section-title">Description</div>
                   <p className="resident-ann-desc">
-                    {selectedAnnouncement.content}
+                    {getAnnouncementDescription(selectedAnnouncement)}
                   </p>
                 </div>
 

@@ -80,10 +80,9 @@
 .admin-announcement-modal-dialog {
   background-color: #fff;
   border-radius: 12px;
-  padding: 20px;
-  max-width: 600px;
-  width: 100%;
-  max-height: 85vh;
+  padding: 24px;
+  width: min(980px, 96vw);
+  max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0,0,0,0.3);
   z-index: 10001;
@@ -211,6 +210,40 @@
   gap: 28px;
 }
 
+.ann-details-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ann-details-kpi-card {
+  background: #f8fafc;
+  border: 1px solid #e6eef0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ann-details-kpi-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b7280;
+}
+
+.ann-details-kpi-value {
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
 .ann-details-section {
   display: flex;
   flex-direction: column;
@@ -238,6 +271,28 @@
   font-weight: 700;
   padding: 1px 8px;
   border-radius: 99px;
+}
+
+.ann-targeting-chip-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.ann-targeting-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #b7ead6;
+  background: #ecfdf5;
+  color: #065f46;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  word-break: break-word;
 }
 
 .ann-details-content-text {
@@ -385,6 +440,8 @@
   }
   
   .admin-announcement-modal-dialog {
+    width: min(980px, 100%);
+    padding: 16px;
     max-height: calc(100vh - 24px);
   }
   
@@ -395,6 +452,10 @@
   }
   
   .ann-details-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ann-details-kpi-grid {
     grid-template-columns: 1fr;
   }
   
