@@ -131,6 +131,18 @@ export default function AdminAnnouncements() {
     { key: "alert", label: "Alerts" },
   ];
 
+  const getDefaultTargetingData = () => ({
+    purok: [],
+    min_age: "",
+    max_age: "",
+    voter_status: [],
+    occupation: [],
+    religion: [],
+    civil_status: [],
+    sex: "",
+    send_sms: false,
+  });
+
   const getMinAllowedDateTime = () => {
     const minDate = new Date();
     minDate.setHours(0, 0, 0, 0);
@@ -273,6 +285,11 @@ export default function AdminAnnouncements() {
         );
       })()
     : minStartDateTime;
+
+  const shouldShowAdvancedFiltering =
+    !isEditMode &&
+    formData.category === "event" &&
+    formData.audience === "residents";
 
   // Filtered announcements for search and filter
   const filteredAnnouncements = announcements.filter((ann) => {
@@ -1608,12 +1625,20 @@ export default function AdminAnnouncements() {
                         </label>
                         <select
                           value={formData.audience}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            const nextAudience = e.target.value;
                             setFormData({
                               ...formData,
-                              audience: e.target.value,
-                            })
-                          }
+                              audience: nextAudience,
+                              ...(!isEditMode && nextAudience !== "residents"
+                                ? getDefaultTargetingData()
+                                : {}),
+                            });
+
+                            if (!isEditMode && nextAudience !== "residents") {
+                              setShowAdvanced(false);
+                            }
+                          }}
                           style={{
                             width: "100%",
                             padding: "10px",
@@ -1662,7 +1687,7 @@ export default function AdminAnnouncements() {
                   </>
                 )}
 
-                {formData.category === "event" && (
+                {shouldShowAdvancedFiltering && (
                   <div style={{ marginTop: "16px" }}>
                     <button
                       type="button"
