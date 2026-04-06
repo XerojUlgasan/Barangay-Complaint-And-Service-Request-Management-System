@@ -727,40 +727,6 @@ const Announcements = () => {
                 </button>
               </div>
               <div className="history-modal-body resident-ann-details-body">
-                <div className="resident-ann-kpi-grid">
-                  <div className="resident-ann-kpi-card">
-                    <span className="resident-ann-kpi-label">Audience</span>
-                    <span
-                      className="resident-ann-kpi-value"
-                      style={{ textTransform: "capitalize" }}
-                    >
-                      {selectedAnnouncement.audience || "Residents"}
-                    </span>
-                  </div>
-                  <div className="resident-ann-kpi-card">
-                    <span className="resident-ann-kpi-label">
-                      SMS Notification
-                    </span>
-                    <span className="resident-ann-kpi-value">
-                      {selectedAnnouncement.send_sms ? "Enabled" : "Disabled"}
-                    </span>
-                  </div>
-                  <div className="resident-ann-kpi-card">
-                    <span className="resident-ann-kpi-label">Event Status</span>
-                    <span className="resident-ann-kpi-value">
-                      {selectedAnnouncement.category?.toLowerCase() === "event"
-                        ? getEventStatus(selectedAnnouncement)
-                        : "N/A"}
-                    </span>
-                  </div>
-                  <div className="resident-ann-kpi-card">
-                    <span className="resident-ann-kpi-label">Target Rules</span>
-                    <span className="resident-ann-kpi-value">
-                      {getTargetingChips(selectedAnnouncement).length}
-                    </span>
-                  </div>
-                </div>
-
                 <div className="resident-ann-section">
                   <div className="resident-ann-section-title">Description</div>
                   <p className="resident-ann-desc">
