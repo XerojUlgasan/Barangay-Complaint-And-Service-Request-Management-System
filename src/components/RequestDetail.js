@@ -307,16 +307,22 @@ const RequestDetail = ({
               <ul className="history-list">
                 {history.map((h, idx) => {
                   const date = new Date(h.updated_at || h.created_at);
-                  const rawStatus = (h.request_status || "")
+                  const statusValue =
+                    h.status || h.complaint_status || h.request_status || "";
+                  const rawStatus = String(statusValue)
                     .toUpperCase()
                     .replace(/ /g, "_");
-                  const statusLabel = h.request_status
-                    ? h.request_status.replace(/_/g, " ").toUpperCase()
-                    : "";
+                  const statusLabel = statusValue
+                    ? String(statusValue).replace(/_/g, " ").toUpperCase()
+                    : "UPDATED";
                   const dotColor = statusColorMap[rawStatus] || "#6B7280";
 
                   return (
-                    <li key={idx} className="history-item">
+                    <li
+                      key={idx}
+                      className="history-item"
+                      style={{ "--history-dot-color": dotColor }}
+                    >
                       {/* Timeline dot — required for the vertical line + circle */}
                       <div className="history-dot" />
 

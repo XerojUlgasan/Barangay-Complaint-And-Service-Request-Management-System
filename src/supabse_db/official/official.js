@@ -65,7 +65,9 @@ export const getAssignedComplaints = async () => {
   const complainantAuthUids = [
     ...new Set(data.map((row) => row.complainant_id)),
   ].filter(Boolean);
-  const residentsResult = await getResidentsByAuthUids(complainantAuthUids);
+  const residentsResult = await getResidentsByAuthUids(complainantAuthUids, {
+    forceRefresh: true,
+  });
   const residentNameMap = residentsResult.success
     ? Object.fromEntries(
         Object.entries(residentsResult.data).map(([authUid, resident]) => [
@@ -147,7 +149,9 @@ export const getAssignedRequests = async () => {
   const requesterAuthUids = [
     ...new Set(data.map((row) => row.requester_id)),
   ].filter(Boolean);
-  const residentsResult = await getResidentsByAuthUids(requesterAuthUids);
+  const residentsResult = await getResidentsByAuthUids(requesterAuthUids, {
+    forceRefresh: true,
+  });
   const residentNameMap = residentsResult.success
     ? Object.fromEntries(
         Object.entries(residentsResult.data).map(([authUid, resident]) => [
@@ -306,8 +310,8 @@ export const updateComplaintStatus = async (
   };
 
   if (status) updateData.status = status;
-  if (remarks) updateData.remarks = remarks;
-  if (priority_level) updateData.priority_level = priority_level;
+  if (remarks !== undefined) updateData.remarks = remarks;
+  if (priority_level !== undefined) updateData.priority_level = priority_level;
 
   const { error } = await supabase
     .from("complaint_tbl")

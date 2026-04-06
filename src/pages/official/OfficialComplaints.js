@@ -35,6 +35,11 @@ const normalizeStatus = (status) => {
   return STATUS_LABELS[normalized] || status;
 };
 
+const toStatusCode = (status) => {
+  if (!status) return "PENDING";
+  return String(status).toUpperCase().replace(/ /g, "_");
+};
+
 export default function OfficialComplaints() {
   const location = useLocation();
   const [selectedComplaintStatus, setSelectedComplaintStatus] = useState("All Status");
@@ -48,25 +53,35 @@ export default function OfficialComplaints() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  const transformComplaintData = (dbComplaint) => ({
-    ...dbComplaint,
-    id: dbComplaint.id,
-    title: dbComplaint.complaint_type || "Untitled Complaint",
-    location: dbComplaint.incident_location || "Unknown Location",
-    status: normalizeStatus(dbComplaint.status),
-    complainant: dbComplaint.complainant_name || "Unknown",
-    date: dbComplaint.created_at
-      ? new Date(dbComplaint.created_at).toISOString().split("T")[0]
-      : "N/A",
-    lastUpdate: dbComplaint.updated_at
-      ? new Date(dbComplaint.updated_at).toISOString().split("T")[0]
-      : dbComplaint.created_at
-      ? new Date(dbComplaint.created_at).toISOString().split("T")[0]
-      : "N/A",
-    priority: dbComplaint.priority_level || "Normal",
-    description: dbComplaint.description || "No description provided",
-    remarks: dbComplaint.remarks || "No remarks yet",
-  });
+  const transformComplaintData = (dbComplaint) => {
+    const rawStatus = dbComplaint.status || "pending";
+
+    return {
+      ...dbComplaint,
+      id: dbComplaint.id,
+      title: dbComplaint.complaint_type || "Untitled Complaint",
+      location: dbComplaint.incident_location || "Unknown Location",
+      status: toStatusCode(rawStatus),
+      statusDisplay: normalizeStatus(rawStatus),
+      complainant: dbComplaint.complainant_name || "Unknown",
+      submittedBy: dbComplaint.complainant_name || "Unknown",
+      date: dbComplaint.created_at
+        ? new Date(dbComplaint.created_at).toISOString().split("T")[0]
+        : "N/A",
+      submissionDate: dbComplaint.created_at
+        ? new Date(dbComplaint.created_at).toLocaleDateString()
+        : "N/A",
+      lastUpdate: dbComplaint.updated_at
+        ? new Date(dbComplaint.updated_at).toISOString().split("T")[0]
+        : dbComplaint.created_at
+          ? new Date(dbComplaint.created_at).toISOString().split("T")[0]
+          : "N/A",
+      priority: dbComplaint.priority_level || "Normal",
+      description: dbComplaint.description || "No description provided",
+      internalNotes: dbComplaint.remarks || "",
+      remarks: dbComplaint.remarks || "",
+    };
+  };
 
   useEffect(() => {
     const fetchComplaints = async () => {
@@ -118,7 +133,7 @@ export default function OfficialComplaints() {
   const filteredComplaints = complaints.filter((complaint) => {
     const statusMatch =
       selectedComplaintStatus === "All Status" ||
-      complaint.status === selectedComplaintStatus;
+      complaint.statusDisplay === selectedComplaintStatus;
     const searchLower = searchQuery.toLowerCase();
     const searchMatch =
       complaint.title.toLowerCase().includes(searchLower) ||
@@ -146,10 +161,14 @@ export default function OfficialComplaints() {
         PENDING: "pending", IN_PROGRESS: "in_progress", COMPLETED: "completed",
         REJECTED: "rejected", FOR_COMPLIANCE: "for_compliance",
         NON_COMPLIANT: "non_compliant", FOR_VALIDATION: "for_validation",
+        RESIDENT_COMPLIED: "resident_complied",
       };
       const dbStatus = statusMap[updatedData.status] || updatedData.status.toLowerCase();
       const result = await updateComplaintStatus(
-        selectedComplaint.id, dbStatus, updatedData.remarks, updatedData.priority_level,
+        updatedData.requestId || selectedComplaint.id,
+        dbStatus,
+        updatedData.internalNotes,
+        updatedData.priority_level,
       );
       if (result.success) {
         const refreshed = await getAssignedComplaints();
@@ -287,7 +306,7 @@ export default function OfficialComplaints() {
                   </tr>
                 ) : filteredComplaints.length > 0 ? (
                   filteredComplaints.map((c) => {
-                    const color = STATUS_COLORS[c.status] || "#9ca3af";
+                    const color = STATUS_COLORS[c.statusDisplay] || "#9ca3af";
                     return (
                       <tr key={c.id}>
                         <td>
@@ -307,7 +326,7 @@ export default function OfficialComplaints() {
                             className="req-status-badge"
                             style={{ backgroundColor: color }}
                           >
-                            {c.status}
+                            {c.statusDisplay}
                           </span>
                         </td>
                         <td>
