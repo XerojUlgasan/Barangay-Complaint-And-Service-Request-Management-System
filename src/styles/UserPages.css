@@ -61,6 +61,28 @@
   box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
 }
 
+/* Resident announcement cards use extra event UI blocks.
+   Keep enough vertical room so title and description never collapse. */
+.user-landing-page .ann-card-new {
+  height: auto;
+  min-height: 232px;
+}
+
+.user-landing-page .ann-card-body {
+  min-height: 0;
+}
+
+.user-landing-page .ann-card-title,
+.user-landing-page .ann-card-desc,
+.user-landing-page .ann-card-event-row,
+.user-landing-page .ann-card-participants {
+  flex-shrink: 0;
+}
+
+.user-landing-page .ann-card-desc {
+  -webkit-line-clamp: 2;
+}
+
 /* ── LAYOUT ── */
 .user-landing-page .layout {
   display: flex;

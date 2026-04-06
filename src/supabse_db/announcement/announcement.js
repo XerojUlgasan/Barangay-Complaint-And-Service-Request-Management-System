@@ -834,11 +834,11 @@ export const getAnnouncementParticipants = async (announcementId) => {
   const regMap = new Map((regResidents || []).map((r) => [r.auth_uid, r]));
   const residentIds = (regResidents || []).map((r) => r.id).filter(Boolean);
 
-  // Step 3: fetch full resident details from household_supabase
+  // Step 3: fetch full resident details from barangaylink.residents
   let detailMap = new Map();
   if (residentIds.length > 0) {
-    const { data: residentDetails, error: rdErr } = await supabase
-      .from("residents_tbl")
+    const { data: residentDetails, error: rdErr } = await household_supabase
+      .from("residents")
       .select(
         "id, first_name, middle_name, last_name, suffix, contact_number, email, address_line",
       )
@@ -861,7 +861,12 @@ export const getAnnouncementParticipants = async (announcementId) => {
           detail.suffix,
         ].filter(Boolean)
       : [];
-    const fullName = nameParts.length ? nameParts.join(" ") : "Unknown";
+    const fullName =
+      nameParts.length
+        ? nameParts.join(" ")
+        : reg?.email
+          ? reg.email
+          : `Resident ${String(p.user_uid).slice(0, 8)}`;
     return {
       participantId: p.id,
       userUid: p.user_uid,
