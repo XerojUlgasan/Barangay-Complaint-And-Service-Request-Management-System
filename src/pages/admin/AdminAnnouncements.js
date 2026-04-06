@@ -121,16 +121,20 @@ export default function AdminAnnouncements() {
 
   const getCategoryConfig = (category) => {
     const cat = (category || "").toLowerCase();
-    if (cat === "event") return { label: "Event", color: "#8b5cf6", bg: "#f5f3ff", icon: "📅" };
-    if (cat === "alert") return { label: "Alert", color: "#ef4444", bg: "#fef2f2", icon: "🚨" };
+    if (cat === "event")
+      return { label: "Event", color: "#8b5cf6", bg: "#f5f3ff", icon: "📅" };
+    if (cat === "alert")
+      return { label: "Alert", color: "#ef4444", bg: "#fef2f2", icon: "🚨" };
     return { label: "General", color: "#10b981", bg: "#f0fdf4", icon: "📢" };
   };
 
   const getPriorityConfig = (priority) => {
     const p = (priority || "").toLowerCase();
     if (p === "high") return { label: "HIGH", color: "#dc2626", bg: "#fef2f2" };
-    if (p === "urgent") return { label: "URGENT", color: "#9f1239", bg: "#fff1f2" };
-    if (p === "medium") return { label: "MED", color: "#d97706", bg: "#fffbeb" };
+    if (p === "urgent")
+      return { label: "URGENT", color: "#9f1239", bg: "#fff1f2" };
+    if (p === "medium")
+      return { label: "MED", color: "#d97706", bg: "#fffbeb" };
     return null;
   };
 
@@ -312,7 +316,9 @@ export default function AdminAnnouncements() {
     return matchesFilter && matchesSearch;
   });
 
-  const eventCount = announcements.filter(a => (a.category || "").toLowerCase() === "event").length;
+  const eventCount = announcements.filter(
+    (a) => (a.category || "").toLowerCase() === "event",
+  ).length;
 
   const showToast = (message, type = "success") => {
     setToast({ show: true, type, message });
@@ -638,17 +644,18 @@ export default function AdminAnnouncements() {
     }
 
     if (isEventCategory) {
-      const datesValid = validateEventDates(formData.event_start, formData.event_end);
+      const datesValid = validateEventDates(
+        formData.event_start,
+        formData.event_end,
+      );
       if (!datesValid) {
         nextErrors.event_dates = "Please fix the event date and time fields.";
       }
     }
 
-    if (
-      isEventCategory &&
-      !formData.max_participants
-    ) {
-      nextErrors.max_participants = "Please enter max participants for event announcements.";
+    if (isEventCategory && !formData.max_participants) {
+      nextErrors.max_participants =
+        "Please enter max participants for event announcements.";
     }
 
     if (
@@ -666,11 +673,13 @@ export default function AdminAnnouncements() {
 
     if (isEventCategory) {
       if ((minAge !== null && Number.isNaN(minAge)) || minAge < 0) {
-        nextErrors.min_age = "Minimum age must be a valid number (0 or greater).";
+        nextErrors.min_age =
+          "Minimum age must be a valid number (0 or greater).";
       }
 
       if ((maxAge !== null && Number.isNaN(maxAge)) || maxAge < 0) {
-        nextErrors.max_age = "Maximum age must be a valid number (0 or greater).";
+        nextErrors.max_age =
+          "Maximum age must be a valid number (0 or greater).";
       }
 
       if (minAge === null && maxAge !== null) {
@@ -913,7 +922,9 @@ export default function AdminAnnouncements() {
       <div className="ann-page-header">
         <div className="ann-page-header-left">
           <h1 className="ann-page-title">Announcements</h1>
-          <p className="ann-page-subtitle">Create and monitor official barangay updates</p>
+          <p className="ann-page-subtitle">
+            Create and monitor official barangay updates
+          </p>
         </div>
         <div className="ann-summary-chips">
           <div className="ann-summary-chip">
@@ -928,7 +939,13 @@ export default function AdminAnnouncements() {
       </div>
 
       {/* ── Add New Announcement Button ── */}
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "24px" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          marginBottom: "24px",
+        }}
+      >
         <button className="btn-new-ann" onClick={openModal}>
           + New Announcement
         </button>
@@ -937,8 +954,17 @@ export default function AdminAnnouncements() {
       {/* ── Search & Filter Bar ── */}
       <div className="ann-toolbar">
         <div className="ann-search-wrap">
-          <svg className="ann-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          <svg
+            className="ann-search-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            width="16"
+            height="16"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
           <input
             className="ann-search-input"
@@ -963,7 +989,8 @@ export default function AdminAnnouncements() {
 
       {/* ── Count Label ── */}
       <div className="ann-count-label">
-        Showing {filteredAnnouncements.length} of {announcements.length} announcements
+        Showing {filteredAnnouncements.length} of {announcements.length}{" "}
+        announcements
       </div>
 
       {/* ── Loading State ── */}
@@ -983,8 +1010,9 @@ export default function AdminAnnouncements() {
       )}
 
       {/* ── Cards Grid ── */}
-      {!loading && !error && (
-        filteredAnnouncements.length === 0 ? (
+      {!loading &&
+        !error &&
+        (filteredAnnouncements.length === 0 ? (
           <div className="ann-empty-state">
             <div className="ann-empty-icon">📭</div>
             <p className="ann-empty-text">No announcements found</p>
@@ -1007,14 +1035,29 @@ export default function AdminAnnouncements() {
                   {/* Image / Placeholder */}
                   <div className="ann-card-img-wrap">
                     {imageLoadingMap[ann.id] ? (
-                      <div className="ann-card-img-placeholder" style={{ background: "#f3f4f6" }}>
-                        <div className="loading-spinner" style={{ width: "24px", height: "24px" }} />
+                      <div
+                        className="ann-card-img-placeholder"
+                        style={{ background: "#f3f4f6" }}
+                      >
+                        <div
+                          className="loading-spinner"
+                          style={{ width: "24px", height: "24px" }}
+                        />
                       </div>
                     ) : hasImage ? (
-                      <img src={announcementImages[ann.id]} alt={ann.title} className="ann-card-img" />
+                      <img
+                        src={announcementImages[ann.id]}
+                        alt={ann.title}
+                        className="ann-card-img"
+                      />
                     ) : (
-                      <div className="ann-card-img-placeholder" style={{ background: catConfig.bg }}>
-                        <span className="ann-card-img-emoji">{catConfig.icon}</span>
+                      <div
+                        className="ann-card-img-placeholder"
+                        style={{ background: catConfig.bg }}
+                      >
+                        <span className="ann-card-img-emoji">
+                          {catConfig.icon}
+                        </span>
                       </div>
                     )}
 
@@ -1030,7 +1073,10 @@ export default function AdminAnnouncements() {
                     {priorityConfig && (
                       <span
                         className="ann-card-priority-badge"
-                        style={{ color: priorityConfig.color, background: priorityConfig.bg }}
+                        style={{
+                          color: priorityConfig.color,
+                          background: priorityConfig.bg,
+                        }}
                       >
                         {priorityConfig.label}
                       </span>
@@ -1044,7 +1090,9 @@ export default function AdminAnnouncements() {
                         {ann.author || "Barangay"}
                       </span>
                       <span className="ann-card-dot">·</span>
-                      <span className="ann-card-date">{formatDateShort(ann.created_at)}</span>
+                      <span className="ann-card-date">
+                        {formatDateShort(ann.created_at)}
+                      </span>
                     </div>
 
                     <h3 className="ann-card-title">{ann.title}</h3>
@@ -1053,10 +1101,23 @@ export default function AdminAnnouncements() {
                     {/* Event details */}
                     {isEvent && ann.event_start && (
                       <div className="ann-card-event-row">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
-                          <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          width="13"
+                          height="13"
+                        >
+                          <rect x="3" y="4" width="18" height="18" rx="2" />
+                          <path d="M16 2v4M8 2v4M3 10h18" />
                         </svg>
-                        <span>{new Date(ann.event_start).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                        <span>
+                          {new Date(ann.event_start).toLocaleDateString(
+                            "en-US",
+                            { month: "short", day: "numeric", year: "numeric" },
+                          )}
+                        </span>
                       </div>
                     )}
 
@@ -1092,8 +1153,7 @@ export default function AdminAnnouncements() {
               );
             })}
           </div>
-        )
-      )}
+        ))}
 
       {/* Announcement Details Modal */}
       {selectedAnnouncement &&
@@ -1449,7 +1509,8 @@ export default function AdminAnnouncements() {
                       border: `1px solid ${formFeedback.type === "error" ? "#fecaca" : "#a7f3d0"}`,
                       backgroundColor:
                         formFeedback.type === "error" ? "#fef2f2" : "#ecfdf5",
-                      color: formFeedback.type === "error" ? "#991b1b" : "#065f46",
+                      color:
+                        formFeedback.type === "error" ? "#991b1b" : "#065f46",
                       borderRadius: "8px",
                       padding: "10px 12px",
                       fontSize: "13px",
@@ -1599,7 +1660,13 @@ export default function AdminAnnouncements() {
                     }}
                   />
                   {formErrors.title && (
-                    <div style={{ marginTop: "6px", fontSize: "12px", color: "#dc2626" }}>
+                    <div
+                      style={{
+                        marginTop: "6px",
+                        fontSize: "12px",
+                        color: "#dc2626",
+                      }}
+                    >
                       {formErrors.title}
                     </div>
                   )}
@@ -1637,7 +1704,13 @@ export default function AdminAnnouncements() {
                     }}
                   />
                   {formErrors.content && (
-                    <div style={{ marginTop: "6px", fontSize: "12px", color: "#dc2626" }}>
+                    <div
+                      style={{
+                        marginTop: "6px",
+                        fontSize: "12px",
+                        color: "#dc2626",
+                      }}
+                    >
                       {formErrors.content}
                     </div>
                   )}

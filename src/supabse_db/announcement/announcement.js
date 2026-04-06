@@ -861,12 +861,11 @@ export const getAnnouncementParticipants = async (announcementId) => {
           detail.suffix,
         ].filter(Boolean)
       : [];
-    const fullName =
-      nameParts.length
-        ? nameParts.join(" ")
-        : reg?.email
-          ? reg.email
-          : `Resident ${String(p.user_uid).slice(0, 8)}`;
+    const fullName = nameParts.length
+      ? nameParts.join(" ")
+      : reg?.email
+        ? reg.email
+        : `Resident ${String(p.user_uid).slice(0, 8)}`;
     return {
       participantId: p.id,
       userUid: p.user_uid,

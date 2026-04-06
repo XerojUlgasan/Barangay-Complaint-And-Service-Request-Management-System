@@ -42,7 +42,8 @@ const toStatusCode = (status) => {
 
 export default function OfficialComplaints() {
   const location = useLocation();
-  const [selectedComplaintStatus, setSelectedComplaintStatus] = useState("All Status");
+  const [selectedComplaintStatus, setSelectedComplaintStatus] =
+    useState("All Status");
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [complaintDropdownOpen, setComplaintDropdownOpen] = useState(false);
@@ -106,7 +107,9 @@ export default function OfficialComplaints() {
   }, []);
 
   useEffect(() => {
-    const handleEscape = (e) => { if (e.key === "Escape") closeModal(); };
+    const handleEscape = (e) => {
+      if (e.key === "Escape") closeModal();
+    };
     if (isModalOpen) {
       document.addEventListener("keydown", handleEscape);
       document.body.style.overflow = "hidden";
@@ -119,8 +122,14 @@ export default function OfficialComplaints() {
 
   useEffect(() => {
     // Auto-open modal if redirected from dashboard
-    if (location.state?.selectedComplaintId && location.state?.openModal && complaints.length > 0) {
-      const complaint = complaints.find((c) => c.id === location.state.selectedComplaintId);
+    if (
+      location.state?.selectedComplaintId &&
+      location.state?.openModal &&
+      complaints.length > 0
+    ) {
+      const complaint = complaints.find(
+        (c) => c.id === location.state.selectedComplaintId,
+      );
       if (complaint) {
         setSelectedComplaint(complaint);
         setIsModalOpen(true);
@@ -143,27 +152,45 @@ export default function OfficialComplaints() {
     const complaintDate = new Date(complaint.date);
     const start = startDate ? new Date(startDate) : null;
     const end = endDate ? new Date(endDate) : null;
-    const dateMatch = (!start || complaintDate >= start) && (!end || complaintDate <= end);
+    const dateMatch =
+      (!start || complaintDate >= start) && (!end || complaintDate <= end);
     return statusMatch && searchMatch && dateMatch;
   });
 
-  const openModal = (complaint) => { setSelectedComplaint(complaint); setIsModalOpen(true); };
-  const closeModal = () => { setIsModalOpen(false); setTimeout(() => setSelectedComplaint(null), 300); };
+  const openModal = (complaint) => {
+    setSelectedComplaint(complaint);
+    setIsModalOpen(true);
+  };
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setTimeout(() => setSelectedComplaint(null), 300);
+  };
 
   const statusOptions = [
-    "All Status", "Pending", "In Progress", "Completed", "Rejected",
-    "For Compliance", "Non Compliant", "For Validation",
+    "All Status",
+    "Pending",
+    "In Progress",
+    "Completed",
+    "Rejected",
+    "For Compliance",
+    "Non Compliant",
+    "For Validation",
   ];
 
   const handleSaveComplaint = async (updatedData) => {
     try {
       const statusMap = {
-        PENDING: "pending", IN_PROGRESS: "in_progress", COMPLETED: "completed",
-        REJECTED: "rejected", FOR_COMPLIANCE: "for_compliance",
-        NON_COMPLIANT: "non_compliant", FOR_VALIDATION: "for_validation",
+        PENDING: "pending",
+        IN_PROGRESS: "in_progress",
+        COMPLETED: "completed",
+        REJECTED: "rejected",
+        FOR_COMPLIANCE: "for_compliance",
+        NON_COMPLIANT: "non_compliant",
+        FOR_VALIDATION: "for_validation",
         RESIDENT_COMPLIED: "resident_complied",
       };
-      const dbStatus = statusMap[updatedData.status] || updatedData.status.toLowerCase();
+      const dbStatus =
+        statusMap[updatedData.status] || updatedData.status.toLowerCase();
       const result = await updateComplaintStatus(
         updatedData.requestId || selectedComplaint.id,
         dbStatus,
@@ -187,10 +214,15 @@ export default function OfficialComplaints() {
   return (
     <div className={`admin-page${isModalOpen ? " modal-open-blur" : ""}`}>
       <div className="ar-page-content">
-        <div className="page-actions" style={{ alignItems: "flex-start", marginBottom: 12 }}>
+        <div
+          className="page-actions"
+          style={{ alignItems: "flex-start", marginBottom: 12 }}
+        >
           <div>
             <h3>Assigned Complaints</h3>
-            <p className="muted">Review and manage complaints assigned to you.</p>
+            <p className="muted">
+              Review and manage complaints assigned to you.
+            </p>
           </div>
         </div>
 
@@ -214,8 +246,14 @@ export default function OfficialComplaints() {
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  max={new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000)
-                    .toISOString().split("T")[0]}
+                  max={
+                    new Date(
+                      new Date().getTime() -
+                        new Date().getTimezoneOffset() * 60000,
+                    )
+                      .toISOString()
+                      .split("T")[0]
+                  }
                   className="filter-date-input"
                 />
               </div>
@@ -225,14 +263,24 @@ export default function OfficialComplaints() {
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  max={new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000)
-                    .toISOString().split("T")[0]}
+                  max={
+                    new Date(
+                      new Date().getTime() -
+                        new Date().getTimezoneOffset() * 60000,
+                    )
+                      .toISOString()
+                      .split("T")[0]
+                  }
                   className="filter-date-input"
                 />
               </div>
               {(startDate || endDate || searchQuery) && (
                 <button
-                  onClick={() => { setSearchQuery(""); setStartDate(""); setEndDate(""); }}
+                  onClick={() => {
+                    setSearchQuery("");
+                    setStartDate("");
+                    setEndDate("");
+                  }}
                   className="filter-clear-btn"
                 >
                   Clear Filters
@@ -242,7 +290,10 @@ export default function OfficialComplaints() {
           </div>
 
           {/* ── Status Dropdown ── */}
-          <div className="status-filter-wrapper" style={{ marginBottom: "1rem" }}>
+          <div
+            className="status-filter-wrapper"
+            style={{ marginBottom: "1rem" }}
+          >
             <button
               className="status-filter-btn"
               onClick={() => setComplaintDropdownOpen(!complaintDropdownOpen)}
@@ -261,7 +312,10 @@ export default function OfficialComplaints() {
                     <button
                       key={status}
                       className={`status-option${selectedComplaintStatus === status ? " active" : ""}`}
-                      onClick={() => { setSelectedComplaintStatus(status); setComplaintDropdownOpen(false); }}
+                      onClick={() => {
+                        setSelectedComplaintStatus(status);
+                        setComplaintDropdownOpen(false);
+                      }}
                     >
                       {status}
                     </button>
@@ -272,7 +326,8 @@ export default function OfficialComplaints() {
           </div>
 
           <div className="table-count-label">
-            Showing {filteredComplaints.length} of {complaints.length} complaints
+            Showing {filteredComplaints.length} of {complaints.length}{" "}
+            complaints
           </div>
 
           {/* ── Table ── */}
@@ -292,15 +347,23 @@ export default function OfficialComplaints() {
                 {loadingComplaints ? (
                   <tr>
                     <td colSpan="6">
-                      <div className="loading-wrap" style={{ padding: "1rem 0" }}>
+                      <div
+                        className="loading-wrap"
+                        style={{ padding: "1rem 0" }}
+                      >
                         <div className="loading-spinner" aria-hidden="true" />
-                        <div className="loading-text">Loading complaints...</div>
+                        <div className="loading-text">
+                          Loading complaints...
+                        </div>
                       </div>
                     </td>
                   </tr>
                 ) : errorComplaints ? (
                   <tr>
-                    <td colSpan="6" style={{ color: "#ef4444", textAlign: "center" }}>
+                    <td
+                      colSpan="6"
+                      style={{ color: "#ef4444", textAlign: "center" }}
+                    >
                       {errorComplaints}
                     </td>
                   </tr>
@@ -330,7 +393,10 @@ export default function OfficialComplaints() {
                           </span>
                         </td>
                         <td>
-                          <button className="view-details-btn" onClick={() => openModal(c)}>
+                          <button
+                            className="view-details-btn"
+                            onClick={() => openModal(c)}
+                          >
                             View Details
                           </button>
                         </td>

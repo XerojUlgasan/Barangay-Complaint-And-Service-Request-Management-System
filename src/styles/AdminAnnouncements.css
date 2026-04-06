@@ -68,7 +68,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0,0,0,0.5);
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -84,7 +84,7 @@
   width: min(980px, 96vw);
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   z-index: 10001;
   position: relative;
   margin: auto;
@@ -95,7 +95,7 @@
   position: fixed;
   inset: 0;
   z-index: 10000;
-  background: rgba(0,0,0,0.55);
+  background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -112,7 +112,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 32px 80px rgba(0,0,0,0.18);
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.18);
   z-index: 10001;
   position: relative;
   margin: auto;
@@ -193,7 +193,9 @@
   justify-content: center;
   cursor: pointer;
   color: #6b7280;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .ann-details-close:hover {
@@ -429,28 +431,28 @@
   .ann-details-overlay {
     padding: 12px;
   }
-  
+
   .ann-details-shell {
     border-radius: 16px;
     max-height: calc(100vh - 24px);
   }
-  
+
   .admin-announcement-modal-overlay {
     padding: 12px;
   }
-  
+
   .admin-announcement-modal-dialog {
     width: min(980px, 100%);
     padding: 16px;
     max-height: calc(100vh - 24px);
   }
-  
+
   .ann-details-header,
   .ann-details-content {
     padding-left: 16px;
     padding-right: 16px;
   }
-  
+
   .ann-details-info-grid {
     grid-template-columns: 1fr;
   }
@@ -458,7 +460,7 @@
   .ann-details-kpi-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .ann-details-title {
     font-size: 18px;
   }
