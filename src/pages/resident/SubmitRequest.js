@@ -8,6 +8,7 @@ import household_supabase from "../../supabse_db/household_supabase_client";
 import { useAuth } from "../../context/AuthContext";
 import ResidentSidebar from "../../components/ResidentSidebar";
 import ResidentSettings from "../../components/ResidentSettings";
+import ResidentProfile from "../../components/ResidentProfile";
 import "../../styles/UserPages.css";
 import supabase from "../../supabse_db/supabase_client";
 
@@ -398,6 +399,7 @@ const SubmitRequest = () => {
                 <strong>{userName || "Loading..."}</strong>
                 <span>Resident</span>
               </div>
+              <ResidentProfile />
               <ResidentSettings />
               <button
                 onClick={handleBack}

@@ -10,6 +10,7 @@ import supabase from "../../supabse_db/supabase_client";
 import { useAuth } from "../../context/AuthContext";
 import ResidentSidebar from "../../components/ResidentSidebar";
 import ResidentSettings from "../../components/ResidentSettings";
+import ResidentProfile from "../../components/ResidentProfile";
 import "../../styles/UserPages.css";
 
 const MyRequests = () => {
@@ -775,6 +776,7 @@ const MyRequests = () => {
                 <strong>{userName || "Loading..."}</strong>
                 <span>Resident</span>
               </div>
+              <ResidentProfile />
               <ResidentSettings />
               <button
                 onClick={() => setShowLogoutModal(true)}

@@ -8,6 +8,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useAnnouncementsForRole } from "../../hooks/useAnnouncementsForRole";
 import ResidentSidebar from "../../components/ResidentSidebar";
 import ResidentSettings from "../../components/ResidentSettings";
+import ResidentProfile from "../../components/ResidentProfile";
 import "../../styles/UserPages.css";
 import "../../styles/BarangayOfficial.css";
 
@@ -337,6 +338,7 @@ const Announcements = () => {
                 <strong>{userName || "Loading..."}</strong>
                 <span>Resident</span>
               </div>
+              <ResidentProfile />
               <ResidentSettings />
               <button
                 onClick={() => setShowLogoutModal(true)}

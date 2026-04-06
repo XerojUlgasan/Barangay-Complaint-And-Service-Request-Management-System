@@ -6,6 +6,7 @@ import { getRequests } from "../../supabse_db/request/request";
 import { getComplaints } from "../../supabse_db/complaint/complaint";
 import ResidentSidebar from "../../components/ResidentSidebar";
 import ResidentSettings from "../../components/ResidentSettings";
+import ResidentProfile from "../../components/ResidentProfile";
 import PasswordChangeModal from "../../components/PasswordChangeModal";
 import "../../styles/UserPages.css";
 
@@ -358,6 +359,7 @@ const Dashboard = () => {
                 <strong>{authUser?.email || "Loading..."}</strong>
                 <span>Resident</span>
               </div>
+              <ResidentProfile />
               <ResidentSettings />
               <button
                 onClick={() => setShowLogoutModal(true)}

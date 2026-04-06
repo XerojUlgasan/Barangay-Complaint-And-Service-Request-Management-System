@@ -14,6 +14,7 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import ResidentSidebar from "../../components/ResidentSidebar";
 import ResidentSettings from "../../components/ResidentSettings";
+import ResidentProfile from "../../components/ResidentProfile";
 import "../../styles/UserPages.css";
 
 const MyComplaints = () => {
@@ -898,6 +899,7 @@ const MyComplaints = () => {
                 <strong>{userName || "Loading..."}</strong>
                 <span>Resident</span>
               </div>
+              <ResidentProfile />
               <ResidentSettings />
               <button
                 onClick={() => setShowLogoutModal(true)}
