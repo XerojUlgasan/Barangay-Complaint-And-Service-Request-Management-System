@@ -165,6 +165,20 @@ const MyRequests = () => {
           return;
         }
 
+        const nextStatus = statusResult.status || "resident_complied";
+        const nowIso = new Date().toISOString();
+        setRequests((prev) =>
+          prev.map((request) =>
+            request.id === complianceRequest.id
+              ? {
+                  ...request,
+                  request_status: nextStatus,
+                  updated_at: nowIso,
+                }
+              : request,
+          ),
+        );
+
         alert(
           `Successfully submitted ${uploadedPaths.length} compliance file(s)!`,
         );
@@ -222,6 +236,7 @@ const MyRequests = () => {
     if (n === "rejected") return "badge rejected";
     if (n === "forcompliance") return "badge forcompliance";
     if (n === "forvalidation") return "badge forvalidation";
+    if (n === "residentcomplied") return "badge complied";
     if (n === "complied") return "badge complied";
     return "badge";
   };
@@ -238,6 +253,7 @@ const MyRequests = () => {
     if (n === "rejected") return "#dc2626";
     if (n === "forcompliance") return "#f59e0b";
     if (n === "forvalidation") return "#0369a1";
+    if (n === "residentcomplied") return "#1e40af";
     if (n === "complied") return "#1e40af";
     return "#f59e0b";
   };
@@ -815,6 +831,7 @@ const MyRequests = () => {
                   <option>In Progress</option>
                   <option>For Compliance</option>
                   <option>For Validation</option>
+                  <option>Resident Complied</option>
                   <option>Complied</option>
                   <option>Completed</option>
                   <option>Rejected</option>

@@ -321,7 +321,37 @@ export const markRequestResidentComplied = async (requestId) => {
     return { success: false, message: "Failed to update request status" };
   }
 
-  return { success: true, message: "Request marked as resident complied" };
+  const { data: updatedRequest, error: fetchError } = await supabase
+    .from("request_tbl")
+    .select("request_status")
+    .eq("id", requestId)
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error("Error fetching updated request status:", fetchError);
+    return {
+      success: false,
+      message: "Status updated but failed to verify new request status",
+    };
+  }
+
+  const updatedStatus = updatedRequest?.request_status;
+  const normalizedStatus = String(updatedStatus || "")
+    .toLowerCase()
+    .replace(/[\s_-]/g, "");
+
+  if (!["residentcomplied", "complied"].includes(normalizedStatus)) {
+    return {
+      success: false,
+      message: "Compliance was submitted but request status was not updated",
+    };
+  }
+
+  return {
+    success: true,
+    message: "Request marked as resident complied",
+    status: updatedStatus,
+  };
 };
 
 export const deleteRequest = async (requestId) => {
