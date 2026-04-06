@@ -793,8 +793,8 @@ const Announcements = () => {
                 </div>
 
                 <div className="resident-ann-actions">
-                  {selectedAnnouncement.category?.toLowerCase() === "event" &&
-                    (userSignups && userSignups[selectedAnnouncement.id] ? (
+                  {selectedAnnouncement.category?.toLowerCase() === "event" && (
+                    userSignups && userSignups[selectedAnnouncement.id] ? (
                       <button
                         className="ann-signup-btn cancel"
                         style={{ flex: 1, padding: "12px" }}
@@ -820,7 +820,8 @@ const Announcements = () => {
                       >
                         Sign Up for Event
                       </button>
-                    ))}
+                    )
+                  )}
                   <button
                     className="logout-modal-no"
                     style={{ flex: 1, padding: "12px" }}

@@ -25,6 +25,12 @@
   padding: 2rem 2rem 1.25rem 2rem;
 }
 
+.ann-page-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .ann-page-title {
   font-size: 2rem;
   font-weight: 800;
@@ -37,6 +43,33 @@
   font-size: 0.9375rem;
   color: #6b7280;
   margin: 0;
+}
+
+/* New Announcement Button */
+.btn-new-ann {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-new-ann:hover {
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+}
+
+.btn-new-ann:active {
+  transform: translateY(0);
 }
 
 /* Summary chips */
@@ -192,13 +225,11 @@
     box-shadow 0.2s ease,
     border-color 0.2s ease;
   animation: annCardIn 0.35s ease both;
-  min-height: 160px;
+  height: 200px;
   border-left: 4px solid transparent;
 }
 .ann-card-new:hover {
   border-left-color: #10b981;
-}
-.ann-card-new:hover {
   transform: translateY(-3px);
   box-shadow: 0 10px 28px rgba(16, 185, 129, 0.12);
   border-color: #6ee7b7;
@@ -218,7 +249,7 @@
 /* Image area */
 .ann-card-img-wrap {
   position: relative;
-  width: 460px;
+  width: 280px;
   flex-shrink: 0;
   overflow: hidden;
 }
@@ -228,7 +259,6 @@
   object-fit: cover;
   display: block;
   transition: transform 0.3s ease;
-  min-height: 160px;
 }
 .ann-card-new:hover .ann-card-img {
   transform: scale(1.04);
@@ -237,7 +267,6 @@
 .ann-card-img-placeholder {
   width: 100%;
   height: 100%;
-  min-height: 160px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -318,7 +347,7 @@
   line-height: 1.55;
   margin: 0;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   flex: 1;
@@ -811,8 +840,12 @@
     padding: 0 1rem 2rem;
     gap: 12px;
   }
+  .ann-card-new {
+    height: auto;
+    min-height: 180px;
+  }
   .ann-card-img-wrap {
-    width: 340px;
+    width: 220px;
   }
   .ann-summary-chips {
     width: 100%;
@@ -833,13 +866,12 @@
   }
   .ann-card-new {
     flex-direction: column;
+    height: auto;
+    min-height: auto;
   }
   .ann-card-img-wrap {
     width: 100%;
-    height: 140px;
-  }
-  .ann-card-img-wrap {
-    height: 140px;
+    height: 160px;
   }
   .ann-modal-box {
     padding: 24px 18px 18px;

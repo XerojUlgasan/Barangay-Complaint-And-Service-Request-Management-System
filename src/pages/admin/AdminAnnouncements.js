@@ -68,6 +68,11 @@ export default function AdminAnnouncements() {
   const [civilStatusDropdown, setCivilStatusDropdown] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [toast, setToast] = useState({
+    show: false,
+    type: "success",
+    message: "",
+  });
   const modalRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -304,6 +309,14 @@ export default function AdminAnnouncements() {
 
   const eventCount = announcements.filter(a => (a.category || "").toLowerCase() === "event").length;
 
+  const showToast = (message, type = "success") => {
+    setToast({ show: true, type, message });
+  };
+
+  const hideToast = () => {
+    setToast((prev) => ({ ...prev, show: false }));
+  };
+
   console.log("AdminAnnouncements render, showModal=", showModal);
 
   // Fetch announcements on mount
@@ -429,6 +442,15 @@ export default function AdminAnnouncements() {
 
     validateEventDates(formData.event_start, formData.event_end);
   }, [formData.category, formData.event_start, formData.event_end]);
+
+  useEffect(() => {
+    if (!toast.show) return undefined;
+    const timer = setTimeout(() => {
+      setToast((prev) => ({ ...prev, show: false }));
+    }, 3500);
+
+    return () => clearTimeout(timer);
+  }, [toast.show, toast.message]);
 
   const openModal = () => {
     console.log("Opening modal...");
@@ -605,10 +627,18 @@ export default function AdminAnnouncements() {
 
     if (
       isEventCategory &&
+      !formData.max_participants
+    ) {
+      showToast("Please enter max participants for event announcements.", "error");
+      return;
+    }
+
+    if (
+      isEventCategory &&
       formData.max_participants &&
       Number(formData.max_participants) <= 0
     ) {
-      alert("Max participants must be greater than 0");
+      showToast("Max participants must be greater than 0.", "error");
       return;
     }
 
@@ -711,9 +741,9 @@ export default function AdminAnnouncements() {
 
         // Show success message
         if (isEditMode) {
-          alert("Announcement updated successfully!");
+          showToast("Announcement updated successfully!", "success");
         } else {
-          alert("Announcement created successfully!");
+          showToast("Announcement successfully created!", "success");
         }
 
         // Upload image if provided and it's a file (not just a reference)
@@ -739,6 +769,10 @@ export default function AdminAnnouncements() {
               alert(
                 "Announcement created but image upload failed: " +
                   uploadResult.error,
+              );
+              showToast(
+                "Announcement was saved, but image upload failed.",
+                "error",
               );
             }
           } else {
@@ -813,11 +847,11 @@ export default function AdminAnnouncements() {
           }
         }
       } else {
-        alert("Error posting announcement: " + result.message);
+        showToast(`Error posting announcement: ${result.message}`, "error");
       }
     } catch (err) {
       console.error("Error posting announcement:", err);
-      alert("Error posting announcement");
+      showToast("Error posting announcement.", "error");
     } finally {
       setPosting(false);
     }
@@ -2822,6 +2856,53 @@ export default function AdminAnnouncements() {
                 </button>
               </div>
             </div>
+          </div>,
+          document.body,
+        )}
+
+      {toast.show &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              top: "24px",
+              right: "24px",
+              zIndex: 2000,
+              minWidth: "280px",
+              maxWidth: "420px",
+              backgroundColor: toast.type === "error" ? "#fef2f2" : "#ecfdf5",
+              color: toast.type === "error" ? "#991b1b" : "#065f46",
+              border: `1px solid ${toast.type === "error" ? "#fecaca" : "#a7f3d0"}`,
+              borderRadius: "10px",
+              padding: "12px 14px",
+              boxShadow: "0 10px 20px rgba(0,0,0,0.12)",
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "10px",
+            }}
+            role="status"
+            aria-live="polite"
+          >
+            <span style={{ fontSize: "18px", lineHeight: 1 }}>
+              {toast.type === "error" ? "⚠️" : "✅"}
+            </span>
+            <div style={{ flex: 1, fontSize: "14px", fontWeight: 600 }}>
+              {toast.message}
+            </div>
+            <button
+              onClick={hideToast}
+              aria-label="Close notification"
+              style={{
+                border: "none",
+                background: "transparent",
+                color: "inherit",
+                cursor: "pointer",
+                padding: 0,
+                lineHeight: 1,
+              }}
+            >
+              <X size={16} />
+            </button>
           </div>,
           document.body,
         )}
