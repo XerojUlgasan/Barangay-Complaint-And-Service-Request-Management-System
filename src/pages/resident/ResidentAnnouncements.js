@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { signupForEvent, cancelSignup } from "../../supabse_db/announcement/announcement";
+import {
+  signupForEvent,
+  cancelSignup,
+} from "../../supabse_db/announcement/announcement";
 import { logout } from "../../supabse_db/auth/auth";
 import supabase from "../../supabse_db/supabase_client";
 import { useAuth } from "../../context/AuthContext";
@@ -43,7 +46,7 @@ const Announcements = () => {
 
     const loadUserSignups = async () => {
       const eventAnns = announcements.filter(
-        (a) => a.category && String(a.category).toLowerCase() === "event"
+        (a) => a.category && String(a.category).toLowerCase() === "event",
       );
 
       if (eventAnns.length > 0) {
@@ -100,16 +103,20 @@ const Announcements = () => {
 
   const getCategoryConfig = (category) => {
     const cat = (category || "").toLowerCase();
-    if (cat === "event") return { label: "Event", color: "#8b5cf6", bg: "#f5f3ff", icon: "📅" };
-    if (cat === "alert") return { label: "Alert", color: "#ef4444", bg: "#fef2f2", icon: "🚨" };
+    if (cat === "event")
+      return { label: "Event", color: "#8b5cf6", bg: "#f5f3ff", icon: "📅" };
+    if (cat === "alert")
+      return { label: "Alert", color: "#ef4444", bg: "#fef2f2", icon: "🚨" };
     return { label: "General", color: "#10b981", bg: "#f0fdf4", icon: "📢" };
   };
 
   const getPriorityConfig = (priority) => {
     const p = (priority || "").toLowerCase();
     if (p === "high") return { label: "HIGH", color: "#dc2626", bg: "#fef2f2" };
-    if (p === "urgent") return { label: "URGENT", color: "#9f1239", bg: "#fff1f2" };
-    if (p === "medium") return { label: "MED", color: "#d97706", bg: "#fffbeb" };
+    if (p === "urgent")
+      return { label: "URGENT", color: "#9f1239", bg: "#fff1f2" };
+    if (p === "medium")
+      return { label: "MED", color: "#d97706", bg: "#fffbeb" };
     return null;
   };
 
@@ -136,7 +143,9 @@ const Announcements = () => {
     if (!announcement?.event_start) return "No Schedule";
     const now = new Date();
     const start = new Date(announcement.event_start);
-    const end = announcement.event_end ? new Date(announcement.event_end) : null;
+    const end = announcement.event_end
+      ? new Date(announcement.event_end)
+      : null;
 
     if (now < start) return "Upcoming";
     if (end && now > end) return "Completed";
@@ -144,7 +153,8 @@ const Announcements = () => {
   };
 
   const getEventDuration = (announcement) => {
-    if (!announcement?.event_start || !announcement?.event_end) return "Open-ended";
+    if (!announcement?.event_start || !announcement?.event_end)
+      return "Open-ended";
     const start = new Date(announcement.event_start);
     const end = new Date(announcement.event_end);
     const ms = end - start;
@@ -179,7 +189,16 @@ const Announcements = () => {
     }
 
     if (toArray(announcement?.voter_status).length > 0) {
-      chips.push(`Voter Status: ${toArray(announcement.voter_status).map((v) => v.toString().replace(/[_-]/g, " ").replace(/\b\w/g, (char) => char.toUpperCase())).join(", ")}`);
+      chips.push(
+        `Voter Status: ${toArray(announcement.voter_status)
+          .map((v) =>
+            v
+              .toString()
+              .replace(/[_-]/g, " ")
+              .replace(/\b\w/g, (char) => char.toUpperCase()),
+          )
+          .join(", ")}`,
+      );
     }
 
     if (toArray(announcement?.occupation).length > 0) {
@@ -191,7 +210,16 @@ const Announcements = () => {
     }
 
     if (toArray(announcement?.civil_status).length > 0) {
-      chips.push(`Civil Status: ${toArray(announcement.civil_status).map((status) => status.toString().replace(/[_-]/g, " ").replace(/\b\w/g, (char) => char.toUpperCase())).join(", ")}`);
+      chips.push(
+        `Civil Status: ${toArray(announcement.civil_status)
+          .map((status) =>
+            status
+              .toString()
+              .replace(/[_-]/g, " ")
+              .replace(/\b\w/g, (char) => char.toUpperCase()),
+          )
+          .join(", ")}`,
+      );
     }
 
     if (stayMin !== null && stayMin !== undefined && stayMin !== "") {
@@ -213,10 +241,7 @@ const Announcements = () => {
 
   const getAnnouncementTitle = (announcement) => {
     const title =
-      announcement?.title ||
-      announcement?.subject ||
-      announcement?.name ||
-      "";
+      announcement?.title || announcement?.subject || announcement?.name || "";
 
     if (String(title).trim()) return String(title).trim();
 
@@ -247,7 +272,9 @@ const Announcements = () => {
     return matchesFilter && matchesSearch;
   });
 
-  const eventCount = announcements.filter(a => (a.category || "").toLowerCase() === "event").length;
+  const eventCount = announcements.filter(
+    (a) => (a.category || "").toLowerCase() === "event",
+  ).length;
   const signedUpCount = Object.keys(userSignups).length;
 
   return (
@@ -358,16 +385,27 @@ const Announcements = () => {
           </div>
 
           {/* CONTENT */}
-          <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          <div
+            style={{
+              flex: 1,
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
             {/* Page Header */}
             <div className="ann-page-header">
               <div className="ann-page-header-left">
                 <h1 className="ann-page-title">Announcements</h1>
-                <p className="ann-page-subtitle">Stay updated with official barangay announcements</p>
+                <p className="ann-page-subtitle">
+                  Stay updated with official barangay announcements
+                </p>
               </div>
               <div className="ann-summary-chips">
                 <div className="ann-summary-chip">
-                  <span className="ann-summary-chip-num">{announcements.length}</span>
+                  <span className="ann-summary-chip-num">
+                    {announcements.length}
+                  </span>
                   <span className="ann-summary-chip-label">Total</span>
                 </div>
                 <div className="ann-summary-chip accent-purple">
@@ -384,8 +422,17 @@ const Announcements = () => {
             {/* Toolbar */}
             <div className="ann-toolbar">
               <div className="ann-search-wrap">
-                <svg className="ann-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                <svg
+                  className="ann-search-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  width="16"
+                  height="16"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
                 <input
                   className="ann-search-input"
@@ -410,7 +457,8 @@ const Announcements = () => {
 
             {/* Count Label */}
             <div className="ann-count-label">
-              Showing {filteredAnnouncements.length} of {announcements.length} announcements
+              Showing {filteredAnnouncements.length} of {announcements.length}{" "}
+              announcements
             </div>
 
             {/* Cards Grid */}
@@ -418,20 +466,32 @@ const Announcements = () => {
               <div className="ann-empty-state">
                 <div className="ann-empty-icon">📭</div>
                 <p className="ann-empty-text">No announcements found</p>
-                <p className="ann-empty-sub">Try adjusting your search or filter</p>
+                <p className="ann-empty-sub">
+                  Try adjusting your search or filter
+                </p>
               </div>
             ) : (
               <div className="ann-cards-grid">
                 {filteredAnnouncements.map((ann, idx) => {
                   const catConfig = getCategoryConfig(ann.category);
                   const priorityConfig = getPriorityConfig(ann.priority);
-                  const isEvent = (ann.category || "").toLowerCase() === "event";
+                  const isEvent =
+                    (ann.category || "").toLowerCase() === "event";
                   const isSignedUp = userSignups && userSignups[ann.id];
-                  const participantCount = (participantCounts && participantCounts[ann.id]) || 0;
+                  const participantCount =
+                    (participantCounts && participantCounts[ann.id]) || 0;
                   const hasImage = !!announcementImages[ann.id];
-                  const isEventFull = isEvent && ann.max_participants && participantCount >= ann.max_participants;
+                  const isEventFull =
+                    isEvent &&
+                    ann.max_participants &&
+                    participantCount >= ann.max_participants;
                   const fillPct = ann.max_participants
-                    ? Math.min(100, Math.round((participantCount / ann.max_participants) * 100))
+                    ? Math.min(
+                        100,
+                        Math.round(
+                          (participantCount / ann.max_participants) * 100,
+                        ),
+                      )
                     : 0;
 
                   return (
@@ -449,8 +509,13 @@ const Announcements = () => {
                             className="ann-card-img"
                           />
                         ) : (
-                          <div className="ann-card-img-placeholder" style={{ background: catConfig.bg }}>
-                            <span className="ann-card-img-emoji">{catConfig.icon}</span>
+                          <div
+                            className="ann-card-img-placeholder"
+                            style={{ background: catConfig.bg }}
+                          >
+                            <span className="ann-card-img-emoji">
+                              {catConfig.icon}
+                            </span>
                           </div>
                         )}
 
@@ -466,7 +531,10 @@ const Announcements = () => {
                         {priorityConfig && (
                           <span
                             className="ann-card-priority-badge"
-                            style={{ color: priorityConfig.color, background: priorityConfig.bg }}
+                            style={{
+                              color: priorityConfig.color,
+                              background: priorityConfig.bg,
+                            }}
                           >
                             {priorityConfig.label}
                           </span>
@@ -480,7 +548,9 @@ const Announcements = () => {
                             {ann.author || "Barangay"}
                           </span>
                           <span className="ann-card-dot">·</span>
-                          <span className="ann-card-date">{formatDateShort(ann.created_at)}</span>
+                          <span className="ann-card-date">
+                            {formatDateShort(ann.created_at)}
+                          </span>
                         </div>
 
                         <h3 className="ann-card-title">
@@ -493,10 +563,27 @@ const Announcements = () => {
                         {/* Event details */}
                         {isEvent && ann.event_start && (
                           <div className="ann-card-event-row">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
-                              <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              width="13"
+                              height="13"
+                            >
+                              <rect x="3" y="4" width="18" height="18" rx="2" />
+                              <path d="M16 2v4M8 2v4M3 10h18" />
                             </svg>
-                            <span>{new Date(ann.event_start).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                            <span>
+                              {new Date(ann.event_start).toLocaleDateString(
+                                "en-US",
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                },
+                              )}
+                            </span>
                           </div>
                         )}
 
@@ -504,7 +591,10 @@ const Announcements = () => {
                         {isEvent && ann.max_participants && (
                           <div className="ann-card-participants">
                             <div className="ann-card-participants-label">
-                              <span>{participantCount} / {ann.max_participants} joined</span>
+                              <span>
+                                {participantCount} / {ann.max_participants}{" "}
+                                joined
+                              </span>
                               <span>{fillPct}%</span>
                             </div>
                             <div className="ann-card-bar-track">
@@ -512,7 +602,12 @@ const Announcements = () => {
                                 className="ann-card-bar-fill"
                                 style={{
                                   width: `${fillPct}%`,
-                                  background: fillPct >= 90 ? "#ef4444" : fillPct >= 60 ? "#f59e0b" : "#10b981",
+                                  background:
+                                    fillPct >= 90
+                                      ? "#ef4444"
+                                      : fillPct >= 60
+                                        ? "#f59e0b"
+                                        : "#10b981",
                                 }}
                               />
                             </div>
@@ -523,7 +618,10 @@ const Announcements = () => {
                         <div className="ann-card-footer">
                           <button
                             className="ann-card-btn-outline"
-                            onClick={() => { setSelectedAnnouncement(ann); setShowDetailsModal(true); }}
+                            onClick={() => {
+                              setSelectedAnnouncement(ann);
+                              setShowDetailsModal(true);
+                            }}
                           >
                             View Details
                           </button>
@@ -563,7 +661,10 @@ const Announcements = () => {
                               </button>
                             )
                           ) : (
-                            <span className="ann-card-posted" style={{ marginLeft: "auto" }}>
+                            <span
+                              className="ann-card-posted"
+                              style={{ marginLeft: "auto" }}
+                            >
                               Posted {formatDate(ann.created_at)}
                             </span>
                           )}
@@ -827,8 +928,8 @@ const Announcements = () => {
                 </div>
 
                 <div className="resident-ann-actions">
-                  {selectedAnnouncement.category?.toLowerCase() === "event" && (
-                    userSignups && userSignups[selectedAnnouncement.id] ? (
+                  {selectedAnnouncement.category?.toLowerCase() === "event" &&
+                    (userSignups && userSignups[selectedAnnouncement.id] ? (
                       <button
                         className="ann-signup-btn cancel"
                         style={{ flex: 1, padding: "12px" }}
@@ -854,8 +955,7 @@ const Announcements = () => {
                       >
                         Sign Up for Event
                       </button>
-                    )
-                  )}
+                    ))}
                   <button
                     className="logout-modal-no"
                     style={{ flex: 1, padding: "12px" }}
