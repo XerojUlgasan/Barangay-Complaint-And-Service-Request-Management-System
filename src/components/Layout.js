@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import { Outlet } from "react-router-dom";
@@ -29,6 +29,35 @@ const Layout = ({
   onLogout,
   userLoading = false,
 }) => {
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  const handleOpenLogoutModal = () => {
+    setShowLogoutModal(true);
+  };
+
+  const handleCloseLogoutModal = () => {
+    setShowLogoutModal(false);
+  };
+
+  const handleConfirmLogout = async () => {
+    setShowLogoutModal(false);
+    if (onLogout) {
+      await onLogout();
+    }
+  };
+
+  useEffect(() => {
+    if (showLogoutModal) {
+      document.body.classList.add("modal-active");
+    } else {
+      document.body.classList.remove("modal-active");
+    }
+
+    return () => {
+      document.body.classList.remove("modal-active");
+    };
+  }, [showLogoutModal]);
+
   return (
     <div className="app-layout">
       {/* Left Sidebar - navigation menu; receives menu configuration */}
@@ -43,13 +72,55 @@ const Layout = ({
           userPosition={userPosition}
           userRole={userRole}
           userLoading={userLoading}
-          onLogout={onLogout}
+          onLogout={handleOpenLogoutModal}
         />
 
         {/* Main Content Area - renders nested routes via Outlet */}
         <main className="main-content">
           <Outlet />
         </main>
+
+        {showLogoutModal && (
+          <div className="portal-logout-modal-overlay" onClick={handleCloseLogoutModal}>
+            <div
+              className="portal-logout-modal"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="portal-logout-modal-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#dc2626"
+                  strokeWidth="2"
+                  width="32"
+                  height="32"
+                >
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+              </div>
+              <h3 className="portal-logout-modal-title">Logout</h3>
+              <p className="portal-logout-modal-message">
+                Are you sure you want to logout?
+              </p>
+              <div className="portal-logout-modal-actions">
+                <button
+                  className="portal-logout-modal-no"
+                  onClick={handleCloseLogoutModal}
+                >
+                  No, Stay
+                </button>
+                <button
+                  className="portal-logout-modal-yes"
+                  onClick={handleConfirmLogout}
+                >
+                  Yes, Logout
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

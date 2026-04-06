@@ -23,6 +23,95 @@
   box-sizing: border-box;
 }
 
+.portal-logout-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+}
+
+.portal-logout-modal {
+  width: 100%;
+  max-width: 400px;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.22);
+  padding: 1.5rem;
+  text-align: center;
+  animation: portalLogoutPop 0.18s ease-out;
+}
+
+.portal-logout-modal-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 0.9rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #fee2e2;
+}
+
+.portal-logout-modal-title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.portal-logout-modal-message {
+  margin: 0.55rem 0 1.25rem;
+  color: #4b5563;
+  font-size: 0.97rem;
+}
+
+.portal-logout-modal-actions {
+  display: flex;
+  gap: 0.7rem;
+}
+
+.portal-logout-modal-no,
+.portal-logout-modal-yes {
+  flex: 1;
+  border: none;
+  border-radius: 10px;
+  padding: 0.65rem 0.8rem;
+  font-size: 0.94rem;
+  font-weight: 600;
+  transition: transform 0.15s ease, filter 0.15s ease;
+  cursor: pointer;
+}
+
+.portal-logout-modal-no {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.portal-logout-modal-yes {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.portal-logout-modal-no:hover,
+.portal-logout-modal-yes:hover {
+  transform: translateY(-1px);
+  filter: brightness(0.98);
+}
+
+@keyframes portalLogoutPop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 /* Tablet Responsive */
 @media (max-width: 1024px) {
   .main-wrapper {
@@ -67,6 +156,15 @@
 
   .sidebar.open ~ .sidebar-overlay {
     display: block !important;
+  }
+
+  .portal-logout-modal {
+    max-width: 340px;
+    padding: 1.2rem;
+  }
+
+  .portal-logout-modal-actions {
+    flex-direction: column;
   }
 }
 
