@@ -128,6 +128,9 @@ const OfficialAnnouncements = () => {
   ).length;
   const signedUpCount = Object.keys(userSignups).length;
 
+  const isSelectedAnnouncementEvent = selectedAnnouncement && 
+    (selectedAnnouncement.category || "").toLowerCase() === "event";
+
   if (loading) {
     return (
       <div className="ann-page-root">
@@ -731,30 +734,32 @@ const OfficialAnnouncements = () => {
                 >
                   Close
                 </button>
-                {userSignups && userSignups[selectedAnnouncement.id] ? (
-                  <button
-                    className="ann-modal-btn-confirm danger"
-                    onClick={() => {
-                      setShowDetailsModal(false);
-                      setSignupMessage(null);
-                      setSignupAction("cancel");
-                      setShowSignupModal(true);
-                    }}
-                  >
-                    Cancel Signup
-                  </button>
-                ) : (
-                  <button
-                    className="ann-modal-btn-confirm"
-                    onClick={() => {
-                      setShowDetailsModal(false);
-                      setSignupMessage(null);
-                      setSignupAction("signup");
-                      setShowSignupModal(true);
-                    }}
-                  >
-                    Sign Up for Event
-                  </button>
+                {isSelectedAnnouncementEvent && (
+                  userSignups && userSignups[selectedAnnouncement.id] ? (
+                    <button
+                      className="ann-modal-btn-confirm danger"
+                      onClick={() => {
+                        setShowDetailsModal(false);
+                        setSignupMessage(null);
+                        setSignupAction("cancel");
+                        setShowSignupModal(true);
+                      }}
+                    >
+                      Cancel Signup
+                    </button>
+                  ) : (
+                    <button
+                      className="ann-modal-btn-confirm"
+                      onClick={() => {
+                        setShowDetailsModal(false);
+                        setSignupMessage(null);
+                        setSignupAction("signup");
+                        setShowSignupModal(true);
+                      }}
+                    >
+                      Sign Up for Event
+                    </button>
+                  )
                 )}
               </div>
             </div>
