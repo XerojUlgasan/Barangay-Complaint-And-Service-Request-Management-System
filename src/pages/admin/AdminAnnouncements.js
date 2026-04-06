@@ -36,6 +36,11 @@ export default function AdminAnnouncements() {
   const [posting, setPosting] = useState(false);
   const [imageLoadingMap, setImageLoadingMap] = useState({});
   const [dateErrors, setDateErrors] = useState({ start: "", end: "" });
+  const [formErrors, setFormErrors] = useState({});
+  const [formFeedback, setFormFeedback] = useState({
+    type: "",
+    message: "",
+  });
   const [formData, setFormData] = useState({
     category: "general",
     priority: "normal",
@@ -68,6 +73,11 @@ export default function AdminAnnouncements() {
   const [civilStatusDropdown, setCivilStatusDropdown] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [toast, setToast] = useState({
+    show: false,
+    type: "success",
+    message: "",
+  });
   const modalRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -304,6 +314,28 @@ export default function AdminAnnouncements() {
 
   const eventCount = announcements.filter(a => (a.category || "").toLowerCase() === "event").length;
 
+  const showToast = (message, type = "success") => {
+    setToast({ show: true, type, message });
+  };
+
+  const clearFormFeedback = () => {
+    setFormErrors({});
+    setFormFeedback({ type: "", message: "" });
+  };
+
+  const clearFieldError = (field) => {
+    setFormErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const hideToast = () => {
+    setToast((prev) => ({ ...prev, show: false }));
+  };
+
   console.log("AdminAnnouncements render, showModal=", showModal);
 
   // Fetch announcements on mount
@@ -430,8 +462,18 @@ export default function AdminAnnouncements() {
     validateEventDates(formData.event_start, formData.event_end);
   }, [formData.category, formData.event_start, formData.event_end]);
 
+  useEffect(() => {
+    if (!toast.show) return undefined;
+    const timer = setTimeout(() => {
+      setToast((prev) => ({ ...prev, show: false }));
+    }, 3500);
+
+    return () => clearTimeout(timer);
+  }, [toast.show, toast.message]);
+
   const openModal = () => {
     console.log("Opening modal...");
+    clearFormFeedback();
     setShowModal(true);
   };
 
@@ -441,10 +483,12 @@ export default function AdminAnnouncements() {
     setIsEditMode(false);
     setEditingAnnouncement(null);
     setDateErrors({ start: "", end: "" });
+    clearFormFeedback();
   };
 
   const openEditModal = (ann) => {
     console.log("Editing announcement:", ann);
+    clearFormFeedback();
     setEditingAnnouncement(ann);
     setIsEditMode(true);
     setFormData({
@@ -474,6 +518,7 @@ export default function AdminAnnouncements() {
     setShowModal(false);
     setIsEditMode(false);
     setEditingAnnouncement(null);
+    clearFormFeedback();
     setFormData({
       category: "general",
       priority: "normal",
@@ -565,24 +610,22 @@ export default function AdminAnnouncements() {
   };
 
   const handlePostAnnouncement = async () => {
+    const nextErrors = {};
+
     if (!formData.title.trim()) {
-      alert("Please enter a title");
-      return;
+      nextErrors.title = "Please enter a title.";
     }
     if (!formData.content.trim()) {
-      alert("Please enter content");
-      return;
+      nextErrors.content = "Please enter announcement details.";
     }
 
     const isEventCategory = formData.category === "event";
     if (isEventCategory && !formData.event_start) {
-      alert("Please select an event start date and time");
-      return;
+      nextErrors.event_start = "Please select an event start date and time.";
     }
 
     if (isEventCategory && !formData.event_end) {
-      alert("Please select an event end date and time");
-      return;
+      nextErrors.event_end = "Please select an event end date and time.";
     }
 
     if (
@@ -591,16 +634,21 @@ export default function AdminAnnouncements() {
       formData.event_end &&
       new Date(formData.event_end) < new Date(formData.event_start)
     ) {
-      alert("Event end must be after event start");
-      return;
+      nextErrors.event_end = "Event end must be after event start.";
+    }
+
+    if (isEventCategory) {
+      const datesValid = validateEventDates(formData.event_start, formData.event_end);
+      if (!datesValid) {
+        nextErrors.event_dates = "Please fix the event date and time fields.";
+      }
     }
 
     if (
       isEventCategory &&
-      !validateEventDates(formData.event_start, formData.event_end)
+      !formData.max_participants
     ) {
-      alert("Please fix event date validation errors.");
-      return;
+      nextErrors.max_participants = "Please enter max participants for event announcements.";
     }
 
     if (
@@ -608,8 +656,7 @@ export default function AdminAnnouncements() {
       formData.max_participants &&
       Number(formData.max_participants) <= 0
     ) {
-      alert("Max participants must be greater than 0");
-      return;
+      nextErrors.max_participants = "Max participants must be greater than 0.";
     }
 
     let minAge =
@@ -619,13 +666,11 @@ export default function AdminAnnouncements() {
 
     if (isEventCategory) {
       if ((minAge !== null && Number.isNaN(minAge)) || minAge < 0) {
-        alert("Minimum age must be a valid number (0 or greater)");
-        return;
+        nextErrors.min_age = "Minimum age must be a valid number (0 or greater).";
       }
 
       if ((maxAge !== null && Number.isNaN(maxAge)) || maxAge < 0) {
-        alert("Maximum age must be a valid number (0 or greater)");
-        return;
+        nextErrors.max_age = "Maximum age must be a valid number (0 or greater).";
       }
 
       if (minAge === null && maxAge !== null) {
@@ -637,9 +682,38 @@ export default function AdminAnnouncements() {
       }
 
       if (minAge !== null && maxAge !== null && maxAge < minAge) {
-        alert("Maximum age cannot be lower than minimum age");
-        return;
+        nextErrors.max_age = "Maximum age cannot be lower than minimum age.";
       }
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFormErrors(nextErrors);
+      setFormFeedback({
+        type: "error",
+        message: "Please fix the highlighted fields before submitting.",
+      });
+      return;
+    }
+
+    clearFormFeedback();
+
+    if (
+      isEventCategory &&
+      !validateEventDates(formData.event_start, formData.event_end)
+    ) {
+      setFormFeedback({
+        type: "error",
+        message: "Please fix the event schedule inside the popup.",
+      });
+      return;
+    }
+
+    if (isEventCategory) {
+      setFormErrors((prev) => {
+        const next = { ...prev };
+        delete next.event_dates;
+        return next;
+      });
     }
 
     const eventData = isEventCategory
@@ -711,9 +785,9 @@ export default function AdminAnnouncements() {
 
         // Show success message
         if (isEditMode) {
-          alert("Announcement updated successfully!");
+          showToast("Announcement updated successfully!", "success");
         } else {
-          alert("Announcement created successfully!");
+          showToast("Announcement successfully created!", "success");
         }
 
         // Upload image if provided and it's a file (not just a reference)
@@ -739,6 +813,10 @@ export default function AdminAnnouncements() {
               alert(
                 "Announcement created but image upload failed: " +
                   uploadResult.error,
+              );
+              showToast(
+                "Announcement was saved, but image upload failed.",
+                "error",
               );
             }
           } else {
@@ -813,11 +891,17 @@ export default function AdminAnnouncements() {
           }
         }
       } else {
-        alert("Error posting announcement: " + result.message);
+        setFormFeedback({
+          type: "error",
+          message: result.message || "Unable to save announcement.",
+        });
       }
     } catch (err) {
       console.error("Error posting announcement:", err);
-      alert("Error posting announcement");
+      setFormFeedback({
+        type: "error",
+        message: "Error posting announcement.",
+      });
     } finally {
       setPosting(false);
     }
@@ -1359,6 +1443,25 @@ export default function AdminAnnouncements() {
                   gap: "16px",
                 }}
               >
+                {formFeedback.message && (
+                  <div
+                    style={{
+                      border: `1px solid ${formFeedback.type === "error" ? "#fecaca" : "#a7f3d0"}`,
+                      backgroundColor:
+                        formFeedback.type === "error" ? "#fef2f2" : "#ecfdf5",
+                      color: formFeedback.type === "error" ? "#991b1b" : "#065f46",
+                      borderRadius: "8px",
+                      padding: "10px 12px",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                    }}
+                    role="alert"
+                    aria-live="polite"
+                  >
+                    {formFeedback.message}
+                  </div>
+                )}
+
                 {/* Category and Priority */}
                 <div
                   style={{
@@ -1402,6 +1505,20 @@ export default function AdminAnnouncements() {
                                 send_sms: false,
                               }
                             : {}),
+                        });
+                        setFormFeedback({ type: "", message: "" });
+                        setFormErrors((prev) => {
+                          const next = { ...prev };
+                          delete next.category;
+                          if (nextCategory !== "event") {
+                            delete next.event_start;
+                            delete next.event_end;
+                            delete next.event_dates;
+                            delete next.max_participants;
+                            delete next.min_age;
+                            delete next.max_age;
+                          }
+                          return next;
                         });
                         if (nextCategory !== "event") {
                           setShowAdvanced(false);
@@ -1467,9 +1584,11 @@ export default function AdminAnnouncements() {
                     type="text"
                     placeholder="E.g., Monthly Clean-up Drive"
                     value={formData.title}
-                    onChange={(e) =>
-                      setFormData({ ...formData, title: e.target.value })
-                    }
+                    onChange={(e) => {
+                      setFormData({ ...formData, title: e.target.value });
+                      clearFieldError("title");
+                      setFormFeedback({ type: "", message: "" });
+                    }}
                     style={{
                       width: "100%",
                       padding: "10px",
@@ -1479,6 +1598,11 @@ export default function AdminAnnouncements() {
                       boxSizing: "border-box",
                     }}
                   />
+                  {formErrors.title && (
+                    <div style={{ marginTop: "6px", fontSize: "12px", color: "#dc2626" }}>
+                      {formErrors.title}
+                    </div>
+                  )}
                 </div>
 
                 {/* Content */}
@@ -1497,9 +1621,11 @@ export default function AdminAnnouncements() {
                     rows={4}
                     placeholder="Details about the announcement..."
                     value={formData.content}
-                    onChange={(e) =>
-                      setFormData({ ...formData, content: e.target.value })
-                    }
+                    onChange={(e) => {
+                      setFormData({ ...formData, content: e.target.value });
+                      clearFieldError("content");
+                      setFormFeedback({ type: "", message: "" });
+                    }}
                     style={{
                       width: "100%",
                       padding: "10px",
@@ -1510,10 +1636,31 @@ export default function AdminAnnouncements() {
                       resize: "vertical",
                     }}
                   />
+                  {formErrors.content && (
+                    <div style={{ marginTop: "6px", fontSize: "12px", color: "#dc2626" }}>
+                      {formErrors.content}
+                    </div>
+                  )}
                 </div>
 
                 {formData.category === "event" && (
                   <>
+                    {formErrors.event_dates && (
+                      <div
+                        style={{
+                          border: "1px solid #fecaca",
+                          backgroundColor: "#fef2f2",
+                          color: "#991b1b",
+                          borderRadius: "8px",
+                          padding: "10px 12px",
+                          fontSize: "13px",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {formErrors.event_dates}
+                      </div>
+                    )}
+
                     <div
                       style={{
                         display: "grid",
@@ -1536,12 +1683,15 @@ export default function AdminAnnouncements() {
                           type="datetime-local"
                           min={minStartDateTime}
                           value={formData.event_start}
-                          onChange={(e) =>
+                          onChange={(e) => {
                             setFormData({
                               ...formData,
                               event_start: e.target.value,
-                            })
-                          }
+                            });
+                            clearFieldError("event_start");
+                            clearFieldError("event_dates");
+                            setFormFeedback({ type: "", message: "" });
+                          }}
                           style={{
                             width: "100%",
                             padding: "10px",
@@ -1551,6 +1701,17 @@ export default function AdminAnnouncements() {
                             boxSizing: "border-box",
                           }}
                         />
+                        {formErrors.event_start && (
+                          <div
+                            style={{
+                              marginTop: "6px",
+                              fontSize: "12px",
+                              color: "#dc2626",
+                            }}
+                          >
+                            {formErrors.event_start}
+                          </div>
+                        )}
                         {dateErrors.start && (
                           <div
                             style={{
@@ -1578,12 +1739,15 @@ export default function AdminAnnouncements() {
                           type="datetime-local"
                           min={minEndDateTime}
                           value={formData.event_end}
-                          onChange={(e) =>
+                          onChange={(e) => {
                             setFormData({
                               ...formData,
                               event_end: e.target.value,
-                            })
-                          }
+                            });
+                            clearFieldError("event_end");
+                            clearFieldError("event_dates");
+                            setFormFeedback({ type: "", message: "" });
+                          }}
                           style={{
                             width: "100%",
                             padding: "10px",
@@ -1593,6 +1757,17 @@ export default function AdminAnnouncements() {
                             boxSizing: "border-box",
                           }}
                         />
+                        {formErrors.event_end && (
+                          <div
+                            style={{
+                              marginTop: "6px",
+                              fontSize: "12px",
+                              color: "#dc2626",
+                            }}
+                          >
+                            {formErrors.event_end}
+                          </div>
+                        )}
                         {dateErrors.end && (
                           <div
                             style={{
@@ -1669,12 +1844,14 @@ export default function AdminAnnouncements() {
                           min="1"
                           placeholder="E.g., 50"
                           value={formData.max_participants}
-                          onChange={(e) =>
+                          onChange={(e) => {
                             setFormData({
                               ...formData,
                               max_participants: e.target.value,
-                            })
-                          }
+                            });
+                            clearFieldError("max_participants");
+                            setFormFeedback({ type: "", message: "" });
+                          }}
                           style={{
                             width: "100%",
                             padding: "10px",
@@ -1684,6 +1861,17 @@ export default function AdminAnnouncements() {
                             boxSizing: "border-box",
                           }}
                         />
+                        {formErrors.max_participants && (
+                          <div
+                            style={{
+                              marginTop: "6px",
+                              fontSize: "12px",
+                              color: "#dc2626",
+                            }}
+                          >
+                            {formErrors.max_participants}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </>
@@ -1902,12 +2090,15 @@ export default function AdminAnnouncements() {
                                 min="0"
                                 placeholder="Minimum age"
                                 value={formData.min_age}
-                                onChange={(e) =>
+                                onChange={(e) => {
                                   setFormData({
                                     ...formData,
                                     min_age: e.target.value,
-                                  })
-                                }
+                                  });
+                                  clearFieldError("min_age");
+                                  clearFieldError("max_age");
+                                  setFormFeedback({ type: "", message: "" });
+                                }}
                                 onBlur={() => {
                                   if (
                                     formData.min_age !== "" &&
@@ -1927,17 +2118,32 @@ export default function AdminAnnouncements() {
                                   fontFamily: "inherit",
                                 }}
                               />
+                              {formErrors.min_age && (
+                                <div
+                                  style={{
+                                    marginTop: "6px",
+                                    fontSize: "12px",
+                                    color: "#dc2626",
+                                    gridColumn: "1 / -1",
+                                  }}
+                                >
+                                  {formErrors.min_age}
+                                </div>
+                              )}
                               <input
                                 type="number"
                                 min="0"
                                 placeholder="Maximum age"
                                 value={formData.max_age}
-                                onChange={(e) =>
+                                onChange={(e) => {
                                   setFormData({
                                     ...formData,
                                     max_age: e.target.value,
-                                  })
-                                }
+                                  });
+                                  clearFieldError("max_age");
+                                  clearFieldError("min_age");
+                                  setFormFeedback({ type: "", message: "" });
+                                }}
                                 onBlur={() => {
                                   if (
                                     formData.max_age !== "" &&
@@ -1957,6 +2163,18 @@ export default function AdminAnnouncements() {
                                   fontFamily: "inherit",
                                 }}
                               />
+                              {formErrors.max_age && (
+                                <div
+                                  style={{
+                                    marginTop: "6px",
+                                    fontSize: "12px",
+                                    color: "#dc2626",
+                                    gridColumn: "1 / -1",
+                                  }}
+                                >
+                                  {formErrors.max_age}
+                                </div>
+                              )}
                             </div>
                           </div>
 
@@ -2824,6 +3042,53 @@ export default function AdminAnnouncements() {
                 </button>
               </div>
             </div>
+          </div>,
+          document.body,
+        )}
+
+      {toast.show &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              top: "24px",
+              right: "24px",
+              zIndex: 2000,
+              minWidth: "280px",
+              maxWidth: "420px",
+              backgroundColor: toast.type === "error" ? "#fef2f2" : "#ecfdf5",
+              color: toast.type === "error" ? "#991b1b" : "#065f46",
+              border: `1px solid ${toast.type === "error" ? "#fecaca" : "#a7f3d0"}`,
+              borderRadius: "10px",
+              padding: "12px 14px",
+              boxShadow: "0 10px 20px rgba(0,0,0,0.12)",
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "10px",
+            }}
+            role="status"
+            aria-live="polite"
+          >
+            <span style={{ fontSize: "18px", lineHeight: 1 }}>
+              {toast.type === "error" ? "⚠️" : "✅"}
+            </span>
+            <div style={{ flex: 1, fontSize: "14px", fontWeight: 600 }}>
+              {toast.message}
+            </div>
+            <button
+              onClick={hideToast}
+              aria-label="Close notification"
+              style={{
+                border: "none",
+                background: "transparent",
+                color: "inherit",
+                cursor: "pointer",
+                padding: 0,
+                lineHeight: 1,
+              }}
+            >
+              <X size={16} />
+            </button>
           </div>,
           document.body,
         )}

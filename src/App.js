@@ -1,5 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, useNavigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 // TODO: Sanitize user inputs for security
@@ -43,7 +42,6 @@ import AdminUsers from "./pages/admin/AdminUsers";
 
 //test
 import Home from "./pages/home";
-import household_supabase from "./supabse_db/household_supabase_client";
 
 // Demo placeholder
 function UserPage() {
@@ -53,11 +51,12 @@ function UserPage() {
 // Routes component that uses auth context
 function AppRoutes() {
   const { userName, userPosition, userRole, userLoading } = useAuth();
+  const navigate = useNavigate();
 
   const handleLogout = async () => {
     try {
       await logout();
-      window.location.href = "/";
+      navigate("/login", { replace: true });
     } catch (error) {
       console.error("Logout error:", error);
     }

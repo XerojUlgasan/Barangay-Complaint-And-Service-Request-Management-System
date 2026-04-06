@@ -1,6 +1,6 @@
 body.modal-active .sidebar,
 body.modal-active .sidebar-overlay {
-  filter: brightness(0.6) grayscale(0.2) blur(4px);
+  filter: brightness(0.5);
   transition: filter 0.2s;
   pointer-events: none;
 }
