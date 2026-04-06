@@ -1074,7 +1074,9 @@ export default function AdminAnnouncements() {
                       className="ann-details-kpi-value"
                       style={{ textTransform: "capitalize" }}
                     >
-                      {selectedAnnouncement.audience || "Residents"}
+                      {toReadableLabel(
+                        selectedAnnouncement.audience || "Residents",
+                      )}
                     </span>
                   </div>
                   <div className="ann-details-kpi-card">
@@ -1090,7 +1092,7 @@ export default function AdminAnnouncements() {
                       Targeting Rules
                     </span>
                     <span className="ann-details-kpi-value">
-                      {getTargetingChips(selectedAnnouncement).length}
+                      {getTargetingChips(selectedAnnouncement).length} rules
                     </span>
                   </div>
                   <div className="ann-details-kpi-card">
