@@ -359,7 +359,7 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  border: 2.5px solid #d1d5db;
+  border: 2.5px solid var(--history-dot-color, #d1d5db);
   background: #ffffff;
   display: flex;
   align-items: center;
@@ -373,14 +373,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #10b981;
-}
-/* Last item dot — grey */
-.history-item:last-child .history-dot {
-  border-color: #d1d5db;
-}
-.history-item:last-child .history-dot::after {
-  background: #9ca3af;
+  background: var(--history-dot-color, #10b981);
 }
 
 /* Card container for each history entry */

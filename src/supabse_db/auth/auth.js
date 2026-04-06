@@ -4,6 +4,99 @@ import household_supabase from "../household_supabase_client";
 var member_id = null;
 var member_email = null;
 
+const buildOfficialFullName = (official) => {
+  const firstName = (official?.first_name || "").trim();
+  const lastName = (official?.last_name || "").trim();
+  return `${firstName} ${lastName}`.trim();
+};
+
+const syncOfficialMetadataOnLogin = async (user) => {
+  if (!user?.id) return user;
+
+  const { data: officialByUid, error: officialUidError } = await supabase
+    .from("barangay_officials")
+    .select("first_name,last_name,position")
+    .eq("uid", user.id)
+    .maybeSingle();
+
+  if (officialUidError) {
+    console.log(
+      "official metadata sync uid lookup error:",
+      officialUidError.message,
+    );
+    return user;
+  }
+
+  let officialData = officialByUid;
+
+  if (!officialData && user.email) {
+    const { data: officialByEmail, error: officialEmailError } = await supabase
+      .from("barangay_officials")
+      .select("first_name,last_name,position")
+      .eq("email", user.email)
+      .maybeSingle();
+
+    if (officialEmailError) {
+      console.log(
+        "official metadata sync email lookup error:",
+        officialEmailError.message,
+      );
+      return user;
+    }
+
+    officialData = officialByEmail;
+  }
+
+  if (!officialData) {
+    return user;
+  }
+
+  const officialFullName = buildOfficialFullName(officialData);
+
+  if (!officialFullName) {
+    return user;
+  }
+
+  const currentFullName =
+    user.user_metadata?.fullname || user.user_metadata?.full_name || "";
+  const currentPosition = user.user_metadata?.position || "";
+
+  const shouldUpdateMetadata =
+    currentFullName !== officialFullName ||
+    currentPosition !== (officialData.position || "");
+
+  if (!shouldUpdateMetadata) {
+    return user;
+  }
+
+  const mergedMetadata = {
+    ...(user.user_metadata || {}),
+    fullname: officialFullName,
+    full_name: officialFullName,
+    position: officialData.position || "",
+  };
+
+  const { data: updatedData, error: updateError } =
+    await supabase.auth.updateUser({
+      data: mergedMetadata,
+    });
+
+  if (updateError) {
+    console.log("official metadata sync update error:", updateError.message);
+    return user;
+  }
+
+  const { data: refreshedSession, error: refreshError } =
+    await supabase.auth.refreshSession();
+
+  if (refreshError) {
+    console.log("official metadata sync refresh error:", refreshError.message);
+    return updatedData?.user || user;
+  }
+
+  return refreshedSession?.user || updatedData?.user || user;
+};
+
 // CHECK USER ROLE (resident, official, super_admin)
 export const checkUserRole = async (uid) => {
   const { data, error } = await supabase.rpc("get_user_role", {
@@ -270,6 +363,8 @@ export const loginByEmail = async (email, password) => {
   }
 
   if (data.user?.confirmed_at) {
+    const syncedUser = await syncOfficialMetadataOnLogin(data.user);
+
     console.log(data);
     console.log("LOGGED IN");
 
@@ -296,7 +391,7 @@ export const loginByEmail = async (email, password) => {
       return {
         success: true,
         message: "Logged In Successfully",
-        user: data.user,
+        user: syncedUser,
         role: normalizedRole,
       };
     }
@@ -315,7 +410,7 @@ export const loginByEmail = async (email, password) => {
       return {
         success: true,
         message: "Logged In Successfully",
-        user: data.user,
+        user: syncedUser,
         role: "super_admin",
       };
     }
@@ -446,7 +541,10 @@ export const completePasswordRecovery = async (
 // CHECK IF USER NEEDS TO CHANGE PASSWORD (First-time login)
 export const checkIfPasswordChangeRequired = async () => {
   try {
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
     if (userError || !user) {
       console.log("Error getting user:", userError);
@@ -455,15 +553,16 @@ export const checkIfPasswordChangeRequired = async () => {
 
     // Check user_metadata for initial_password_changed flag
     // user_metadata persists correctly, unlike app_metadata
-    const initialPasswordChanged = user?.user_metadata?.initial_password_changed;
-    
+    const initialPasswordChanged =
+      user?.user_metadata?.initial_password_changed;
+
     console.log("User metadata:", user.user_metadata);
     console.log("Initial password changed:", initialPasswordChanged);
 
     // If flag is true, password has been changed. If false or null, user needs to change password
     const needsPasswordChange = initialPasswordChanged !== true;
     console.log("Needs password change:", needsPasswordChange);
-    
+
     return needsPasswordChange;
   } catch (error) {
     console.error("Error checking password change requirement:", error);
@@ -501,7 +600,8 @@ export const updatePasswordAndSetFlag = async (newPassword) => {
     }
 
     // Refresh session to get updated user data with new metadata
-    const { data: sessionData, error: refreshError } = await supabase.auth.refreshSession();
+    const { data: sessionData, error: refreshError } =
+      await supabase.auth.refreshSession();
 
     if (refreshError) {
       console.log("Session refresh error:", refreshError);
@@ -514,7 +614,7 @@ export const updatePasswordAndSetFlag = async (newPassword) => {
 
     console.log("Password updated and flag set successfully");
     console.log("Updated user metadata:", sessionData.user?.user_metadata);
-    
+
     return {
       success: true,
       message: "Password updated successfully.",
@@ -529,7 +629,6 @@ export const updatePasswordAndSetFlag = async (newPassword) => {
 };
 
 // DEBUG FUNCTIONS
-
 
 const checkUser = async () => {
   console.log(await supabase.auth.getUser());
