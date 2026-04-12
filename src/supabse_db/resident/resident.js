@@ -328,3 +328,65 @@ export const getResidentsByIds = async (residentIds = [], options = {}) => {
 
   return { success: true, data: mapped };
 };
+
+export const getResidentSummariesByAuthUids = async (
+  authUids = [],
+  options = {},
+) => {
+  const { forceRefresh = false } = options;
+  hydratePersistentCache();
+  const uniqueAuthUids = [...new Set((authUids || []).filter(Boolean))];
+
+  if (uniqueAuthUids.length === 0) {
+    return { success: true, data: {} };
+  }
+
+  const mapped = {};
+  const missingAuthUids = [];
+
+  uniqueAuthUids.forEach((authUid) => {
+    const cachedResult = !forceRefresh
+      ? residentByAuthUidCache.get(authUid)
+      : null;
+
+    if (cachedResult?.success && cachedResult.data) {
+      mapped[authUid] = {
+        auth_uid: authUid,
+        resident_fullname: formatResidentFullName(cachedResult.data),
+        resident_id: cachedResult.data.id || null,
+      };
+      return;
+    }
+
+    if (!cachedResult) {
+      missingAuthUids.push(authUid);
+    }
+  });
+
+  if (missingAuthUids.length === 0) {
+    return { success: true, data: mapped };
+  }
+
+  const { data: summaries, error } = await supabase
+    .from("residents_summary")
+    .select("auth_uid, resident_fullname, id")
+    .in("auth_uid", missingAuthUids);
+
+  if (error) {
+    return { success: false, message: error.message, data: {} };
+  }
+
+  (summaries || []).forEach((summary) => {
+    if (!summary?.auth_uid) {
+      return;
+    }
+
+    mapped[summary.auth_uid] = {
+      auth_uid: summary.auth_uid,
+      resident_fullname: summary.resident_fullname || "",
+      resident_id: summary.id || null,
+    };
+  });
+
+  return { success: true, data: mapped };
+};

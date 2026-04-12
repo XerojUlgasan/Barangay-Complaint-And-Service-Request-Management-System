@@ -23,6 +23,33 @@ const checkUserRole = async (userId) => {
   };
 };
 
+const normalizeComplaintValue = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ");
+
+const getLatestMediationStatusForComplaint = async (complaintId) => {
+  const { data, error } = await supabase
+    .from("mediations_tbl")
+    .select("status")
+    .eq("complaint_id", complaintId)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    return { success: false, message: error.message };
+  }
+
+  return {
+    success: true,
+    status: normalizeComplaintValue(data?.status),
+  };
+};
+
 export const getAssignedComplaints = async () => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
 
@@ -77,19 +104,40 @@ export const getAssignedComplaints = async () => {
       )
     : {};
 
-  // Resolve respondent resident IDs (stored as array) to full names
+  // Resolve respondent identifiers whether they are stored as auth UIDs or resident IDs.
   const allRespondentIds = [
-    ...new Set(data.flatMap((row) => row.respondent_id || [])),
+    ...new Set(
+      data.flatMap((row) =>
+        Array.isArray(row.respondent_id) ? row.respondent_id : [],
+      ),
+    ),
   ].filter(Boolean);
-  const respondentsResult = await getResidentsByIds(allRespondentIds);
-  const respondentNameMap = respondentsResult.success
-    ? Object.fromEntries(
-        Object.entries(respondentsResult.data).map(([id, resident]) => [
-          id,
-          formatResidentFullName(resident),
-        ]),
-      )
-    : {};
+  const [respondentsByAuthUidResult, respondentsByIdResult] = await Promise.all(
+    [
+      getResidentsByAuthUids(allRespondentIds),
+      getResidentsByIds(allRespondentIds),
+    ],
+  );
+  const respondentNameMap = {
+    ...(respondentsByAuthUidResult.success
+      ? Object.fromEntries(
+          Object.entries(respondentsByAuthUidResult.data).map(
+            ([authUid, resident]) => [
+              authUid,
+              formatResidentFullName(resident),
+            ],
+          ),
+        )
+      : {}),
+    ...(respondentsByIdResult.success
+      ? Object.fromEntries(
+          Object.entries(respondentsByIdResult.data).map(([id, resident]) => [
+            id,
+            formatResidentFullName(resident),
+          ]),
+        )
+      : {}),
+  };
 
   const enriched = data.map((complaint) => ({
     ...complaint,
@@ -287,18 +335,36 @@ export const updateComplaintStatus = async (
     };
   }
 
+  const latestMediationStatusResult =
+    await getLatestMediationStatusForComplaint(complaintId);
+
+  if (!latestMediationStatusResult.success) {
+    return {
+      success: false,
+      message: "Failed to validate mediation status before complaint update",
+    };
+  }
+
+  if (
+    ["resolved", "rejected"].includes(latestMediationStatusResult.status)
+  ) {
+    return {
+      success: false,
+      message:
+        "This complaint is connected to a closed mediation and can no longer be modified.",
+    };
+  }
+
   // Validate status against allowed enum values
   const validStatuses = [
-    "pending",
-    "in_progress",
-    "completed",
+    "for review",
     "rejected",
-    "resident_complied",
-    "for_compliance",
-    "non_compliant",
-    "for_validation",
+    "resolved",
+    "recorded",
+    "pending",
   ];
-  if (status && !validStatuses.includes(status)) {
+  const normalizedStatus = normalizeComplaintValue(status);
+  if (normalizedStatus && !validStatuses.includes(normalizedStatus)) {
     console.warn(
       `Status "${status}" may not be valid. Allowed: ${validStatuses.join(", ")}`,
     );
@@ -309,7 +375,7 @@ export const updateComplaintStatus = async (
     updated_at: new Date().toISOString(),
   };
 
-  if (status) updateData.status = status;
+  if (normalizedStatus) updateData.status = normalizedStatus;
   if (remarks !== undefined) updateData.remarks = remarks;
   if (priority_level !== undefined) updateData.priority_level = priority_level;
 
@@ -324,6 +390,88 @@ export const updateComplaintStatus = async (
   }
 
   return { success: true, message: "Complaint updated successfully" };
+};
+
+export const updateComplaintCategory = async (complaintId, category) => {
+  const { data: userData, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !userData || !userData.user) {
+    return { success: false, message: "Not authenticated" };
+  }
+
+  const { isOfficial } = await checkUserRole(userData.user.id);
+
+  if (!isOfficial) {
+    return {
+      success: false,
+      message: "Complaint does not exist or you don't have access to it",
+    };
+  }
+
+  const { data: complaintData } = await supabase
+    .from("complaint_tbl")
+    .select("id, complainant_id, assigned_official_id, category, status")
+    .eq("id", complaintId)
+    .maybeSingle();
+
+  if (!complaintData) {
+    return {
+      success: false,
+      message: "Complaint does not exist or you don't have access to it",
+    };
+  }
+
+  const latestMediationStatusResult =
+    await getLatestMediationStatusForComplaint(complaintId);
+
+  if (!latestMediationStatusResult.success) {
+    return {
+      success: false,
+      message: "Failed to validate mediation status before complaint update",
+    };
+  }
+
+  if (
+    ["resolved", "rejected"].includes(latestMediationStatusResult.status)
+  ) {
+    return {
+      success: false,
+      message:
+        "This complaint is connected to a closed mediation and can no longer be modified.",
+    };
+  }
+
+  const validCategories = ["blotter", "for mediation", "community concern"];
+  const normalizedCategory = normalizeComplaintValue(category);
+  const categoryToStatusMap = {
+    blotter: "recorded",
+    "community concern": "recorded",
+    "for mediation": "pending",
+  };
+
+  if (!validCategories.includes(normalizedCategory)) {
+    return {
+      success: false,
+      message: `Invalid category. Must be one of: ${validCategories.join(", ")}`,
+    };
+  }
+
+  const { error } = await supabase
+    .from("complaint_tbl")
+    .update({
+      category: normalizedCategory,
+      status: categoryToStatusMap[normalizedCategory] || complaintData.status,
+      updated_by: userData.user.id,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", complaintId);
+
+  if (error) {
+    console.error("Error updating complaint category:", error);
+    return { success: false, message: "Failed to update complaint category" };
+  }
+
+  return { success: true, message: "Complaint category updated successfully" };
 };
 
 export const getActiveOfficialsForAssignment = async () => {

@@ -16,7 +16,7 @@ const SubmitRequest = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const fileInputRef = useRef(null);
-  const { resident, userName } = useAuth();
+  const { authUser, resident, userName } = useAuth();
 
   const [submitError, setSubmitError] = useState("");
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -26,6 +26,7 @@ const SubmitRequest = () => {
   const [respondentSuggestions, setRespondentSuggestions] = useState([]);
   const [selectedRespondents, setSelectedRespondents] = useState([]);
   const [searchTimeout, setSearchTimeout] = useState(null);
+  const [respondentSearchLoading, setRespondentSearchLoading] = useState(false);
   const [certificateChoices, setCertificateChoices] = useState([]);
   const [certificateLoading, setCertificateLoading] = useState(false);
   const [certificateChoiceError, setCertificateChoiceError] = useState("");
@@ -128,31 +129,44 @@ const SubmitRequest = () => {
     }
 
     try {
+      setRespondentSearchLoading(true);
       const { data, error } = await supabase
-        .from("resident_fullnames_vw")
-        .select("id, fullname")
-        .ilike("fullname", `%${query}%`)
+        .from("residents_summary")
+        .select("id, auth_uid, resident_fullname")
+        .ilike("resident_fullname", `%${query}%`)
         .limit(20);
 
       if (error) {
         console.error("Search residents error:", error);
+        setRespondentSuggestions([]);
         return;
       }
 
       // Filter out current user and already selected respondents
-      const selectedIds = selectedRespondents.map((r) => r.id);
+      const selectedAuthUids = selectedRespondents.map((r) => r.id);
       const filtered =
         data?.filter(
           (resident) =>
+            resident.auth_uid &&
+            resident.auth_uid !== authUser?.id &&
             resident.id !== currentUserResidentId &&
-            !selectedIds.includes(resident.id),
+            !selectedAuthUids.includes(resident.auth_uid),
         ) || [];
 
-      console.log("resident_fullnames_vw Data:", data);
+      const normalized = filtered.map((resident) => ({
+        id: resident.auth_uid,
+        residentId: resident.id,
+        fullname: resident.resident_fullname,
+      }));
+
+      console.log("residents_summary Data:", data);
       console.log("Filtered Suggestions:", filtered);
-      setRespondentSuggestions(filtered);
+      setRespondentSuggestions(normalized);
     } catch (error) {
       console.error("Error searching residents:", error);
+      setRespondentSuggestions([]);
+    } finally {
+      setRespondentSearchLoading(false);
     }
   };
 
@@ -570,7 +584,8 @@ const SubmitRequest = () => {
                           placeholder="Search and add respondents (type at least 2 characters)..."
                           className="form-input"
                         />
-                        {respondentSuggestions.length > 0 && (
+                        {(respondentInput.trim().length >= 2 ||
+                          respondentSearchLoading) && (
                           <div
                             className="respondent-dropdown"
                             style={{
@@ -587,29 +602,50 @@ const SubmitRequest = () => {
                               zIndex: 10,
                             }}
                           >
-                            {respondentSuggestions.map((suggestion) => (
+                            {respondentSearchLoading ? (
                               <div
-                                key={suggestion.id}
-                                onClick={() =>
-                                  handleSelectRespondent(suggestion)
-                                }
                                 style={{
                                   padding: "10px 12px",
-                                  cursor: "pointer",
-                                  borderBottom: "1px solid #eee",
-                                  transition: "background-color 0.2s",
+                                  color: "#6b7280",
                                 }}
-                                onMouseEnter={(e) =>
-                                  (e.target.style.backgroundColor = "#f5f5f5")
-                                }
-                                onMouseLeave={(e) =>
-                                  (e.target.style.backgroundColor =
-                                    "transparent")
-                                }
                               >
-                                {suggestion.fullname}
+                                Searching residents...
                               </div>
-                            ))}
+                            ) : respondentSuggestions.length > 0 ? (
+                              respondentSuggestions.map((suggestion) => (
+                                <div
+                                  key={suggestion.id}
+                                  onClick={() =>
+                                    handleSelectRespondent(suggestion)
+                                  }
+                                  style={{
+                                    padding: "10px 12px",
+                                    cursor: "pointer",
+                                    borderBottom: "1px solid #eee",
+                                    transition: "background-color 0.2s",
+                                  }}
+                                  onMouseEnter={(e) =>
+                                    (e.currentTarget.style.backgroundColor =
+                                      "#f5f5f5")
+                                  }
+                                  onMouseLeave={(e) =>
+                                    (e.currentTarget.style.backgroundColor =
+                                      "transparent")
+                                  }
+                                >
+                                  {suggestion.fullname}
+                                </div>
+                              ))
+                            ) : (
+                              <div
+                                style={{
+                                  padding: "10px 12px",
+                                  color: "#6b7280",
+                                }}
+                              >
+                                No matching residents found.
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

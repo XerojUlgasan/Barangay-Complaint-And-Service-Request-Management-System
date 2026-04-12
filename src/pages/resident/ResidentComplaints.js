@@ -3,19 +3,128 @@ import { useNavigate } from "react-router-dom";
 import {
   getComplaints,
   getComplaintHistory,
+  getComplaintMediationHistory,
+  updateComplaintMediationAccepted,
 } from "../../supabse_db/complaint/complaint";
 import { logout } from "../../supabse_db/auth/auth";
 import supabase from "../../supabse_db/supabase_client";
 import {
   formatResidentFullName,
   getResidentsByAuthUids,
-  getResidentsByIds,
+  getResidentSummariesByAuthUids,
 } from "../../supabse_db/resident/resident";
 import { useAuth } from "../../context/AuthContext";
 import ResidentSidebar from "../../components/ResidentSidebar";
 import ResidentSettings from "../../components/ResidentSettings";
 import ResidentProfile from "../../components/ResidentProfile";
 import "../../styles/UserPages.css";
+
+const COMPLAINT_SECTIONS = [
+  { key: "uncategorized", label: "Uncategorized" },
+  { key: "blotter", label: "Blotters" },
+  { key: "for mediation", label: "For Mediation" },
+  { key: "community concern", label: "Community Concern" },
+];
+
+const STATUS_OPTIONS = [
+  "All Status",
+  "For Review",
+  "Rejected",
+  "Resolved",
+  "Recorded",
+  "Pending",
+];
+
+const normalizeComplaintValue = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ");
+
+const isExplicitFalse = (value) =>
+  value === false || normalizeComplaintValue(value) === "false";
+
+const formatLongDate = (value) => {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
+const formatLongDateTime = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
+
+const getComplaintSectionKey = (category) => {
+  const value = normalizeComplaintValue(category);
+  return value || "uncategorized";
+};
+
+const getComplaintSectionLabel = (category) => {
+  const key = getComplaintSectionKey(category);
+  return (
+    COMPLAINT_SECTIONS.find((section) => section.key === key)?.label ||
+    "Uncategorized"
+  );
+};
+
+const getComplaintStatusLabel = (status) => {
+  const value = normalizeComplaintValue(status);
+  if (value === "for review") return "For Review";
+  if (value === "pending") return "Pending";
+  if (value === "recorded") return "Recorded";
+  if (value === "rejected") return "Rejected";
+  if (value === "resolved") return "Resolved";
+  return value
+    ? value.replace(/\b\w/g, (char) => char.toUpperCase())
+    : "For Review";
+};
+
+const getComplaintStatusColor = (status) => {
+  const value = normalizeComplaintValue(status);
+  if (value === "resolved") return "#10b981";
+  if (value === "rejected") return "#ef4444";
+  if (value === "recorded") return "#0ea5e9";
+  if (value === "pending") return "#f97316";
+  return "#f59e0b";
+};
+
+const getMediationStatusLabel = (status) => {
+  const value = normalizeComplaintValue(status);
+  if (value === "scheduled") return "Scheduled";
+  if (value === "resolved") return "Resolved";
+  if (value === "unresolved") return "Unresolved";
+  if (value === "rejected") return "Rejected";
+  if (value === "rescheduled") return "Rescheduled";
+  return value
+    ? value.replace(/\b\w/g, (char) => char.toUpperCase())
+    : "Scheduled";
+};
+
+const getMediationStatusColor = (status) => {
+  const value = normalizeComplaintValue(status);
+  if (value === "scheduled") return "#0ea5e9";
+  if (value === "resolved") return "#10b981";
+  if (value === "unresolved") return "#f59e0b";
+  if (value === "rejected") return "#ef4444";
+  if (value === "rescheduled") return "#14b8a6";
+  return "#6b7280";
+};
 
 const MyComplaints = () => {
   const navigate = useNavigate();
@@ -26,19 +135,23 @@ const MyComplaints = () => {
   const [againstComplaints, setAgainstComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [againstLoading, setAgainstLoading] = useState(true);
-  const [currentUserId, setCurrentUserId] = useState(null);
+  const [activeComplaintSection, setActiveComplaintSection] =
+    useState("uncategorized");
   const [filter, setFilter] = useState("All Status");
   const [againstFilter, setAgainstFilter] = useState("All Status");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [historyData, setHistoryData] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [selectedComplaint, setSelectedComplaint] = useState(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [detailsComplaint, setDetailsComplaint] = useState(null);
-  const [detailsIsAgainst, setDetailsIsAgainst] = useState(false);
+  const [mediationHistory, setMediationHistory] = useState([]);
+  const [mediationHistoryLoading, setMediationHistoryLoading] = useState(false);
+  const [showMediationModal, setShowMediationModal] = useState(false);
+  const [mediationProcessing, setMediationProcessing] = useState(false);
+  const [mediationNotice, setMediationNotice] = useState("");
+  const [mediationError, setMediationError] = useState("");
   const [showAgainstModal, setShowAgainstModal] = useState(false);
   const [againstDetail, setAgainstDetail] = useState(null);
   const [respondentNames, setRespondentNames] = useState({});
@@ -51,17 +164,69 @@ const MyComplaints = () => {
 
     const fetchData = async () => {
       if (authUser) {
-        setCurrentUserId(authUser.id);
-
         let currentResidentId = resident?.id || null;
+        let filedRows = [];
+        let residentNameMap = {};
 
         const result = await getComplaints({
           userId: authUser.id,
           userRole: userRole || "resident",
         });
-        const filedData = result.success ? result.data : [];
         if (result.success) {
-          setComplaints(result.data);
+          filedRows = Array.isArray(result.data) ? result.data : [];
+          const respondentAuthUids = [
+            ...new Set(
+              filedRows.flatMap((complaint) => complaint.respondent_id || []),
+            ),
+          ].filter(Boolean);
+          const complainantAuthUids = filedRows
+            .map((complaint) => complaint.complainant_id)
+            .filter(Boolean);
+
+          const [respondentsResult, complainantsResult] = await Promise.all([
+            getResidentSummariesByAuthUids(respondentAuthUids),
+            getResidentsByAuthUids(complainantAuthUids),
+          ]);
+
+          if (respondentsResult.success) {
+            Object.entries(respondentsResult.data).forEach(
+              ([authUid, summary]) => {
+                residentNameMap[authUid] =
+                  summary.resident_fullname ||
+                  summary.fullname ||
+                  "Unknown Resident";
+              },
+            );
+          }
+
+          if (complainantsResult.success) {
+            Object.entries(complainantsResult.data).forEach(
+              ([authUid, resident]) => {
+                residentNameMap[authUid] = formatResidentFullName(resident);
+              },
+            );
+          }
+
+          setRespondentNames(residentNameMap);
+          setComplaints(
+            filedRows.map((complaint) => ({
+              ...complaint,
+              sectionKey: getComplaintSectionKey(complaint.category),
+              sectionLabel: getComplaintSectionLabel(complaint.category),
+              statusLabel: getComplaintStatusLabel(complaint.status),
+              statusColor: getComplaintStatusColor(complaint.status),
+              createdLabel: formatLongDateTime(complaint.created_at),
+              incidentLabel: formatLongDate(complaint.incident_date),
+              complainant_name:
+                residentNameMap[complaint.complainant_id] || "Unknown",
+              respondent_names: (complaint.respondent_id || [])
+                .map(
+                  (respondentId) =>
+                    residentNameMap[respondentId] || respondentId,
+                )
+                .join(", "),
+            })),
+          );
         }
 
         let againstRows = [];
@@ -245,8 +410,7 @@ const MyComplaints = () => {
               : [];
         }
 
-        const filedRows = Array.isArray(filedData) ? filedData : [];
-        const respondentResidentIds = [...filedRows, ...againstRows]
+        const againstRespondentAuthUids = againstRows
           .flatMap((complaint) => complaint.respondent_id || [])
           .filter(Boolean);
         const complainantAuthUids = againstRows
@@ -254,16 +418,17 @@ const MyComplaints = () => {
           .filter(Boolean);
 
         const [respondentsResult, complainantsResult] = await Promise.all([
-          getResidentsByIds(respondentResidentIds),
+          getResidentSummariesByAuthUids(againstRespondentAuthUids),
           getResidentsByAuthUids(complainantAuthUids),
         ]);
 
-        const residentNameMap = {};
-
         if (respondentsResult.success) {
           Object.entries(respondentsResult.data).forEach(
-            ([residentId, resident]) => {
-              residentNameMap[residentId] = formatResidentFullName(resident);
+            ([authUid, summary]) => {
+              residentNameMap[authUid] =
+                summary.resident_fullname ||
+                summary.fullname ||
+                "Unknown Resident";
             },
           );
         }
@@ -293,7 +458,7 @@ const MyComplaints = () => {
     };
 
     fetchData();
-  }, [authUser, resident, residentLoading]);
+  }, [authUser, resident, residentLoading, userRole]);
 
   const handleLogoutConfirm = async () => {
     try {
@@ -311,57 +476,147 @@ const MyComplaints = () => {
     );
   };
 
-  const handleViewHistory = async (complaint) => {
-    setSelectedComplaint(complaint);
-    setShowHistoryModal(true);
-    setHistoryLoading(true);
-    setHistoryData([]);
-
+  const loadComplaintHistory = async (complaint) => {
     const result = await getComplaintHistory(complaint.id);
-    if (result.success) {
-      const sorted = [...result.data].sort((a, b) => {
-        const dateA = new Date(a.updated_at || a.created_at);
-        const dateB = new Date(b.updated_at || b.created_at);
-        return dateB - dateA;
-      });
 
-      const hasPending = sorted.some(
-        (item) => normalize(item.status) === "pending",
-      );
-      if (!hasPending) {
-        sorted.push({
-          id: "initial-pending",
-          status: "pending",
-          remarks: null,
-          updater_name: null,
-          priority_level: null,
-          created_at: complaint.created_at,
-          updated_at: complaint.created_at,
-        });
-      }
-      setHistoryData(sorted);
+    if (!result.success) {
+      return [];
     }
-    setHistoryLoading(false);
+
+    const sorted = [...result.data].sort((a, b) => {
+      const dateA = new Date(a.updated_at || a.created_at);
+      const dateB = new Date(b.updated_at || b.created_at);
+      return dateA - dateB;
+    });
+
+    if (sorted.length === 0) {
+      sorted.push({
+        id: "initial-snapshot",
+        status: complaint.status,
+        category: complaint.category,
+        remarks: complaint.description,
+        updater_name: null,
+        priority_level: complaint.priority_level,
+        created_at: complaint.created_at,
+        updated_at: complaint.created_at,
+        assigned_official_id: complaint.assigned_official_id,
+        mediation_accepted: complaint.mediation_accepted,
+      });
+    }
+
+    return sorted;
   };
 
-  const handleViewDetails = (complaint) => {
-    setDetailsComplaint(complaint);
+  const loadComplaintMediationHistory = async (complaintId) => {
+    const result = await getComplaintMediationHistory(complaintId);
+
+    if (!result.success) {
+      return [];
+    }
+
+    return Array.isArray(result.data) ? result.data : [];
+  };
+
+  const handleOpenComplaintDetails = async (complaint) => {
+    setSelectedComplaint(complaint);
+    setHistoryLoading(true);
+    setMediationHistoryLoading(true);
+    setHistoryData([]);
+    setMediationHistory([]);
+
+    const [history, mediationHistoryRows] = await Promise.all([
+      loadComplaintHistory(complaint),
+      loadComplaintMediationHistory(complaint.id),
+    ]);
+
+    setHistoryData(history);
+    setMediationHistory(mediationHistoryRows);
+    setHistoryLoading(false);
+    setMediationHistoryLoading(false);
+    setMediationNotice("");
+    setMediationError("");
     setShowDetailsModal(true);
   };
+
+  const handleViewDetails = handleOpenComplaintDetails;
 
   const handleViewAgainst = (complaint) => {
     setAgainstDetail(complaint);
     setShowAgainstModal(true);
   };
 
+  const closeComplaintDetails = () => {
+    setShowDetailsModal(false);
+    setShowMediationModal(false);
+    setMediationProcessing(false);
+    setMediationNotice("");
+    setMediationError("");
+    setMediationHistory([]);
+    setMediationHistoryLoading(false);
+  };
+
+  const handleOpenMediationConfirmation = () => {
+    setMediationError("");
+    setMediationNotice("");
+    setShowMediationModal(true);
+  };
+
+  const handleConfirmMediation = async () => {
+    if (!selectedComplaint) return;
+
+    setMediationProcessing(true);
+    setMediationError("");
+
+    const result = await updateComplaintMediationAccepted(selectedComplaint.id);
+
+    if (!result.success) {
+      setMediationError(result.message || "Failed to accept mediation request");
+      setMediationProcessing(false);
+      return;
+    }
+
+    const updatedComplaint = {
+      ...selectedComplaint,
+      mediation_accepted: true,
+      status: "for review",
+      statusLabel: getComplaintStatusLabel("for review"),
+      statusColor: getComplaintStatusColor("for review"),
+    };
+
+    setSelectedComplaint(updatedComplaint);
+    setComplaints((prevComplaints) =>
+      prevComplaints.map((complaint) =>
+        complaint.id === updatedComplaint.id
+          ? {
+              ...complaint,
+              mediation_accepted: true,
+              status: "for review",
+              statusLabel: getComplaintStatusLabel("for review"),
+              statusColor: getComplaintStatusColor("for review"),
+            }
+          : complaint,
+      ),
+    );
+    const refreshedHistory = await loadComplaintHistory(updatedComplaint);
+    setHistoryData(refreshedHistory);
+    setMediationProcessing(false);
+    setShowMediationModal(true);
+    setMediationNotice(
+      "Mediation request accepted. Please wait for further informamtion about the schedule.",
+    );
+  };
+
   const closeSidebar = () => setSidebarOpen(false);
 
   const normalize = (str) => (str || "").toLowerCase().replace(/[\s_-]/g, "");
 
-  const filtered =
-    filter === "All Status"
-      ? complaints
-      : complaints.filter((c) => normalize(c.status) === normalize(filter));
+  const filtered = complaints.filter((c) => {
+    const sectionMatch =
+      getComplaintSectionKey(c.category) === activeComplaintSection;
+    const statusMatch =
+      filter === "All Status" || normalize(c.statusLabel) === normalize(filter);
+    return sectionMatch && statusMatch;
+  });
 
   const filteredAgainst =
     againstFilter === "All Status"
@@ -373,32 +628,17 @@ const MyComplaints = () => {
   const formatDate = (dateStr) => {
     if (!dateStr) return "—";
     return new Date(dateStr).toLocaleDateString("en-US", {
-      month: "short",
+      month: "long",
       day: "numeric",
       year: "numeric",
-    });
-  };
-
-  const formatDateTime = (dateStr) => {
-    if (!dateStr) return "";
-    return new Date(dateStr).toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
     });
   };
 
   const getBadgeClass = (status) => {
     const n = normalize(status);
-    if (n === "resolved" || n === "completed") return "badge completed";
-    if (n === "inprogress") return "badge progress";
-    if (n === "pending") return "badge pending";
+    if (n === "resolved") return "badge completed";
     if (n === "rejected" || n === "dismissed") return "badge rejected";
-    if (n === "forvalidation") return "badge forvalidation";
-    if (n === "noncompliant") return "badge forcompliance";
+    if (n === "forreview" || n === "pending") return "badge pending";
     return "badge";
   };
 
@@ -407,22 +647,24 @@ const MyComplaints = () => {
     return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   };
 
-  const getTimelineDot = (status) => {
-    const n = normalize(status);
-    if (n === "resolved" || n === "completed") return "#059669";
-    if (n === "inprogress") return "#2563eb";
-    if (n === "rejected" || n === "dismissed") return "#dc2626";
-    if (n === "forvalidation") return "#0369a1";
-    if (n === "noncompliant") return "#f59e0b";
-    return "#f59e0b";
-  };
+  const sectionCounts = COMPLAINT_SECTIONS.reduce((accumulator, section) => {
+    accumulator[section.key] = complaints.filter(
+      (complaint) => getComplaintSectionKey(complaint.category) === section.key,
+    ).length;
+    return accumulator;
+  }, {});
+
+  const latestMediationSession =
+    mediationHistory[mediationHistory.length - 1] || null;
 
   // Resolves respondent UUIDs to full names using the fetched map
   const formatRespondents = (respondentId) => {
     if (!respondentId) return "—";
     const ids = Array.isArray(respondentId) ? respondentId : [respondentId];
     if (ids.length === 0) return "—";
-    const names = ids.map((id) => respondentNames[id] || "Unknown Resident");
+    const names = ids.map(
+      (id) => respondentNames[id] || id || "Unknown Resident",
+    );
     return names.join(", ");
   };
 
@@ -556,25 +798,23 @@ const MyComplaints = () => {
           </div>
         )}
 
-        {/* HISTORY MODAL */}
-        {showHistoryModal && (
-          <div
-            className="logout-modal-overlay"
-            onClick={() => setShowHistoryModal(false)}
-          >
-            <div className="history-modal" onClick={(e) => e.stopPropagation()}>
+        {/* MY COMPLAINT DETAILS MODAL */}
+        {showDetailsModal && selectedComplaint && (
+          <div className="logout-modal-overlay" onClick={closeComplaintDetails}>
+            <div
+              className="details-modal resident-complaint-details-modal"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="history-modal-header">
                 <div>
-                  <h3 className="history-modal-title">Complaint History</h3>
-                  {selectedComplaint && (
-                    <p className="history-modal-sub">
-                      {selectedComplaint.complaint_type}
-                    </p>
-                  )}
+                  <h3 className="history-modal-title">Complaint Details</h3>
+                  <p className="history-modal-sub">
+                    {selectedComplaint.complaint_type}
+                  </p>
                 </div>
                 <button
                   className="history-modal-close"
-                  onClick={() => setShowHistoryModal(false)}
+                  onClick={closeComplaintDetails}
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -589,53 +829,339 @@ const MyComplaints = () => {
                   </svg>
                 </button>
               </div>
+
+              {getComplaintSectionKey(selectedComplaint.category) ===
+                "for mediation" &&
+                isExplicitFalse(selectedComplaint.mediation_accepted) && (
+                  <div className="resident-mediation-cta-wrap">
+                    <div className="resident-mediation-cta-copy">
+                      <strong>Mediation Request</strong>
+                      <span>
+                        Request barangay mediation for this complaint.
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="resident-mediation-cta"
+                      onClick={handleOpenMediationConfirmation}
+                    >
+                      Accept Mediation
+                    </button>
+                  </div>
+                )}
+
               <div className="history-modal-body">
-                {historyLoading ? (
-                  <p className="modal-empty-text">Loading history...</p>
-                ) : historyData.length === 0 ? (
-                  <p className="modal-empty-text">No history available yet.</p>
-                ) : (
-                  <div className="history-timeline">
-                    {historyData.map((item, index) => (
-                      <div className="timeline-item" key={item.id || index}>
-                        <div
-                          className="timeline-dot"
-                          style={{
-                            backgroundColor: getTimelineDot(item.status),
-                          }}
-                        />
-                        {index < historyData.length - 1 && (
-                          <div className="timeline-line" />
-                        )}
-                        <div className="timeline-content">
-                          <div className="timeline-status">
-                            {formatStatus(item.status)}
-                          </div>
-                          {item.priority_level && (
-                            <div className="timeline-priority">
-                              Priority: {item.priority_level}
-                            </div>
-                          )}
-                          {item.remarks && (
-                            <div className="timeline-remarks">
-                              "{item.remarks}"
-                            </div>
-                          )}
-                          <div className="timeline-meta">
-                            {item.updater_name && (
-                              <span className="timeline-official">
-                                by {item.updater_name}
-                              </span>
+                <div className="details-grid">
+                  <div className="details-row">
+                    <span className="details-label">Status</span>
+                    <span className={getBadgeClass(selectedComplaint.status)}>
+                      {getComplaintStatusLabel(selectedComplaint.status)}
+                    </span>
+                  </div>
+                  <div className="details-row">
+                    <span className="details-label">Category</span>
+                    <span className="details-value">
+                      {getComplaintSectionLabel(selectedComplaint.category)}
+                    </span>
+                  </div>
+                  <div className="details-row">
+                    <span className="details-label">Submitted</span>
+                    <span className="details-value">
+                      {formatLongDateTime(selectedComplaint.created_at)}
+                    </span>
+                  </div>
+                  <div className="details-row">
+                    <span className="details-label">Incident Date</span>
+                    <span className="details-value">
+                      {formatLongDate(selectedComplaint.incident_date)}
+                    </span>
+                  </div>
+                  <div className="details-row">
+                    <span className="details-label">Location</span>
+                    <span className="details-value">
+                      {selectedComplaint.incident_location || "—"}
+                    </span>
+                  </div>
+                  <div className="details-row">
+                    <span className="details-label">Assigned To</span>
+                    <span className="details-value">
+                      {selectedComplaint.assigned_official_name || "—"}
+                    </span>
+                  </div>
+                  <div className="details-row">
+                    <span className="details-label">Respondent</span>
+                    <span className="details-value">
+                      {formatRespondents(selectedComplaint.respondent_id)}
+                    </span>
+                  </div>
+                  {selectedComplaint.description && (
+                    <div className="details-full">
+                      <span className="details-label">Description</span>
+                      <p className="details-desc">
+                        {selectedComplaint.description}
+                      </p>
+                    </div>
+                  )}
+                  {selectedComplaint.remarks && (
+                    <div className="details-full">
+                      <span className="details-label">Remarks</span>
+                      <p className="details-desc">
+                        {selectedComplaint.remarks}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="resident-history-section">
+                  <div className="resident-history-header">
+                    <h4>History</h4>
+                    <span>
+                      Tracks status, category, and official updates over time.
+                    </span>
+                  </div>
+
+                  {historyLoading ? (
+                    <p className="modal-empty-text">Loading history...</p>
+                  ) : historyData.length === 0 ? (
+                    <p className="modal-empty-text">
+                      No history available yet.
+                    </p>
+                  ) : (
+                    <div className="history-timeline resident-history-timeline">
+                      {historyData.map((item, index) => {
+                        const itemStatus = getComplaintStatusLabel(item.status);
+                        const itemCategory = getComplaintSectionLabel(
+                          item.category,
+                        );
+                        const itemDot = getComplaintStatusColor(item.status);
+                        const previousItem = historyData[index - 1] || null;
+                        const changeNotes = [];
+
+                        if (!previousItem) {
+                          changeNotes.push("Created complaint record");
+                        } else {
+                          if (
+                            normalizeComplaintValue(previousItem.status) !==
+                            normalizeComplaintValue(item.status)
+                          ) {
+                            changeNotes.push(`Status set to ${itemStatus}`);
+                          }
+                          if (
+                            normalizeComplaintValue(previousItem.category) !==
+                            normalizeComplaintValue(item.category)
+                          ) {
+                            changeNotes.push(`Category set to ${itemCategory}`);
+                          }
+                          if (
+                            normalizeComplaintValue(
+                              previousItem.mediation_accepted,
+                            ) !==
+                            normalizeComplaintValue(item.mediation_accepted)
+                          ) {
+                            changeNotes.push(
+                              `Mediation ${item.mediation_accepted ? "accepted" : "not accepted"}`,
+                            );
+                          }
+                        }
+
+                        return (
+                          <div className="timeline-item" key={item.id || index}>
+                            <div
+                              className="timeline-dot"
+                              style={{ backgroundColor: itemDot }}
+                            />
+                            {index < historyData.length - 1 && (
+                              <div className="timeline-line" />
                             )}
-                            <span className="timeline-date">
-                              {formatDateTime(
-                                item.updated_at || item.created_at,
+                            <div className="timeline-content">
+                              <div className="resident-history-badges">
+                                <span
+                                  className="resident-history-badge"
+                                  style={{ backgroundColor: itemDot }}
+                                >
+                                  {itemStatus}
+                                </span>
+                                <span className="resident-history-badge category">
+                                  {itemCategory}
+                                </span>
+                              </div>
+
+                              {changeNotes.length > 0 && (
+                                <div className="resident-history-changes">
+                                  {changeNotes.join(" • ")}
+                                </div>
                               )}
-                            </span>
+
+                              {item.priority_level && (
+                                <div className="timeline-priority">
+                                  Priority: {item.priority_level}
+                                </div>
+                              )}
+                              {item.remarks && (
+                                <div className="timeline-remarks">
+                                  "{item.remarks}"
+                                </div>
+                              )}
+
+                              <div className="timeline-meta">
+                                {item.updater_name && (
+                                  <span className="timeline-official">
+                                    by {item.updater_name}
+                                  </span>
+                                )}
+                                <span className="timeline-date">
+                                  {formatLongDateTime(
+                                    item.updated_at || item.created_at,
+                                  )}
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {((selectedComplaint.category || "").toLowerCase() ===
+                  "for mediation" ||
+                  selectedComplaint.mediation_accepted ||
+                  mediationHistory.length > 0) && (
+                  <div className="resident-history-section resident-mediation-history-section">
+                    <div className="resident-history-header">
+                      <h4>Mediation Status</h4>
+                      <span>
+                        Tracks the mediation table history linked to this
+                        complaint.
+                      </span>
+                    </div>
+
+                    <div className="details-grid resident-mediation-summary-grid">
+                      <div className="details-row">
+                        <span className="details-label">Current status</span>
+                        <span
+                          className="badge"
+                          style={{
+                            backgroundColor: latestMediationSession
+                              ? getMediationStatusColor(
+                                  latestMediationSession.status,
+                                )
+                              : selectedComplaint.mediation_accepted
+                                ? "#0ea5e9"
+                                : "#6b7280",
+                          }}
+                        >
+                          {latestMediationSession
+                            ? getMediationStatusLabel(
+                                latestMediationSession.status,
+                              )
+                            : selectedComplaint.mediation_accepted
+                              ? "Accepted"
+                              : "Awaiting schedule"}
+                        </span>
                       </div>
-                    ))}
+                      <div className="details-row">
+                        <span className="details-label">Latest schedule</span>
+                        <span className="details-value">
+                          {latestMediationSession
+                            ? `${formatLongDateTime(latestMediationSession.session_start)} to ${formatLongDateTime(latestMediationSession.session_end)}`
+                            : "No session yet"}
+                        </span>
+                      </div>
+                      <div className="details-row">
+                        <span className="details-label">Last update</span>
+                        <span className="details-value">
+                          {latestMediationSession
+                            ? formatLongDateTime(
+                                latestMediationSession.created_at,
+                              )
+                            : "—"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {mediationHistoryLoading ? (
+                      <p className="modal-empty-text">
+                        Loading mediation history...
+                      </p>
+                    ) : mediationHistory.length === 0 ? (
+                      <p className="modal-empty-text">
+                        No mediation history available yet.
+                      </p>
+                    ) : (
+                      <div className="history-timeline resident-history-timeline">
+                        {mediationHistory.map((item, index) => {
+                          const previousItem =
+                            mediationHistory[index - 1] || null;
+                          const changeNotes = [];
+
+                          if (!previousItem) {
+                            changeNotes.push("Mediation record created");
+                          } else if (
+                            normalizeComplaintValue(previousItem.status) !==
+                            normalizeComplaintValue(item.status)
+                          ) {
+                            changeNotes.push(
+                              `Status set to ${getMediationStatusLabel(item.status)}`,
+                            );
+                          }
+
+                          return (
+                            <div
+                              className="timeline-item"
+                              key={item.id || index}
+                            >
+                              <div
+                                className="timeline-dot"
+                                style={{
+                                  backgroundColor: getMediationStatusColor(
+                                    item.status,
+                                  ),
+                                }}
+                              />
+                              {index < mediationHistory.length - 1 && (
+                                <div className="timeline-line" />
+                              )}
+                              <div className="timeline-content">
+                                <div className="resident-history-badges">
+                                  <span
+                                    className="resident-history-badge"
+                                    style={{
+                                      backgroundColor: getMediationStatusColor(
+                                        item.status,
+                                      ),
+                                    }}
+                                  >
+                                    {getMediationStatusLabel(item.status)}
+                                  </span>
+                                  <span className="resident-history-badge category">
+                                    {formatLongDateTime(item.session_start)}
+                                  </span>
+                                </div>
+
+                                {changeNotes.length > 0 && (
+                                  <div className="resident-history-changes">
+                                    {changeNotes.join(" • ")}
+                                  </div>
+                                )}
+
+                                <div className="timeline-priority">
+                                  Session:{" "}
+                                  {formatLongDateTime(item.session_start)} to{" "}
+                                  {formatLongDateTime(item.session_end)}
+                                </div>
+
+                                <div className="timeline-meta">
+                                  <span className="timeline-date">
+                                    {formatLongDateTime(item.created_at)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -643,23 +1169,27 @@ const MyComplaints = () => {
           </div>
         )}
 
-        {/* MY COMPLAINT DETAILS MODAL */}
-        {showDetailsModal && detailsComplaint && (
+        {showMediationModal && selectedComplaint && (
           <div
             className="logout-modal-overlay"
-            onClick={() => setShowDetailsModal(false)}
+            onClick={() => setShowMediationModal(false)}
           >
-            <div className="details-modal" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="details-modal resident-mediation-modal"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="history-modal-header">
                 <div>
-                  <h3 className="history-modal-title">Complaint Details</h3>
+                  <h3 className="history-modal-title">
+                    Mediation Confirmation
+                  </h3>
                   <p className="history-modal-sub">
-                    {detailsComplaint.complaint_type}
+                    {selectedComplaint.complaint_type}
                   </p>
                 </div>
                 <button
                   className="history-modal-close"
-                  onClick={() => setShowDetailsModal(false)}
+                  onClick={() => setShowMediationModal(false)}
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -674,67 +1204,82 @@ const MyComplaints = () => {
                   </svg>
                 </button>
               </div>
-              <div className="history-modal-body">
-                <div className="details-grid">
-                  <div className="details-row">
-                    <span className="details-label">Status</span>
-                    <span className={getBadgeClass(detailsComplaint.status)}>
-                      {formatStatus(detailsComplaint.status) || "Pending"}
-                    </span>
+              <div className="history-modal-body resident-mediation-body">
+                {mediationNotice ? (
+                  <div className="resident-mediation-success">
+                    <p>{mediationNotice}</p>
+                    <button
+                      type="button"
+                      className="resident-mediation-close-btn"
+                      onClick={() => setShowMediationModal(false)}
+                    >
+                      Close
+                    </button>
                   </div>
-                  <div className="details-row">
-                    <span className="details-label">Priority</span>
-                    <span className="details-value">
-                      {detailsComplaint.priority_level || "Not set"}
-                    </span>
-                  </div>
-                  <div className="details-row">
-                    <span className="details-label">Submitted</span>
-                    <span className="details-value">
-                      {formatDate(detailsComplaint.created_at)}
-                    </span>
-                  </div>
-                  <div className="details-row">
-                    <span className="details-label">Incident Date</span>
-                    <span className="details-value">
-                      {formatDate(detailsComplaint.incident_date)}
-                    </span>
-                  </div>
-                  <div className="details-row">
-                    <span className="details-label">Location</span>
-                    <span className="details-value">
-                      {detailsComplaint.incident_location || "—"}
-                    </span>
-                  </div>
-                  {/* ASSIGNED TO: barangay official handling the complaint */}
-                  <div className="details-row">
-                    <span className="details-label">Assigned To</span>
-                    <span className="details-value">
-                      {detailsComplaint.assigned_official_name || "—"}
-                    </span>
-                  </div>
-                  {/* RESPONDENT: resident(s) named in the complaint, resolved to real names */}
-                  <div className="details-row">
-                    <span className="details-label">Respondent</span>
-                    <span className="details-value">
-                      {formatRespondents(detailsComplaint.respondent_id)}
-                    </span>
-                  </div>
-                  {detailsComplaint.description && (
-                    <div className="details-full">
-                      <span className="details-label">Description</span>
-                      <p className="details-desc">
-                        {detailsComplaint.description}
+                ) : (
+                  <>
+                    <div className="resident-mediation-copy">
+                      <p>
+                        You are about to request mediation assistance from the
+                        Barangay regarding your concern.
+                      </p>
+                      <p>
+                        By proceeding, you agree to participate in a peaceful
+                        and voluntary settlement process facilitated by
+                        authorized barangay officials. The purpose of mediation
+                        is to resolve disputes amicably between parties without
+                        escalating the matter to formal legal action.
+                      </p>
+                      <div className="resident-mediation-notes">
+                        <strong>Please note:</strong>
+                        <ul>
+                          <li>
+                            Both parties will be invited to attend a scheduled
+                            mediation session.
+                          </li>
+                          <li>
+                            Your cooperation and honest participation are
+                            expected.
+                          </li>
+                          <li>
+                            Any agreement reached during mediation may be
+                            documented and recognized by the barangay.
+                          </li>
+                        </ul>
+                      </div>
+                      <p className="resident-mediation-question">
+                        Do you wish to proceed with your request for mediation?
                       </p>
                     </div>
-                  )}
-                  {detailsComplaint.remarks && (
-                    <div className="details-full">
-                      <span className="details-label">Remarks</span>
-                      <p className="details-desc">{detailsComplaint.remarks}</p>
+
+                    {mediationError && (
+                      <div className="resident-mediation-error">
+                        {mediationError}
+                      </div>
+                    )}
+
+                    <div className="resident-mediation-actions">
+                      <button
+                        type="button"
+                        className="resident-mediation-cancel"
+                        onClick={() => setShowMediationModal(false)}
+                        disabled={mediationProcessing}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className="resident-mediation-confirm"
+                        onClick={handleConfirmMediation}
+                        disabled={mediationProcessing}
+                      >
+                        {mediationProcessing
+                          ? "Accepting..."
+                          : "Accept Mediation"}
+                      </button>
                     </div>
-                  )}
-                </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -750,6 +1295,7 @@ const MyComplaints = () => {
               <div className="history-modal-header">
                 <div>
                   <h3 className="history-modal-title">Complaint Against You</h3>
+
                   <p className="history-modal-sub">
                     {againstDetail.complaint_type}
                   </p>
@@ -975,36 +1521,32 @@ const MyComplaints = () => {
             {/* ── TAB: COMPLAINTS I FILED ── */}
             {activeTab === "filed" && (
               <>
-                <div className="mr-filter-bar">
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "12px",
-                      alignItems: "center",
-                      flex: 1,
-                    }}
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="#059669"
-                      strokeWidth="2"
-                      width="18"
-                      height="18"
+                <div className="resident-complaint-section-tabs">
+                  {COMPLAINT_SECTIONS.map((section) => (
+                    <button
+                      key={section.key}
+                      type="button"
+                      className={`resident-complaint-section-tab${activeComplaintSection === section.key ? " active" : ""}`}
+                      onClick={() => setActiveComplaintSection(section.key)}
                     >
-                      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                    </svg>
+                      <span>{section.label}</span>
+                      <span className="resident-complaint-section-count">
+                        {sectionCounts[section.key] || 0}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mr-filter-bar resident-complaint-filter-bar">
+                  <div className="resident-complaint-filter-left">
                     <select
                       className="mr-select"
                       value={filter}
                       onChange={(e) => setFilter(e.target.value)}
                     >
-                      <option>All Status</option>
-                      <option>Pending</option>
-                      <option>In Progress</option>
-                      <option>Resolved</option>
-                      <option>Rejected</option>
-                      <option>Dismissed</option>
+                      {STATUS_OPTIONS.map((statusOption) => (
+                        <option key={statusOption}>{statusOption}</option>
+                      ))}
                     </select>
                     <span className="mr-count">
                       {filtered.length} complaint
@@ -1042,93 +1584,89 @@ const MyComplaints = () => {
                   </button>
                 </div>
 
+                <div className="resident-complaint-section-summary">
+                  <strong>
+                    {getComplaintSectionLabel(activeComplaintSection)}
+                  </strong>
+                  <span>
+                    Showing the complaints in this category. Use the status
+                    filter to narrow the list.
+                  </span>
+                </div>
+
                 {loading ? (
                   <p className="mr-empty-text">Loading complaints...</p>
                 ) : filtered.length === 0 ? (
                   <p className="mr-empty-text">No complaints found.</p>
                 ) : (
-                  <div className="mr-grid-4">
-                    {filtered.map((complaint) => (
-                      <div className="mr-card-compact" key={complaint.id}>
-                        <div className="mr-card-compact-header">
-                          <div className="mr-card-compact-icon">
-                            {normalize(complaint.status) === "resolved" ||
-                            normalize(complaint.status) === "completed" ? (
-                              <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="#059669"
-                                strokeWidth="2"
-                                width="14"
-                                height="14"
+                  <div className="requests-table-card resident-complaints-table-card">
+                    <table className="requests-table balanced-table resident-complaints-table">
+                      <thead>
+                        <tr>
+                          <th>Complaint Type</th>
+                          <th>Respondent(s)</th>
+                          <th>Incident Date</th>
+                          <th>Submitted</th>
+                          <th>Status</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filtered.map((complaint) => (
+                          <tr key={complaint.id}>
+                            <td>
+                              <div className="resident-complaint-title-wrap">
+                                <span className="mr-card-compact-title">
+                                  {complaint.complaint_type}
+                                </span>
+                                <span className="resident-complaint-subtitle">
+                                  {complaint.incident_location || "—"}
+                                </span>
+                              </div>
+                            </td>
+                            <td>
+                              <span className="resident-complaint-respondents">
+                                {complaint.respondent_names ||
+                                  formatRespondents(complaint.respondent_id)}
+                              </span>
+                            </td>
+                            <td>
+                              <span className="resident-complaint-date">
+                                {complaint.incidentLabel ||
+                                  formatLongDate(complaint.incident_date)}
+                              </span>
+                            </td>
+                            <td>
+                              <span className="resident-complaint-date">
+                                {complaint.createdLabel ||
+                                  formatLongDateTime(complaint.created_at)}
+                              </span>
+                            </td>
+                            <td>
+                              <span
+                                className="badge"
+                                style={{
+                                  backgroundColor:
+                                    complaint.statusColor ||
+                                    getComplaintStatusColor(complaint.status),
+                                }}
                               >
-                                <circle cx="12" cy="12" r="10" />
-                                <path d="M9 12l2 2 4-4" />
-                              </svg>
-                            ) : (
-                              <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="#dc2626"
-                                strokeWidth="2"
-                                width="14"
-                                height="14"
+                                {complaint.statusLabel ||
+                                  getComplaintStatusLabel(complaint.status)}
+                              </span>
+                            </td>
+                            <td>
+                              <button
+                                className="details-btn"
+                                onClick={() => handleViewDetails(complaint)}
                               >
-                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                                <line x1="12" y1="9" x2="12" y2="13" />
-                                <line x1="12" y1="17" x2="12.01" y2="17" />
-                              </svg>
-                            )}
-                          </div>
-                          <span className={getBadgeClass(complaint.status)}>
-                            {formatStatus(complaint.status) || "Pending"}
-                          </span>
-                        </div>
-                        <div className="mr-card-compact-title">
-                          {complaint.complaint_type}
-                        </div>
-                        <p className="mr-card-compact-desc">
-                          {complaint.description}
-                        </p>
-                        <div className="mr-card-compact-actions">
-                          <button
-                            className="details-btn"
-                            onClick={() => handleViewDetails(complaint)}
-                          >
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              width="12"
-                              height="12"
-                            >
-                              <circle cx="12" cy="12" r="10" />
-                              <line x1="12" y1="8" x2="12" y2="12" />
-                              <line x1="12" y1="16" x2="12.01" y2="16" />
-                            </svg>
-                            Details
-                          </button>
-                          <button
-                            className="history-btn-compact"
-                            onClick={() => handleViewHistory(complaint)}
-                          >
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              width="12"
-                              height="12"
-                            >
-                              <circle cx="12" cy="12" r="10" />
-                              <polyline points="12 6 12 12 16 14" />
-                            </svg>
-                            History
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                                View Details
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </>

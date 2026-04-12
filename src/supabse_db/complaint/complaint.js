@@ -23,6 +23,150 @@ const checkUserRole = async (userId) => {
   };
 };
 
+const normalizeComplaintValue = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ");
+
+const MEDIATION_STATUS_CONFIG = {
+  scheduled: { label: "Scheduled", color: "#0ea5e9" },
+  unresolved: { label: "Unresolved", color: "#f59e0b" },
+  rejected: { label: "Rejected", color: "#ef4444" },
+  rescheduled: { label: "Rescheduled", color: "#14b8a6" },
+  resolved: { label: "Resolved", color: "#10b981" },
+};
+
+const MEDIATION_ACTIVE_STATUSES = ["scheduled", "rescheduled"];
+const MEDIATION_FINAL_STATUSES = ["resolved", "rejected"];
+const MEDIATION_ROLLOVER_STATUSES = ["unresolved", "rescheduled"];
+
+const normalizeMediationStatus = (value) => normalizeComplaintValue(value);
+
+const formatMediationStatusLabel = (status) => {
+  const value = normalizeMediationStatus(status);
+
+  if (!value) {
+    return "Scheduled";
+  }
+
+  return (
+    MEDIATION_STATUS_CONFIG[value]?.label ||
+    value.replace(/\b\w/g, (char) => char.toUpperCase())
+  );
+};
+
+const getMediationStatusColor = (status) => {
+  const value = normalizeMediationStatus(status);
+  return MEDIATION_STATUS_CONFIG[value]?.color || "#6b7280";
+};
+
+const isValidMediationRange = (sessionStart, sessionEnd) => {
+  const startDate = new Date(sessionStart);
+  const endDate = new Date(sessionEnd);
+
+  return (
+    sessionStart &&
+    sessionEnd &&
+    !Number.isNaN(startDate.getTime()) &&
+    !Number.isNaN(endDate.getTime()) &&
+    endDate > startDate
+  );
+};
+
+const isMediationOverlap = (leftStart, leftEnd, rightStart, rightEnd) => {
+  const leftStartDate = new Date(leftStart);
+  const leftEndDate = new Date(leftEnd);
+  const rightStartDate = new Date(rightStart);
+  const rightEndDate = new Date(rightEnd);
+
+  return (
+    leftStartDate < rightEndDate &&
+    leftEndDate > rightStartDate &&
+    !Number.isNaN(leftStartDate.getTime()) &&
+    !Number.isNaN(leftEndDate.getTime()) &&
+    !Number.isNaN(rightStartDate.getTime()) &&
+    !Number.isNaN(rightEndDate.getTime())
+  );
+};
+
+const getLatestMediationSession = async (complaintId) => {
+  const { data, error } = await supabase
+    .from("mediations_tbl")
+    .select("id, complaint_id, session_start, session_end, status, created_at")
+    .eq("complaint_id", complaintId)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(1);
+
+  if (error) {
+    return { success: false, message: error.message };
+  }
+
+  return { success: true, data: data?.[0] || null };
+};
+
+export const getActiveMediationSessions = async (excludeComplaintId = null) => {
+  const { data, error } = await supabase
+    .from("mediations_tbl")
+    .select("id, complaint_id, session_start, session_end, status, created_at")
+    .in("status", MEDIATION_ACTIVE_STATUSES)
+    .order("session_start", { ascending: true })
+    .order("id", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching active mediation sessions:", error);
+    return { success: false, message: "Failed to fetch mediation sessions" };
+  }
+
+  const filtered = (data || []).filter(
+    (session) =>
+      !excludeComplaintId ||
+      String(session.complaint_id) !== String(excludeComplaintId),
+  );
+
+  return {
+    success: true,
+    data: filtered.map((session) => ({
+      ...session,
+      status_label: formatMediationStatusLabel(session.status),
+      status_color: getMediationStatusColor(session.status),
+    })),
+  };
+};
+
+export const getMediationConflictSessions = async ({
+  sessionStart,
+  sessionEnd,
+  excludeComplaintId = null,
+} = {}) => {
+  if (!isValidMediationRange(sessionStart, sessionEnd)) {
+    return { success: false, message: "Invalid mediation session range" };
+  }
+
+  const activeSessionsResult =
+    await getActiveMediationSessions(excludeComplaintId);
+
+  if (!activeSessionsResult.success) {
+    return activeSessionsResult;
+  }
+
+  const conflicts = activeSessionsResult.data.filter((session) =>
+    isMediationOverlap(
+      sessionStart,
+      sessionEnd,
+      session.session_start,
+      session.session_end,
+    ),
+  );
+
+  return {
+    success: true,
+    data: conflicts,
+  };
+};
+
 export const insertComplaint = async (
   type,
   inci_date,
@@ -317,6 +461,535 @@ export const getComplaintHistory = async (complaintId) => {
   }));
 
   return { success: true, data: enriched };
+};
+
+export const updateComplaintMediationAccepted = async (complaintId) => {
+  const { data: userData, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !userData || !userData.user) {
+    return { success: false, message: "Not authenticated" };
+  }
+
+  const { data: complaintData, error: complaintError } = await supabase
+    .from("complaint_tbl")
+    .select("id, complainant_id, category, mediation_accepted")
+    .eq("id", complaintId)
+    .maybeSingle();
+
+  if (complaintError) {
+    console.error(
+      "Error fetching complaint for mediation update:",
+      complaintError,
+    );
+    return { success: false, message: "Failed to update mediation request" };
+  }
+
+  if (!complaintData || complaintData.complainant_id !== userData.user.id) {
+    return {
+      success: false,
+      message: "Complaint does not exist or you don't have access to it",
+    };
+  }
+
+  if (normalizeComplaintValue(complaintData.category) !== "for mediation") {
+    return {
+      success: false,
+      message:
+        "Mediation can only be accepted for complaints under For Mediation",
+    };
+  }
+
+  if (complaintData.mediation_accepted === true) {
+    return {
+      success: false,
+      message: "Mediation request has already been accepted",
+    };
+  }
+
+  const { error } = await supabase
+    .from("complaint_tbl")
+    .update({
+      mediation_accepted: true,
+      status: "for review",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", complaintId)
+    .eq("complainant_id", userData.user.id)
+    .eq("mediation_accepted", false);
+
+  if (error) {
+    console.error("Error accepting complaint mediation:", error);
+    return { success: false, message: "Failed to accept mediation request" };
+  }
+
+  return {
+    success: true,
+    message: "Mediation request accepted successfully",
+  };
+};
+
+export const getComplaintMediationHistory = async (complaintId) => {
+  const { data: userData, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !userData || !userData.user) {
+    return { success: false, message: "Not authenticated" };
+  }
+
+  const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
+
+  let accessQuery = supabase
+    .from("complaint_tbl")
+    .select("id, complainant_id, assigned_official_id")
+    .eq("id", complaintId);
+
+  if (!isSuperAdmin && !isOfficial) {
+    accessQuery = accessQuery.eq("complainant_id", userData.user.id);
+  }
+
+  const { data: accessData } = await accessQuery.maybeSingle();
+
+  if (!accessData) {
+    return {
+      success: false,
+      message: "Complaint does not exist or you don't have access to it",
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("mediations_tbl")
+    .select("id, complaint_id, created_at, session_start, session_end, status")
+    .eq("complaint_id", complaintId)
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching mediation history:", error);
+    return { success: false, message: "Failed to fetch mediation history" };
+  }
+
+  return {
+    success: true,
+    data: (data || []).map((mediation) => ({
+      ...mediation,
+      status_label: formatMediationStatusLabel(mediation.status),
+      status_color: getMediationStatusColor(mediation.status),
+    })),
+  };
+};
+
+const getComplaintAccessForOfficialAction = async (complaintId) => {
+  const { data: userData, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !userData || !userData.user) {
+    return { success: false, message: "Not authenticated" };
+  }
+
+  const { isOfficial } = await checkUserRole(userData.user.id);
+
+  if (!isOfficial) {
+    return {
+      success: false,
+      message: "Complaint does not exist or you don't have access to it",
+    };
+  }
+
+  const { data: complaintData, error } = await supabase
+    .from("complaint_tbl")
+    .select(
+      "id, complainant_id, assigned_official_id, category, mediation_accepted, status",
+    )
+    .eq("id", complaintId)
+    .maybeSingle();
+
+  if (error) {
+    return { success: false, message: error.message };
+  }
+
+  if (!complaintData) {
+    return {
+      success: false,
+      message: "Complaint does not exist or you don't have access to it",
+    };
+  }
+
+  if (complaintData.assigned_official_id !== userData.user.id) {
+    return {
+      success: false,
+      message: "Complaint does not exist or you don't have access to it",
+    };
+  }
+
+  return {
+    success: true,
+    userId: userData.user.id,
+    complaintData,
+  };
+};
+
+const buildMediationSessionPayload = ({
+  complaintId,
+  status,
+  sessionStart,
+  sessionEnd,
+}) => ({
+  complaint_id: complaintId,
+  status: normalizeMediationStatus(status),
+  session_start: sessionStart,
+  session_end: sessionEnd,
+});
+
+export const createComplaintMediationSession = async ({
+  complaintId,
+  sessionStart,
+  sessionEnd,
+}) => {
+  const accessResult = await getComplaintAccessForOfficialAction(complaintId);
+
+  if (!accessResult.success) {
+    return accessResult;
+  }
+
+  const complaintData = accessResult.complaintData;
+
+  if (normalizeComplaintValue(complaintData.category) !== "for mediation") {
+    return {
+      success: false,
+      message:
+        "Mediation sessions can only be started for complaints under For Mediation",
+    };
+  }
+
+  if (complaintData.mediation_accepted !== true) {
+    return {
+      success: false,
+      message: "Mediation must be accepted before a session can be started",
+    };
+  }
+
+  if (["resolved", "rejected"].includes(normalizeComplaintValue(complaintData.status))) {
+    return {
+      success: false,
+      message:
+        "This complaint is already closed and cannot receive new mediation sessions.",
+    };
+  }
+
+  const latestResult = await getLatestMediationSession(complaintId);
+
+  if (!latestResult.success) {
+    return latestResult;
+  }
+
+  const latestSession = latestResult.data;
+  const latestStatus = normalizeMediationStatus(latestSession?.status);
+
+  if (latestSession && MEDIATION_FINAL_STATUSES.includes(latestStatus)) {
+    return {
+      success: false,
+      message:
+        "This mediation is already closed. No new mediation session can be created.",
+    };
+  }
+
+  if (latestSession && !MEDIATION_ROLLOVER_STATUSES.includes(latestStatus)) {
+    return {
+      success: false,
+      message:
+        "A latest mediation session is still active. Update the newest session instead of creating a new one.",
+    };
+  }
+
+  if (!isValidMediationRange(sessionStart, sessionEnd)) {
+    return {
+      success: false,
+      message: "Please provide a valid mediation start and end time",
+    };
+  }
+
+  const conflictResult = await getMediationConflictSessions({
+    sessionStart,
+    sessionEnd,
+    excludeComplaintId: complaintId,
+  });
+
+  if (!conflictResult.success) {
+    return conflictResult;
+  }
+
+  if (conflictResult.data.length > 0) {
+    return {
+      success: false,
+      message: "The selected mediation schedule conflicts with another session",
+      conflicts: conflictResult.data,
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("mediations_tbl")
+    .insert(
+      buildMediationSessionPayload({
+        complaintId,
+        status: "scheduled",
+        sessionStart,
+        sessionEnd,
+      }),
+    )
+    .select("id, complaint_id, created_at, session_start, session_end, status")
+    .single();
+
+  if (error) {
+    console.error("Error creating mediation session:", error);
+    return { success: false, message: "Failed to create mediation session" };
+  }
+
+  return {
+    success: true,
+    message: "Mediation session scheduled successfully",
+    data: {
+      ...data,
+      status_label: formatMediationStatusLabel(data.status),
+      status_color: getMediationStatusColor(data.status),
+    },
+  };
+};
+
+export const updateComplaintMediationStatus = async ({
+  complaintId,
+  status,
+  sessionStart = null,
+  sessionEnd = null,
+}) => {
+  const accessResult = await getComplaintAccessForOfficialAction(complaintId);
+
+  if (!accessResult.success) {
+    return accessResult;
+  }
+
+  const complaintData = accessResult.complaintData;
+  const normalizedStatus = normalizeMediationStatus(status);
+  const validStatuses = [
+    "scheduled",
+    "resolved",
+    "unresolved",
+    "rejected",
+    "rescheduled",
+  ];
+
+  if (!validStatuses.includes(normalizedStatus)) {
+    return {
+      success: false,
+      message: `Invalid mediation status. Must be one of: ${validStatuses.join(", ")}`,
+    };
+  }
+
+  if (["resolved", "rejected"].includes(normalizeComplaintValue(complaintData.status))) {
+    return {
+      success: false,
+      message:
+        "This complaint is already closed and its mediation can no longer be modified.",
+    };
+  }
+
+  const latestResult = await getLatestMediationSession(complaintId);
+
+  if (!latestResult.success) {
+    return latestResult;
+  }
+
+  const latestSession = latestResult.data;
+
+  if (!latestSession) {
+    return {
+      success: false,
+      message:
+        "No mediation history found. Create a scheduled mediation session first.",
+    };
+  }
+
+  const latestStatus = normalizeMediationStatus(latestSession.status);
+
+  if (MEDIATION_FINAL_STATUSES.includes(latestStatus)) {
+    return {
+      success: false,
+      message:
+        "This mediation is already closed. Officials cannot modify this mediation or complaint anymore.",
+    };
+  }
+
+  if (!["scheduled", "rescheduled", "unresolved"].includes(latestStatus)) {
+    return {
+      success: false,
+      message:
+        "Only the newest scheduled, rescheduled, or unresolved session can be updated. Start a new scheduled session for other records.",
+    };
+  }
+
+  const statusNeedsSchedule = ["rescheduled"].includes(normalizedStatus);
+  const targetStart = statusNeedsSchedule
+    ? sessionStart || null
+    : latestSession.session_start;
+  const targetEnd = statusNeedsSchedule
+    ? sessionEnd || null
+    : latestSession.session_end;
+
+  if (normalizedStatus === "scheduled") {
+    return {
+      success: false,
+      message:
+        "Scheduled status must be created as a new session, not by updating the latest row.",
+    };
+  }
+
+  if (normalizedStatus === "rejected") {
+    const { data, error } = await supabase
+      .from("mediations_tbl")
+      .update({
+        status: normalizedStatus,
+      })
+      .eq("id", latestSession.id)
+      .eq("complaint_id", complaintId)
+      .select("id, complaint_id, created_at, session_start, session_end, status")
+      .single();
+
+    if (error) {
+      console.error("Error updating mediation status:", error);
+      return { success: false, message: "Failed to update mediation status" };
+    }
+
+    const { error: complaintError } = await supabase
+      .from("complaint_tbl")
+      .update({
+        status: "rejected",
+        updated_at: new Date().toISOString(),
+        updated_by: accessResult.userId,
+      })
+      .eq("id", complaintId);
+
+    if (complaintError) {
+      console.error("Error updating complaint after mediation rejection:", complaintError);
+      return {
+        success: false,
+        message: "Mediation was updated but complaint status update failed",
+      };
+    }
+
+    return {
+      success: true,
+      message: "Mediation status updated successfully",
+      data: {
+        ...data,
+        status_label: formatMediationStatusLabel(data.status),
+        status_color: getMediationStatusColor(data.status),
+      },
+      complaint: complaintData,
+    };
+  }
+
+  if (normalizedStatus === "resolved") {
+    const { data, error } = await supabase
+      .from("mediations_tbl")
+      .update({
+        status: normalizedStatus,
+      })
+      .eq("id", latestSession.id)
+      .eq("complaint_id", complaintId)
+      .select("id, complaint_id, created_at, session_start, session_end, status")
+      .single();
+
+    if (error) {
+      console.error("Error updating mediation status:", error);
+      return { success: false, message: "Failed to update mediation status" };
+    }
+
+    const { error: complaintError } = await supabase
+      .from("complaint_tbl")
+      .update({
+        status: "resolved",
+        updated_at: new Date().toISOString(),
+        updated_by: accessResult.userId,
+      })
+      .eq("id", complaintId);
+
+    if (complaintError) {
+      console.error("Error updating complaint after mediation resolution:", complaintError);
+      return {
+        success: false,
+        message: "Mediation was updated but complaint status update failed",
+      };
+    }
+
+    return {
+      success: true,
+      message: "Mediation status updated successfully",
+      data: {
+        ...data,
+        status_label: formatMediationStatusLabel(data.status),
+        status_color: getMediationStatusColor(data.status),
+      },
+      complaint: complaintData,
+    };
+  }
+
+  if (statusNeedsSchedule && !isValidMediationRange(targetStart, targetEnd)) {
+    return {
+      success: false,
+      message: "Please provide a valid mediation schedule",
+    };
+  }
+
+  if (statusNeedsSchedule) {
+    const conflictResult = await getMediationConflictSessions({
+      sessionStart: targetStart,
+      sessionEnd: targetEnd,
+      excludeComplaintId: complaintId,
+    });
+
+    if (!conflictResult.success) {
+      return conflictResult;
+    }
+
+    if (conflictResult.data.length > 0) {
+      return {
+        success: false,
+        message:
+          "The selected mediation schedule conflicts with another session",
+        conflicts: conflictResult.data,
+      };
+    }
+  }
+
+  const updatePayload = {
+    status: normalizedStatus,
+  };
+
+  if (statusNeedsSchedule) {
+    updatePayload.session_start = targetStart;
+    updatePayload.session_end = targetEnd;
+  }
+
+  const { data, error } = await supabase
+    .from("mediations_tbl")
+    .update(updatePayload)
+    .eq("id", latestSession.id)
+    .eq("complaint_id", complaintId)
+    .select("id, complaint_id, created_at, session_start, session_end, status")
+    .single();
+
+  if (error) {
+    console.error("Error updating mediation status:", error);
+    return { success: false, message: "Failed to update mediation status" };
+  }
+
+  return {
+    success: true,
+    message: "Mediation status updated successfully",
+    data: {
+      ...data,
+      status_label: formatMediationStatusLabel(data.status),
+      status_color: getMediationStatusColor(data.status),
+    },
+    complaint: complaintData,
+  };
 };
 
 export const assignAllUnassignedComplaints = async () => {
