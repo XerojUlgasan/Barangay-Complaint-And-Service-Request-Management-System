@@ -4,6 +4,10 @@ import {
   getResidentsByAuthUids,
 } from "../resident/resident";
 import { assignAllUnassignedByTable } from "../utils/autoAssign";
+import {
+  parseDbTimestamp,
+  philippineDateTimeLocalToUtcIso,
+} from "../../utils/philippineTime";
 
 // Helper function to check user role without causing 406 errors
 const checkUserRole = async (userId) => {
@@ -63,32 +67,44 @@ const getMediationStatusColor = (status) => {
 };
 
 const isValidMediationRange = (sessionStart, sessionEnd) => {
-  const startDate = new Date(sessionStart);
-  const endDate = new Date(sessionEnd);
+  const startDate = parseDbTimestamp(sessionStart, {
+    assumeUtcForNaive: false,
+  });
+  const endDate = parseDbTimestamp(sessionEnd, { assumeUtcForNaive: false });
 
   return (
     sessionStart &&
     sessionEnd &&
-    !Number.isNaN(startDate.getTime()) &&
-    !Number.isNaN(endDate.getTime()) &&
+    Boolean(startDate) &&
+    Boolean(endDate) &&
     endDate > startDate
   );
 };
 
 const isMediationOverlap = (leftStart, leftEnd, rightStart, rightEnd) => {
-  const leftStartDate = new Date(leftStart);
-  const leftEndDate = new Date(leftEnd);
-  const rightStartDate = new Date(rightStart);
-  const rightEndDate = new Date(rightEnd);
+  const leftStartDate = parseDbTimestamp(leftStart, {
+    assumeUtcForNaive: false,
+  });
+  const leftEndDate = parseDbTimestamp(leftEnd, { assumeUtcForNaive: false });
+  const rightStartDate = parseDbTimestamp(rightStart, {
+    assumeUtcForNaive: false,
+  });
+  const rightEndDate = parseDbTimestamp(rightEnd, { assumeUtcForNaive: false });
 
   return (
+    Boolean(leftStartDate) &&
+    Boolean(leftEndDate) &&
+    Boolean(rightStartDate) &&
+    Boolean(rightEndDate) &&
     leftStartDate < rightEndDate &&
-    leftEndDate > rightStartDate &&
-    !Number.isNaN(leftStartDate.getTime()) &&
-    !Number.isNaN(leftEndDate.getTime()) &&
-    !Number.isNaN(rightStartDate.getTime()) &&
-    !Number.isNaN(rightEndDate.getTime())
+    leftEndDate > rightStartDate
   );
+};
+
+const normalizeMediationDateInput = (value) => {
+  if (!value) return null;
+  const converted = philippineDateTimeLocalToUtcIso(value);
+  return converted || null;
 };
 
 const getLatestMediationSession = async (complaintId) => {
@@ -291,6 +307,144 @@ export const getComplaints = async (options = {}) => {
   return { success: true, data: enriched };
 };
 
+export const getComplaintsAgainstResident = async (options = {}) => {
+  const { userId: providedUserId = null } = options;
+
+  let userId = providedUserId;
+
+  if (!userId) {
+    const { data: userData, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !userData || !userData.user) {
+      return { success: false, message: "Not authenticated" };
+    }
+
+    userId = userData.user.id;
+  }
+
+  const baseSelect = `
+      *,
+      official:barangay_officials!complaint_tbl_assigned_official_id_fkey (
+        first_name,
+        last_name,
+        position
+      )
+    `;
+
+  const containsResult = await supabase
+    .from("complaint_tbl")
+    .select(baseSelect)
+    .contains("respondent_id", [userId])
+    .order("created_at", { ascending: false });
+
+  let rows = containsResult.data || [];
+  let lastError = containsResult.error || null;
+
+  if (rows.length === 0) {
+    const pgArray = `{"${userId}"}`;
+    const csResult = await supabase
+      .from("complaint_tbl")
+      .select(baseSelect)
+      .filter("respondent_id", "cs", pgArray)
+      .order("created_at", { ascending: false });
+
+    if (!csResult.error && Array.isArray(csResult.data)) {
+      rows = csResult.data;
+      lastError = null;
+    } else if (csResult.error) {
+      lastError = csResult.error;
+    }
+  }
+
+  if (rows.length === 0) {
+    const { data: registrations, error: registrationError } = await supabase
+      .from("registered_residents")
+      .select("id")
+      .eq("auth_uid", userId)
+      .limit(1);
+
+    if (!registrationError && registrations?.[0]?.id) {
+      const residentId = registrations[0].id;
+      const byIdContainsResult = await supabase
+        .from("complaint_tbl")
+        .select(baseSelect)
+        .contains("respondent_id", [residentId])
+        .order("created_at", { ascending: false });
+
+      if (!byIdContainsResult.error && Array.isArray(byIdContainsResult.data)) {
+        rows = byIdContainsResult.data;
+      } else {
+        const byIdPgArray = `{"${residentId}"}`;
+        const byIdCsResult = await supabase
+          .from("complaint_tbl")
+          .select(baseSelect)
+          .filter("respondent_id", "cs", byIdPgArray)
+          .order("created_at", { ascending: false });
+
+        if (!byIdCsResult.error && Array.isArray(byIdCsResult.data)) {
+          rows = byIdCsResult.data;
+        } else if (byIdCsResult.error) {
+          lastError = byIdCsResult.error;
+        }
+      }
+    } else if (registrationError) {
+      lastError = registrationError;
+    }
+  }
+
+  if (lastError) {
+    console.error("Error fetching complaints against resident:", lastError);
+    return {
+      success: false,
+      message:
+        lastError.message ||
+        "Failed to fetch complaints against resident. Check RLS policy for respondent access.",
+    };
+  }
+
+  const complainantAuthUids = [
+    ...new Set(rows.map((row) => row.complainant_id)),
+  ].filter(Boolean);
+  const residentsResult = await getResidentsByAuthUids(complainantAuthUids, {
+    forceRefresh: true,
+  });
+  const residentNameMap = residentsResult.success
+    ? Object.fromEntries(
+        Object.entries(residentsResult.data).map(([authUid, resident]) => [
+          authUid,
+          formatResidentFullName(resident),
+        ]),
+      )
+    : {};
+
+  const enriched = rows.map((complaint) => ({
+    ...complaint,
+    complainant_name: residentNameMap[complaint.complainant_id] || "Unknown",
+    assigned_official_name:
+      complaint.official?.first_name && complaint.official?.last_name
+        ? `${complaint.official.first_name} ${complaint.official.last_name}`
+        : null,
+  }));
+
+  return { success: true, data: enriched };
+};
+
+const hasResidentComplaintAccess = (complaint, residentAuthUid) => {
+  if (!complaint || !residentAuthUid) return false;
+
+  if (String(complaint.complainant_id) === String(residentAuthUid)) {
+    return true;
+  }
+
+  const respondents = Array.isArray(complaint.respondent_id)
+    ? complaint.respondent_id
+    : [];
+
+  return respondents.some(
+    (respondentUid) => String(respondentUid) === String(residentAuthUid),
+  );
+};
+
 export const getComplaintById = async (complaintId) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
 
@@ -412,20 +566,19 @@ export const getComplaintHistory = async (complaintId) => {
 
   const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
 
-  // First verify user has access to this complaint
-  let accessQuery = supabase
+  const { data: accessData } = await supabase
     .from("complaint_tbl")
-    .select("id, complainant_id")
-    .eq("id", complaintId);
+    .select("id, complainant_id, respondent_id")
+    .eq("id", complaintId)
+    .maybeSingle();
 
-  if (!isSuperAdmin && !isOfficial) {
-    // Residents can only access their own complaint history
-    accessQuery = accessQuery.eq("complainant_id", userData.user.id);
-  }
+  const canAccess =
+    Boolean(accessData) &&
+    (isSuperAdmin ||
+      isOfficial ||
+      hasResidentComplaintAccess(accessData, userData.user.id));
 
-  const { data: accessData } = await accessQuery.maybeSingle();
-
-  if (!accessData) {
+  if (!canAccess) {
     return {
       success: false,
       message: "Complaint does not exist or you don't have access to it",
@@ -537,18 +690,19 @@ export const getComplaintMediationHistory = async (complaintId) => {
 
   const { isSuperAdmin, isOfficial } = await checkUserRole(userData.user.id);
 
-  let accessQuery = supabase
+  const { data: accessData } = await supabase
     .from("complaint_tbl")
-    .select("id, complainant_id, assigned_official_id")
-    .eq("id", complaintId);
+    .select("id, complainant_id, respondent_id, assigned_official_id")
+    .eq("id", complaintId)
+    .maybeSingle();
 
-  if (!isSuperAdmin && !isOfficial) {
-    accessQuery = accessQuery.eq("complainant_id", userData.user.id);
-  }
+  const canAccess =
+    Boolean(accessData) &&
+    (isSuperAdmin ||
+      isOfficial ||
+      hasResidentComplaintAccess(accessData, userData.user.id));
 
-  const { data: accessData } = await accessQuery.maybeSingle();
-
-  if (!accessData) {
+  if (!canAccess) {
     return {
       success: false,
       message: "Complaint does not exist or you don't have access to it",
@@ -666,7 +820,11 @@ export const createComplaintMediationSession = async ({
     };
   }
 
-  if (["resolved", "rejected"].includes(normalizeComplaintValue(complaintData.status))) {
+  if (
+    ["resolved", "rejected"].includes(
+      normalizeComplaintValue(complaintData.status),
+    )
+  ) {
     return {
       success: false,
       message:
@@ -699,7 +857,17 @@ export const createComplaintMediationSession = async ({
     };
   }
 
-  if (!isValidMediationRange(sessionStart, sessionEnd)) {
+  const normalizedSessionStart = normalizeMediationDateInput(sessionStart);
+  const normalizedSessionEnd = normalizeMediationDateInput(sessionEnd);
+
+  if (!normalizedSessionStart || !normalizedSessionEnd) {
+    return {
+      success: false,
+      message: "Please provide a valid mediation start and end time",
+    };
+  }
+
+  if (!isValidMediationRange(normalizedSessionStart, normalizedSessionEnd)) {
     return {
       success: false,
       message: "Please provide a valid mediation start and end time",
@@ -707,8 +875,8 @@ export const createComplaintMediationSession = async ({
   }
 
   const conflictResult = await getMediationConflictSessions({
-    sessionStart,
-    sessionEnd,
+    sessionStart: normalizedSessionStart,
+    sessionEnd: normalizedSessionEnd,
     excludeComplaintId: complaintId,
   });
 
@@ -730,8 +898,8 @@ export const createComplaintMediationSession = async ({
       buildMediationSessionPayload({
         complaintId,
         status: "scheduled",
-        sessionStart,
-        sessionEnd,
+        sessionStart: normalizedSessionStart,
+        sessionEnd: normalizedSessionEnd,
       }),
     )
     .select("id, complaint_id, created_at, session_start, session_end, status")
@@ -782,7 +950,11 @@ export const updateComplaintMediationStatus = async ({
     };
   }
 
-  if (["resolved", "rejected"].includes(normalizeComplaintValue(complaintData.status))) {
+  if (
+    ["resolved", "rejected"].includes(
+      normalizeComplaintValue(complaintData.status),
+    )
+  ) {
     return {
       success: false,
       message:
@@ -825,11 +997,13 @@ export const updateComplaintMediationStatus = async ({
   }
 
   const statusNeedsSchedule = ["rescheduled"].includes(normalizedStatus);
+  const normalizedSessionStart = normalizeMediationDateInput(sessionStart);
+  const normalizedSessionEnd = normalizeMediationDateInput(sessionEnd);
   const targetStart = statusNeedsSchedule
-    ? sessionStart || null
+    ? normalizedSessionStart
     : latestSession.session_start;
   const targetEnd = statusNeedsSchedule
-    ? sessionEnd || null
+    ? normalizedSessionEnd
     : latestSession.session_end;
 
   if (normalizedStatus === "scheduled") {
@@ -848,7 +1022,9 @@ export const updateComplaintMediationStatus = async ({
       })
       .eq("id", latestSession.id)
       .eq("complaint_id", complaintId)
-      .select("id, complaint_id, created_at, session_start, session_end, status")
+      .select(
+        "id, complaint_id, created_at, session_start, session_end, status",
+      )
       .single();
 
     if (error) {
@@ -866,7 +1042,10 @@ export const updateComplaintMediationStatus = async ({
       .eq("id", complaintId);
 
     if (complaintError) {
-      console.error("Error updating complaint after mediation rejection:", complaintError);
+      console.error(
+        "Error updating complaint after mediation rejection:",
+        complaintError,
+      );
       return {
         success: false,
         message: "Mediation was updated but complaint status update failed",
@@ -893,7 +1072,9 @@ export const updateComplaintMediationStatus = async ({
       })
       .eq("id", latestSession.id)
       .eq("complaint_id", complaintId)
-      .select("id, complaint_id, created_at, session_start, session_end, status")
+      .select(
+        "id, complaint_id, created_at, session_start, session_end, status",
+      )
       .single();
 
     if (error) {
@@ -911,7 +1092,10 @@ export const updateComplaintMediationStatus = async ({
       .eq("id", complaintId);
 
     if (complaintError) {
-      console.error("Error updating complaint after mediation resolution:", complaintError);
+      console.error(
+        "Error updating complaint after mediation resolution:",
+        complaintError,
+      );
       return {
         success: false,
         message: "Mediation was updated but complaint status update failed",
@@ -930,7 +1114,12 @@ export const updateComplaintMediationStatus = async ({
     };
   }
 
-  if (statusNeedsSchedule && !isValidMediationRange(targetStart, targetEnd)) {
+  if (
+    statusNeedsSchedule &&
+    (!normalizedSessionStart ||
+      !normalizedSessionEnd ||
+      !isValidMediationRange(targetStart, targetEnd))
+  ) {
     return {
       success: false,
       message: "Please provide a valid mediation schedule",

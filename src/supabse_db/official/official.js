@@ -345,9 +345,7 @@ export const updateComplaintStatus = async (
     };
   }
 
-  if (
-    ["resolved", "rejected"].includes(latestMediationStatusResult.status)
-  ) {
+  if (["resolved", "rejected"].includes(latestMediationStatusResult.status)) {
     return {
       success: false,
       message:
@@ -431,9 +429,7 @@ export const updateComplaintCategory = async (complaintId, category) => {
     };
   }
 
-  if (
-    ["resolved", "rejected"].includes(latestMediationStatusResult.status)
-  ) {
+  if (["resolved", "rejected"].includes(latestMediationStatusResult.status)) {
     return {
       success: false,
       message:

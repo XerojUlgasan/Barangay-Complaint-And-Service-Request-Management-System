@@ -213,7 +213,8 @@ export const getResidentsByAuthUids = async (authUids = [], options = {}) => {
       return;
     }
 
-    if (!cachedResult) {
+    // Retry unresolved/null cached entries so stale misses don't become permanent.
+    if (!cachedResult || (cachedResult.success && !cachedResult.data)) {
       missingAuthUids.push(authUid);
     }
   });
@@ -358,7 +359,8 @@ export const getResidentSummariesByAuthUids = async (
       return;
     }
 
-    if (!cachedResult) {
+    // Retry unresolved/null cached entries so stale misses don't become permanent.
+    if (!cachedResult || (cachedResult.success && !cachedResult.data)) {
       missingAuthUids.push(authUid);
     }
   });

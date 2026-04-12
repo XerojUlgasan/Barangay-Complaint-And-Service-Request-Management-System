@@ -12,6 +12,12 @@ import {
   getComplaintMediationHistory,
   updateComplaintMediationStatus,
 } from "../../supabse_db/complaint/complaint";
+import {
+  formatPhilippineDateOnly,
+  formatPhilippineDateTime,
+  formatPhilippineShortDateTime,
+  toPhilippineDateTimeLocalValue,
+} from "../../utils/philippineTime";
 import "../../styles/BarangayAdmin.css";
 
 const SECTION_CONFIGS = [
@@ -69,25 +75,11 @@ const titleCase = (value) =>
     .replace(/\b\w/g, (match) => match.toUpperCase());
 
 const formatDate = (value, includeTime = false) => {
-  if (!value) return "N/A";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "N/A";
   if (includeTime) {
-    return date.toLocaleString("en-US", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+    return formatPhilippineDateTime(value, "N/A");
   }
 
-  return date.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  return formatPhilippineDateOnly(value, "N/A");
 };
 
 const getStatusConfig = (status) => {
@@ -115,29 +107,11 @@ const MEDIATION_ACTIONS = [
 ];
 
 const formatDateTimeLocalValue = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-
-  const offsetDate = new Date(
-    date.getTime() - date.getTimezoneOffset() * 60000,
-  );
-  return offsetDate.toISOString().slice(0, 16);
+  return toPhilippineDateTimeLocalValue(value);
 };
 
 const formatMediationDateTime = (value) => {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-
-  return date.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
+  return formatPhilippineShortDateTime(value, "—");
 };
 
 const formatMediationRange = (sessionStart, sessionEnd) => {
@@ -426,9 +400,12 @@ const MediationSessionModal = ({
   const mediationClosed =
     latestStatus === "resolved" || latestStatus === "rejected";
   const canCreateScheduled = !latestSession || latestStatus === "unresolved";
-  const canUpdateScheduled = ["scheduled", "rescheduled"].includes(latestStatus);
+  const canUpdateScheduled = ["scheduled", "rescheduled"].includes(
+    latestStatus,
+  );
   const canFinalize = ["scheduled", "rescheduled"].includes(latestStatus);
-  const canReschedule = latestStatus === "scheduled" || latestStatus === "rescheduled";
+  const canReschedule =
+    latestStatus === "scheduled" || latestStatus === "rescheduled";
   const actionConfig =
     MEDIATION_ACTIONS.find((item) => item.value === action) ||
     MEDIATION_ACTIONS[0];
@@ -447,17 +424,16 @@ const MediationSessionModal = ({
   const effectiveEnd = actionNeedsSchedule
     ? sessionEnd
     : latestSession?.session_end || "";
-  const conflictSessions =
-    !actionNeedsSchedule
-      ? []
-      : activeSessions.filter((session) =>
-          isMediationTimeOverlap(
-            effectiveStart,
-            effectiveEnd,
-            session.session_start,
-            session.session_end,
-          ),
-        );
+  const conflictSessions = !actionNeedsSchedule
+    ? []
+    : activeSessions.filter((session) =>
+        isMediationTimeOverlap(
+          effectiveStart,
+          effectiveEnd,
+          session.session_start,
+          session.session_end,
+        ),
+      );
   const isTimedAction = actionNeedsSchedule;
   const isScheduleAction = action === "scheduled";
   const isRejectedAction = action === "rejected";
@@ -516,8 +492,8 @@ const MediationSessionModal = ({
           ) : null}
           {complaintClosed ? (
             <div className="mediation-session-note">
-              This complaint is already {complaintStatus}. Mediation actions
-              are hidden.
+              This complaint is already {complaintStatus}. Mediation actions are
+              hidden.
             </div>
           ) : null}
 
@@ -570,7 +546,9 @@ const MediationSessionModal = ({
                     <input
                       type="datetime-local"
                       value={sessionStart}
-                      onChange={(event) => handleStartChange(event.target.value)}
+                      onChange={(event) =>
+                        handleStartChange(event.target.value)
+                      }
                       disabled={lockDateInputs || !actionNeedsSchedule}
                       min={formatDateTimeLocalValue(new Date().toISOString())}
                     />
@@ -581,7 +559,9 @@ const MediationSessionModal = ({
                       type="datetime-local"
                       value={sessionEnd}
                       onChange={(event) => handleEndChange(event.target.value)}
-                      disabled={lockDateInputs || !actionNeedsSchedule || !sessionStart}
+                      disabled={
+                        lockDateInputs || !actionNeedsSchedule || !sessionStart
+                      }
                       min={sessionStart}
                       max={maxEndDateTime}
                     />
@@ -620,8 +600,7 @@ const MediationSessionModal = ({
 
                 {!actionEnabled ? (
                   <div className="mediation-session-note">
-                    This action is not available in the current mediation
-                    state.
+                    This action is not available in the current mediation state.
                   </div>
                 ) : null}
               </div>
@@ -795,9 +774,9 @@ export default function OfficialComplaintsView() {
       ? "scheduled"
       : latestStatus === "rescheduled"
         ? "rescheduled"
-          : !latestSession || ["unresolved"].includes(latestStatus)
-        ? "scheduled"
-        : "unresolved";
+        : !latestSession || ["unresolved"].includes(latestStatus)
+          ? "scheduled"
+          : "unresolved";
 
     setMediationAction(defaultAction);
     setMediationSessionStart(

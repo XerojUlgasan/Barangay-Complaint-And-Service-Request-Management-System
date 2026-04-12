@@ -2,17 +2,22 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   getComplaints,
+  getComplaintsAgainstResident,
   getComplaintHistory,
   getComplaintMediationHistory,
   updateComplaintMediationAccepted,
 } from "../../supabse_db/complaint/complaint";
 import { logout } from "../../supabse_db/auth/auth";
-import supabase from "../../supabse_db/supabase_client";
 import {
   formatResidentFullName,
   getResidentsByAuthUids,
+  getResidentsByIds,
   getResidentSummariesByAuthUids,
 } from "../../supabse_db/resident/resident";
+import {
+  formatPhilippineDateOnly,
+  formatPhilippineDateTime,
+} from "../../utils/philippineTime";
 import { useAuth } from "../../context/AuthContext";
 import ResidentSidebar from "../../components/ResidentSidebar";
 import ResidentSettings from "../../components/ResidentSettings";
@@ -42,32 +47,32 @@ const normalizeComplaintValue = (value) =>
     .replace(/_/g, " ")
     .replace(/\s+/g, " ");
 
+const normalizeUidKey = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase();
+
+const setResidentNameEntry = (map, key, fullName) => {
+  const normalizedKey = normalizeUidKey(key);
+  if (!normalizedKey || !fullName) return;
+  map[normalizedKey] = fullName;
+};
+
+const getResidentNameEntry = (map, uid, fallback = "Unknown Resident") => {
+  const normalizedUid = normalizeUidKey(uid);
+  if (!normalizedUid) return fallback;
+  return map[normalizedUid] || fallback;
+};
+
 const isExplicitFalse = (value) =>
   value === false || normalizeComplaintValue(value) === "false";
 
 const formatLongDate = (value) => {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  return formatPhilippineDateOnly(value, "—");
 };
 
 const formatLongDateTime = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
+  return formatPhilippineDateTime(value, "");
 };
 
 const getComplaintSectionKey = (category) => {
@@ -128,7 +133,7 @@ const getMediationStatusColor = (status) => {
 
 const MyComplaints = () => {
   const navigate = useNavigate();
-  const { authUser, resident, residentLoading, userName, userRole } = useAuth();
+  const { authUser, residentLoading, userName, userRole } = useAuth();
 
   const [activeTab, setActiveTab] = useState("filed");
   const [complaints, setComplaints] = useState([]);
@@ -139,6 +144,7 @@ const MyComplaints = () => {
     useState("uncategorized");
   const [filter, setFilter] = useState("All Status");
   const [againstFilter, setAgainstFilter] = useState("All Status");
+  const [againstError, setAgainstError] = useState("");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
@@ -152,8 +158,6 @@ const MyComplaints = () => {
   const [mediationProcessing, setMediationProcessing] = useState(false);
   const [mediationNotice, setMediationNotice] = useState("");
   const [mediationError, setMediationError] = useState("");
-  const [showAgainstModal, setShowAgainstModal] = useState(false);
-  const [againstDetail, setAgainstDetail] = useState(null);
   const [respondentNames, setRespondentNames] = useState({});
 
   useEffect(() => {
@@ -164,7 +168,6 @@ const MyComplaints = () => {
 
     const fetchData = async () => {
       if (authUser) {
-        let currentResidentId = resident?.id || null;
         let filedRows = [];
         let residentNameMap = {};
 
@@ -183,18 +186,62 @@ const MyComplaints = () => {
             .map((complaint) => complaint.complainant_id)
             .filter(Boolean);
 
-          const [respondentsResult, complainantsResult] = await Promise.all([
+          const [
+            respondentsResult,
+            respondentsResidentResult,
+            respondentsByIdResult,
+            complainantsResult,
+          ] = await Promise.all([
             getResidentSummariesByAuthUids(respondentAuthUids),
+            getResidentsByAuthUids(respondentAuthUids),
+            getResidentsByIds(respondentAuthUids),
             getResidentsByAuthUids(complainantAuthUids),
           ]);
 
           if (respondentsResult.success) {
             Object.entries(respondentsResult.data).forEach(
               ([authUid, summary]) => {
-                residentNameMap[authUid] =
-                  summary.resident_fullname ||
-                  summary.fullname ||
-                  "Unknown Resident";
+                const resolvedName =
+                  summary.resident_fullname || summary.fullname || "";
+                setResidentNameEntry(residentNameMap, authUid, resolvedName);
+                if (summary.resident_id) {
+                  setResidentNameEntry(
+                    residentNameMap,
+                    summary.resident_id,
+                    resolvedName,
+                  );
+                }
+              },
+            );
+          }
+
+          if (respondentsResidentResult.success) {
+            Object.entries(respondentsResidentResult.data).forEach(
+              ([authUid, resident]) => {
+                setResidentNameEntry(
+                  residentNameMap,
+                  authUid,
+                  formatResidentFullName(resident),
+                );
+                if (resident?.id) {
+                  setResidentNameEntry(
+                    residentNameMap,
+                    resident.id,
+                    formatResidentFullName(resident),
+                  );
+                }
+              },
+            );
+          }
+
+          if (respondentsByIdResult.success) {
+            Object.entries(respondentsByIdResult.data).forEach(
+              ([residentId, resident]) => {
+                setResidentNameEntry(
+                  residentNameMap,
+                  residentId,
+                  formatResidentFullName(resident),
+                );
               },
             );
           }
@@ -202,7 +249,11 @@ const MyComplaints = () => {
           if (complainantsResult.success) {
             Object.entries(complainantsResult.data).forEach(
               ([authUid, resident]) => {
-                residentNameMap[authUid] = formatResidentFullName(resident);
+                setResidentNameEntry(
+                  residentNameMap,
+                  authUid,
+                  formatResidentFullName(resident),
+                );
               },
             );
           }
@@ -211,18 +262,25 @@ const MyComplaints = () => {
           setComplaints(
             filedRows.map((complaint) => ({
               ...complaint,
+              viewerPerspective: "complainant",
               sectionKey: getComplaintSectionKey(complaint.category),
               sectionLabel: getComplaintSectionLabel(complaint.category),
               statusLabel: getComplaintStatusLabel(complaint.status),
               statusColor: getComplaintStatusColor(complaint.status),
               createdLabel: formatLongDateTime(complaint.created_at),
               incidentLabel: formatLongDate(complaint.incident_date),
-              complainant_name:
-                residentNameMap[complaint.complainant_id] || "Unknown",
+              complainant_name: getResidentNameEntry(
+                residentNameMap,
+                complaint.complainant_id,
+                "Unknown",
+              ),
               respondent_names: (complaint.respondent_id || [])
-                .map(
-                  (respondentId) =>
-                    residentNameMap[respondentId] || respondentId,
+                .map((respondentId) =>
+                  getResidentNameEntry(
+                    residentNameMap,
+                    respondentId,
+                    "Unknown Resident",
+                  ),
                 )
                 .join(", "),
             })),
@@ -231,183 +289,19 @@ const MyComplaints = () => {
 
         let againstRows = [];
 
-        if (currentResidentId) {
-          // Try multiple strategies to find complaints where respondent_id contains the resident id.
-          // Different DB setups may store respondent_id as number, string, text[], or jsonb array.
-          console.log(
-            `[Filed Against Me] currentResidentId=${currentResidentId} (type=${typeof currentResidentId})`,
-          );
+        if (authUser?.id) {
+          const againstResult = await getComplaintsAgainstResident({
+            userId: authUser.id,
+          });
 
-          const selectExpr = `
-              *,
-              assigned_official:assigned_official_id (
-                first_name,
-                last_name
-              )
-            `;
-
-          let againstData = null;
-          let againstError = null;
-
-          const attempts = Array.from(
-            new Set(
-              [
-                currentResidentId,
-                authUser.id,
-                String(currentResidentId),
-                String(authUser.id),
-              ].filter(Boolean),
-            ),
-          );
-
-          // 1) Try .contains with numeric and string representation
-          for (const attemptVal of attempts) {
-            try {
-              const res = await supabase
-                .from("complaint_tbl")
-                .select(selectExpr)
-                .contains("respondent_id", [attemptVal]);
-
-              if (res.error) {
-                console.log(
-                  `[Filed Against Me] .contains attempt(${typeof attemptVal}): error`,
-                  res.error,
-                );
-              } else if (res.data && res.data.length > 0) {
-                againstData = res.data;
-                againstError = null;
-                console.log(
-                  `[Filed Against Me] .contains success with value=${attemptVal}: rows=`,
-                  res.data.length,
-                );
-                break;
-              } else {
-                console.log(
-                  `[Filed Against Me] .contains attempt(${attemptVal}) returned 0 rows`,
-                );
-              }
-            } catch (err) {
-              console.log(
-                `[Filed Against Me] .contains attempt(${attemptVal}) threw:`,
-                err,
-              );
-            }
-          }
-
-          // 2) Try raw 'cs' filter with JSON string (older approach) as fallback
-          if (!againstData) {
-            for (const attemptVal of attempts) {
-              try {
-                // Postgres array literal for the 'cs' operator expects {"val1","val2"}
-                const pgArray = `{"${attemptVal}"}`;
-                const res = await supabase
-                  .from("complaint_tbl")
-                  .select(selectExpr)
-                  .filter("respondent_id", "cs", pgArray);
-
-                if (res.error) {
-                  console.log(
-                    `[Filed Against Me] .filter cs attempt(${attemptVal}): error`,
-                    res.error,
-                  );
-                } else if (res.data && res.data.length > 0) {
-                  againstData = res.data;
-                  againstError = null;
-                  console.log(
-                    `[Filed Against Me] .filter cs success with value=${attemptVal}: rows=`,
-                    res.data.length,
-                  );
-                  break;
-                } else {
-                  console.log(
-                    `[Filed Against Me] .filter cs attempt(${attemptVal}) returned 0 rows`,
-                  );
-                }
-              } catch (err) {
-                console.log(
-                  `[Filed Against Me] .filter cs attempt(${attemptVal}) threw:`,
-                  err,
-                );
-              }
-            }
-          }
-
-          // 3) As a last resort, fetch recent complaints and filter client-side (less efficient)
-          if (!againstData) {
-            try {
-              const res = await supabase
-                .from("complaint_tbl")
-                .select(selectExpr)
-                .order("created_at", { ascending: false });
-
-              if (res.error) {
-                console.log(
-                  "[Filed Against Me] fallback fetch error:",
-                  res.error,
-                );
-                againstError = res.error;
-              } else if (res.data) {
-                const rows = res.data || [];
-                const filtered = rows.filter((row) => {
-                  const r = row.respondent_id;
-                  if (!r) return false;
-                  if (Array.isArray(r)) {
-                    return (
-                      r.includes(currentResidentId) ||
-                      r.includes(String(currentResidentId))
-                    );
-                  }
-                  // try parsing if it's a JSON string
-                  if (typeof r === "string") {
-                    try {
-                      const parsed = JSON.parse(r);
-                      if (Array.isArray(parsed)) {
-                        return (
-                          parsed.includes(currentResidentId) ||
-                          parsed.includes(String(currentResidentId))
-                        );
-                      }
-                    } catch (e) {
-                      // string but not JSON - compare directly
-                      return (
-                        r === String(currentResidentId) ||
-                        r === currentResidentId
-                      );
-                    }
-                  }
-                  return false;
-                });
-
-                if (filtered.length > 0) {
-                  againstData = filtered;
-                  againstError = null;
-                  console.log(
-                    `[Filed Against Me] client-side filter found rows=`,
-                    filtered.length,
-                  );
-                } else {
-                  console.log(
-                    `[Filed Against Me] client-side filter found 0 rows`,
-                  );
-                }
-              }
-            } catch (err) {
-              console.log("[Filed Against Me] fallback fetch threw:", err);
-              againstError = err;
-            }
-          }
-
-          // Map result to againstRows as before
           againstRows =
-            !againstError && againstData
-              ? againstData.map((complaint) => ({
-                  ...complaint,
-                  complainant_name: "—",
-                  assigned_official_name: complaint.assigned_official
-                    ? `${complaint.assigned_official.first_name} ${complaint.assigned_official.last_name}`
-                    : null,
-                }))
+            againstResult.success && Array.isArray(againstResult.data)
+              ? againstResult.data
               : [];
+
+          setAgainstError(
+            againstResult.success ? "" : againstResult.message || "",
+          );
         }
 
         const againstRespondentAuthUids = againstRows
@@ -417,18 +311,62 @@ const MyComplaints = () => {
           .map((complaint) => complaint.complainant_id)
           .filter(Boolean);
 
-        const [respondentsResult, complainantsResult] = await Promise.all([
+        const [
+          respondentsResult,
+          respondentsResidentResult,
+          respondentsByIdResult,
+          complainantsResult,
+        ] = await Promise.all([
           getResidentSummariesByAuthUids(againstRespondentAuthUids),
+          getResidentsByAuthUids(againstRespondentAuthUids),
+          getResidentsByIds(againstRespondentAuthUids),
           getResidentsByAuthUids(complainantAuthUids),
         ]);
 
         if (respondentsResult.success) {
           Object.entries(respondentsResult.data).forEach(
             ([authUid, summary]) => {
-              residentNameMap[authUid] =
-                summary.resident_fullname ||
-                summary.fullname ||
-                "Unknown Resident";
+              const resolvedName =
+                summary.resident_fullname || summary.fullname || "";
+              setResidentNameEntry(residentNameMap, authUid, resolvedName);
+              if (summary.resident_id) {
+                setResidentNameEntry(
+                  residentNameMap,
+                  summary.resident_id,
+                  resolvedName,
+                );
+              }
+            },
+          );
+        }
+
+        if (respondentsResidentResult.success) {
+          Object.entries(respondentsResidentResult.data).forEach(
+            ([authUid, resident]) => {
+              setResidentNameEntry(
+                residentNameMap,
+                authUid,
+                formatResidentFullName(resident),
+              );
+              if (resident?.id) {
+                setResidentNameEntry(
+                  residentNameMap,
+                  resident.id,
+                  formatResidentFullName(resident),
+                );
+              }
+            },
+          );
+        }
+
+        if (respondentsByIdResult.success) {
+          Object.entries(respondentsByIdResult.data).forEach(
+            ([residentId, resident]) => {
+              setResidentNameEntry(
+                residentNameMap,
+                residentId,
+                formatResidentFullName(resident),
+              );
             },
           );
         }
@@ -436,7 +374,11 @@ const MyComplaints = () => {
         if (complainantsResult.success) {
           Object.entries(complainantsResult.data).forEach(
             ([authUid, resident]) => {
-              residentNameMap[authUid] = formatResidentFullName(resident);
+              setResidentNameEntry(
+                residentNameMap,
+                authUid,
+                formatResidentFullName(resident),
+              );
             },
           );
         }
@@ -445,20 +387,26 @@ const MyComplaints = () => {
         setAgainstComplaints(
           againstRows.map((complaint) => ({
             ...complaint,
-            complainant_name: residentNameMap[complaint.complainant_id] || "—",
+            viewerPerspective: "respondent",
+            complainant_name: getResidentNameEntry(
+              residentNameMap,
+              complaint.complainant_id,
+              complaint.complainant_name || "—",
+            ),
           })),
         );
         setAgainstLoading(false);
       } else {
         setComplaints([]);
         setAgainstLoading(false);
+        setAgainstError("");
       }
 
       setLoading(false);
     };
 
     fetchData();
-  }, [authUser, resident, residentLoading, userRole]);
+  }, [authUser, residentLoading, userRole]);
 
   const handleLogoutConfirm = async () => {
     try {
@@ -541,8 +489,10 @@ const MyComplaints = () => {
   const handleViewDetails = handleOpenComplaintDetails;
 
   const handleViewAgainst = (complaint) => {
-    setAgainstDetail(complaint);
-    setShowAgainstModal(true);
+    handleOpenComplaintDetails({
+      ...complaint,
+      viewerPerspective: "respondent",
+    });
   };
 
   const closeComplaintDetails = () => {
@@ -625,15 +575,6 @@ const MyComplaints = () => {
           (c) => normalize(c.status) === normalize(againstFilter),
         );
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return "—";
-    return new Date(dateStr).toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
-
   const getBadgeClass = (status) => {
     const n = normalize(status);
     if (n === "resolved") return "badge completed";
@@ -662,8 +603,8 @@ const MyComplaints = () => {
     if (!respondentId) return "—";
     const ids = Array.isArray(respondentId) ? respondentId : [respondentId];
     if (ids.length === 0) return "—";
-    const names = ids.map(
-      (id) => respondentNames[id] || id || "Unknown Resident",
+    const names = ids.map((id) =>
+      getResidentNameEntry(respondentNames, id, "Unknown Resident"),
     );
     return names.join(", ");
   };
@@ -832,6 +773,7 @@ const MyComplaints = () => {
 
               {getComplaintSectionKey(selectedComplaint.category) ===
                 "for mediation" &&
+                selectedComplaint.viewerPerspective !== "respondent" &&
                 isExplicitFalse(selectedComplaint.mediation_accepted) && (
                   <div className="resident-mediation-cta-wrap">
                     <div className="resident-mediation-cta-copy">
@@ -1285,131 +1227,6 @@ const MyComplaints = () => {
           </div>
         )}
 
-        {/* COMPLAINT AGAINST ME MODAL */}
-        {showAgainstModal && againstDetail && (
-          <div
-            className="logout-modal-overlay"
-            onClick={() => setShowAgainstModal(false)}
-          >
-            <div className="details-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="history-modal-header">
-                <div>
-                  <h3 className="history-modal-title">Complaint Against You</h3>
-
-                  <p className="history-modal-sub">
-                    {againstDetail.complaint_type}
-                  </p>
-                </div>
-                <button
-                  className="history-modal-close"
-                  onClick={() => setShowAgainstModal(false)}
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    width="20"
-                    height="20"
-                  >
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
-              <div className="history-modal-body">
-                {/* Who filed */}
-                <div className="against-filer-box">
-                  <div className="against-filer-icon">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="#dc2626"
-                      strokeWidth="2"
-                      width="20"
-                      height="20"
-                    >
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                      <circle cx="12" cy="7" r="4" />
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="against-filer-label">Filed by</div>
-                    <div className="against-filer-name">
-                      {againstDetail.complainant_name}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="details-grid">
-                  <div className="details-row">
-                    <span className="details-label">Status</span>
-                    <span className={getBadgeClass(againstDetail.status)}>
-                      {formatStatus(againstDetail.status) || "Pending"}
-                    </span>
-                  </div>
-                  <div className="details-row">
-                    <span className="details-label">Priority</span>
-                    <span className="details-value">
-                      {againstDetail.priority_level || "Not set"}
-                    </span>
-                  </div>
-                  <div className="details-row">
-                    <span className="details-label">Submitted</span>
-                    <span className="details-value">
-                      {formatDate(againstDetail.created_at)}
-                    </span>
-                  </div>
-                  <div className="details-row">
-                    <span className="details-label">Incident Date</span>
-                    <span className="details-value">
-                      {formatDate(againstDetail.incident_date)}
-                    </span>
-                  </div>
-                  <div className="details-row">
-                    <span className="details-label">Location</span>
-                    <span className="details-value">
-                      {againstDetail.incident_location || "—"}
-                    </span>
-                  </div>
-                  {/* ASSIGNED TO: barangay official handling the complaint */}
-                  <div className="details-row">
-                    <span className="details-label">Assigned To</span>
-                    <span className="details-value">
-                      {againstDetail.assigned_official_name || "—"}
-                    </span>
-                  </div>
-                  {/* RESPONDENT: resident(s) named in the complaint, resolved to real names */}
-                  <div className="details-row">
-                    <span className="details-label">Respondent</span>
-                    <span className="details-value">
-                      {formatRespondents(againstDetail.respondent_id)}
-                    </span>
-                  </div>
-                  {againstDetail.description && (
-                    <div className="details-full">
-                      <span className="details-label">Description</span>
-                      <p className="details-desc">
-                        {againstDetail.description}
-                      </p>
-                    </div>
-                  )}
-                  {againstDetail.remarks && (
-                    <div className="details-full">
-                      <span className="details-label">
-                        Remarks from Official
-                      </span>
-                      <p className="details-desc details-desc-remarks">
-                        {againstDetail.remarks}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* SIDEBAR COMPONENT */}
         <ResidentSidebar
           isOpen={sidebarOpen}
@@ -1626,8 +1443,7 @@ const MyComplaints = () => {
                             </td>
                             <td>
                               <span className="resident-complaint-respondents">
-                                {complaint.respondent_names ||
-                                  formatRespondents(complaint.respondent_id)}
+                                {formatRespondents(complaint.respondent_id)}
                               </span>
                             </td>
                             <td>
@@ -1706,6 +1522,10 @@ const MyComplaints = () => {
 
                 {againstLoading ? (
                   <p className="mr-empty-text">Loading...</p>
+                ) : againstError ? (
+                  <p className="mr-empty-text" style={{ color: "#ef4444" }}>
+                    {againstError}
+                  </p>
                 ) : filteredAgainst.length === 0 ? (
                   <div className="against-empty">
                     <div className="against-empty-icon">

@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { logout, checkIfPasswordChangeRequired, updatePasswordAndSetFlag } from "../../supabse_db/auth/auth";
+import {
+  logout,
+  checkIfPasswordChangeRequired,
+  updatePasswordAndSetFlag,
+} from "../../supabse_db/auth/auth";
 import { useAuth } from "../../context/AuthContext";
 import { getRequests } from "../../supabse_db/request/request";
 import {
   getComplaints,
+  getComplaintsAgainstResident,
   getComplaintHistory,
   getComplaintMediationHistory,
 } from "../../supabse_db/complaint/complaint";
@@ -121,7 +126,7 @@ const Dashboard = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [mediationHistory, setMediationHistory] = useState([]);
   const [mediationHistoryLoading, setMediationHistoryLoading] = useState(false);
-  
+
   // Password change modal states
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -137,20 +142,34 @@ const Dashboard = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [requestsRes, complaintsRes] = await Promise.all([
+        const [requestsRes, complaintsRes, againstRes] = await Promise.all([
           getRequests(),
           getComplaints(),
+          getComplaintsAgainstResident({ userId: authUser.id }),
         ]);
 
         if (requestsRes.success) {
           setRequests(requestsRes.data);
         }
 
-        const complaintRows =
+        const filedComplaintRows =
           complaintsRes.success && Array.isArray(complaintsRes.data)
             ? complaintsRes.data
             : [];
-        setComplaints(complaintRows);
+        const againstComplaintRows =
+          againstRes.success && Array.isArray(againstRes.data)
+            ? againstRes.data
+            : [];
+
+        const complaintRows = Array.from(
+          new Map(
+            [...filedComplaintRows, ...againstComplaintRows].map(
+              (complaint) => [complaint.id, complaint],
+            ),
+          ).values(),
+        );
+
+        setComplaints(filedComplaintRows);
 
         if (complaintRows.length > 0) {
           const mediationResults = await Promise.all(
@@ -168,7 +187,9 @@ const Dashboard = () => {
                   ? mediationResult.data
                   : [];
               const latestSession = rows[rows.length - 1] || null;
-              const latestStatus = normalizeComplaintValue(latestSession?.status);
+              const latestStatus = normalizeComplaintValue(
+                latestSession?.status,
+              );
               const startMs = latestSession?.session_start
                 ? new Date(latestSession.session_start).getTime()
                 : Number.NaN;
@@ -235,39 +256,42 @@ const Dashboard = () => {
     [navigate],
   );
 
-  const handlePasswordChange = useCallback(async (e) => {
-    e.preventDefault();
-    setPasswordError("");
+  const handlePasswordChange = useCallback(
+    async (e) => {
+      e.preventDefault();
+      setPasswordError("");
 
-    if (!newPassword || !confirmPassword) {
-      setPasswordError("Please fill in all fields.");
-      return;
-    }
+      if (!newPassword || !confirmPassword) {
+        setPasswordError("Please fill in all fields.");
+        return;
+      }
 
-    if (newPassword !== confirmPassword) {
-      setPasswordError("Passwords do not match.");
-      return;
-    }
+      if (newPassword !== confirmPassword) {
+        setPasswordError("Passwords do not match.");
+        return;
+      }
 
-    if (newPassword.length < 6) {
-      setPasswordError("Password must be at least 6 characters.");
-      return;
-    }
+      if (newPassword.length < 6) {
+        setPasswordError("Password must be at least 6 characters.");
+        return;
+      }
 
-    setPasswordLoading(true);
-    const result = await updatePasswordAndSetFlag(newPassword);
-    setPasswordLoading(false);
+      setPasswordLoading(true);
+      const result = await updatePasswordAndSetFlag(newPassword);
+      setPasswordLoading(false);
 
-    if (!result.success) {
-      setPasswordError(result.message);
-      return;
-    }
+      if (!result.success) {
+        setPasswordError(result.message);
+        return;
+      }
 
-    // Password changed successfully, close modal
-    setShowPasswordModal(false);
-    setNewPassword("");
-    setConfirmPassword("");
-  }, [newPassword, confirmPassword]);
+      // Password changed successfully, close modal
+      setShowPasswordModal(false);
+      setNewPassword("");
+      setConfirmPassword("");
+    },
+    [newPassword, confirmPassword],
+  );
 
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
@@ -627,13 +651,17 @@ const Dashboard = () => {
                   {selectedComplaint.description && (
                     <div className="details-full">
                       <span className="details-label">Description</span>
-                      <p className="details-desc">{selectedComplaint.description}</p>
+                      <p className="details-desc">
+                        {selectedComplaint.description}
+                      </p>
                     </div>
                   )}
                   {selectedComplaint.remarks && (
                     <div className="details-full">
                       <span className="details-label">Remarks</span>
-                      <p className="details-desc">{selectedComplaint.remarks}</p>
+                      <p className="details-desc">
+                        {selectedComplaint.remarks}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -647,12 +675,16 @@ const Dashboard = () => {
                   {historyLoading ? (
                     <p className="modal-empty-text">Loading history...</p>
                   ) : historyData.length === 0 ? (
-                    <p className="modal-empty-text">No history available yet.</p>
+                    <p className="modal-empty-text">
+                      No history available yet.
+                    </p>
                   ) : (
                     <div className="history-timeline resident-history-timeline">
                       {historyData.map((item, index) => {
                         const itemStatus = getComplaintStatusLabel(item.status);
-                        const itemCategory = getComplaintSectionLabel(item.category);
+                        const itemCategory = getComplaintSectionLabel(
+                          item.category,
+                        );
                         const itemDot = getComplaintStatusColor(item.status);
                         const previousItem = historyData[index - 1] || null;
                         const changeNotes = [];
@@ -702,7 +734,9 @@ const Dashboard = () => {
                               )}
                               <div className="timeline-meta">
                                 <span className="timeline-date">
-                                  {formatLongDateTime(item.updated_at || item.created_at)}
+                                  {formatLongDateTime(
+                                    item.updated_at || item.created_at,
+                                  )}
                                 </span>
                               </div>
                             </div>
@@ -726,12 +760,16 @@ const Dashboard = () => {
                         className="badge"
                         style={{
                           backgroundColor: latestMediationSession
-                            ? getMediationStatusColor(latestMediationSession.status)
+                            ? getMediationStatusColor(
+                                latestMediationSession.status,
+                              )
                             : "#6b7280",
                         }}
                       >
                         {latestMediationSession
-                          ? getMediationStatusLabel(latestMediationSession.status)
+                          ? getMediationStatusLabel(
+                              latestMediationSession.status,
+                            )
                           : "Awaiting schedule"}
                       </span>
                     </div>
@@ -746,7 +784,9 @@ const Dashboard = () => {
                   </div>
 
                   {mediationHistoryLoading ? (
-                    <p className="modal-empty-text">Loading mediation history...</p>
+                    <p className="modal-empty-text">
+                      Loading mediation history...
+                    </p>
                   ) : mediationHistory.length === 0 ? (
                     <p className="modal-empty-text">
                       No mediation history available yet.
@@ -758,7 +798,9 @@ const Dashboard = () => {
                           <div
                             className="timeline-dot"
                             style={{
-                              backgroundColor: getMediationStatusColor(item.status),
+                              backgroundColor: getMediationStatusColor(
+                                item.status,
+                              ),
                             }}
                           />
                           {index < mediationHistory.length - 1 && (
@@ -769,15 +811,17 @@ const Dashboard = () => {
                               <span
                                 className="resident-history-badge"
                                 style={{
-                                  backgroundColor: getMediationStatusColor(item.status),
+                                  backgroundColor: getMediationStatusColor(
+                                    item.status,
+                                  ),
                                 }}
                               >
                                 {getMediationStatusLabel(item.status)}
                               </span>
                             </div>
                             <div className="timeline-priority">
-                              Session: {formatLongDateTime(item.session_start)} to{" "}
-                              {formatLongDateTime(item.session_end)}
+                              Session: {formatLongDateTime(item.session_start)}{" "}
+                              to {formatLongDateTime(item.session_end)}
                             </div>
                             <div className="timeline-meta">
                               <span className="timeline-date">
@@ -873,13 +917,16 @@ const Dashboard = () => {
                     key={item.latestSession.id || item.complaint.id}
                   >
                     <div className="resident-dashboard-mediation-copy">
-                      <strong>{item.complaint.complaint_type || "Complaint"}</strong>
+                      <strong>
+                        {item.complaint.complaint_type || "Complaint"}
+                      </strong>
                       <p>
-                        {formatLongDateTime(item.latestSession.session_start)} to{" "}
-                        {formatLongDateTime(item.latestSession.session_end)}
+                        {formatLongDateTime(item.latestSession.session_start)}{" "}
+                        to {formatLongDateTime(item.latestSession.session_end)}
                       </p>
                       <span>
-                        Location: {item.complaint.incident_location || "Not specified"}
+                        Location:{" "}
+                        {item.complaint.incident_location || "Not specified"}
                       </span>
                     </div>
                     <button
