@@ -145,7 +145,8 @@ const buildStatusSeries = (rows, order, meta, valueKey) =>
     .map((status) => ({
       status,
       name: getMeta(meta, status).label,
-      value: rows.filter((row) => normalizeValue(row[valueKey]) === status).length,
+      value: rows.filter((row) => normalizeValue(row[valueKey]) === status)
+        .length,
       color: getMeta(meta, status).color,
     }))
     .filter((entry) => entry.value > 0);
@@ -286,7 +287,8 @@ const OfficialDashboard = () => {
   const assignedMediations = authUser
     ? mediations.filter((mediation) =>
         assignedComplaints.some(
-          (complaint) => String(complaint.id) === String(mediation.complaint_id),
+          (complaint) =>
+            String(complaint.id) === String(mediation.complaint_id),
         ),
       )
     : [];
@@ -421,7 +423,8 @@ const OfficialDashboard = () => {
     return filtered.slice(0, 5).map((item) => {
       const statusField =
         item.itemType === "request" ? "request_status" : "status";
-      const categoryField = item.itemType === "complaint" ? item.category : null;
+      const categoryField =
+        item.itemType === "complaint" ? item.category : null;
       return {
         id: item.id,
         title: item.certificate_type || item.complaint_type || "Untitled",
@@ -531,7 +534,10 @@ const OfficialDashboard = () => {
                   Assigned complaints grouped by category.
                 </p>
                 <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={complaintCategoryData} margin={{ top: 6, right: 10, left: -10, bottom: 18 }}>
+                  <BarChart
+                    data={complaintCategoryData}
+                    margin={{ top: 6, right: 10, left: -10, bottom: 18 }}
+                  >
                     <CartesianGrid strokeDasharray="4 4" stroke="#E5E7EB" />
                     <XAxis
                       dataKey="name"
@@ -546,9 +552,16 @@ const OfficialDashboard = () => {
                         boxShadow: "0 8px 16px rgba(0,0,0,0.08)",
                       }}
                     />
-                    <Bar dataKey="value" name="Complaints" radius={[6, 6, 0, 0]}>
+                    <Bar
+                      dataKey="value"
+                      name="Complaints"
+                      radius={[6, 6, 0, 0]}
+                    >
                       {complaintCategoryData.map((entry, index) => (
-                        <Cell key={`category-bar-${index}`} fill={entry.color} />
+                        <Cell
+                          key={`category-bar-${index}`}
+                          fill={entry.color}
+                        />
                       ))}
                     </Bar>
                   </BarChart>
@@ -561,7 +574,8 @@ const OfficialDashboard = () => {
                   <h3>Complaint Status Share</h3>
                 </div>
                 <p className="chart-note">
-                  Complaint statuses now use for review, pending, recorded, resolved, and rejected.
+                  Complaint statuses now use for review, pending, recorded,
+                  resolved, and rejected.
                 </p>
                 <ResponsiveContainer width="100%" height={280}>
                   <PieChart>
@@ -575,7 +589,10 @@ const OfficialDashboard = () => {
                       paddingAngle={2}
                     >
                       {complaintStatusData.map((entry, index) => (
-                        <Cell key={`status-share-${index}`} fill={entry.color} />
+                        <Cell
+                          key={`status-share-${index}`}
+                          fill={entry.color}
+                        />
                       ))}
                     </Pie>
                     <Tooltip
@@ -615,7 +632,10 @@ const OfficialDashboard = () => {
                       paddingAngle={2}
                     >
                       {mediationStatusData.map((entry, index) => (
-                        <Cell key={`mediation-share-${index}`} fill={entry.color} />
+                        <Cell
+                          key={`mediation-share-${index}`}
+                          fill={entry.color}
+                        />
                       ))}
                     </Pie>
                     <Tooltip
@@ -698,7 +718,10 @@ const OfficialDashboard = () => {
                       paddingAngle={2}
                     >
                       {requestStatusData.map((entry, index) => (
-                        <Cell key={`request-status-share-${index}`} fill={entry.color} />
+                        <Cell
+                          key={`request-status-share-${index}`}
+                          fill={entry.color}
+                        />
                       ))}
                     </Pie>
                     <Tooltip
@@ -727,7 +750,10 @@ const OfficialDashboard = () => {
                   Top assigned request types by certificate category.
                 </p>
                 <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={requestTypeData} margin={{ top: 6, right: 10, left: -10, bottom: 18 }}>
+                  <BarChart
+                    data={requestTypeData}
+                    margin={{ top: 6, right: 10, left: -10, bottom: 18 }}
+                  >
                     <CartesianGrid strokeDasharray="4 4" stroke="#E5E7EB" />
                     <XAxis
                       dataKey="name"
@@ -744,7 +770,10 @@ const OfficialDashboard = () => {
                     />
                     <Bar dataKey="value" name="Requests" radius={[6, 6, 0, 0]}>
                       {requestTypeData.map((entry, index) => (
-                        <Cell key={`request-type-${index}`} fill={entry.color} />
+                        <Cell
+                          key={`request-type-${index}`}
+                          fill={entry.color}
+                        />
                       ))}
                     </Bar>
                   </BarChart>

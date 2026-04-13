@@ -26,6 +26,18 @@ const COMPLAINT_SECTIONS = [
   { key: "community concern", label: "Community Concern" },
 ];
 
+const REQUEST_FINISHED_STATUSES = new Set([
+  "completed",
+  "rejected",
+  "non compliant",
+]);
+
+const COMPLAINT_FINISHED_STATUSES = new Set([
+  "recorded",
+  "resolved",
+  "rejected",
+]);
+
 const normalizeComplaintValue = (value) =>
   String(value || "")
     .trim()
@@ -115,6 +127,7 @@ const Dashboard = () => {
 
   const [requests, setRequests] = useState([]);
   const [complaints, setComplaints] = useState([]);
+  const [allMediationSessions, setAllMediationSessions] = useState([]);
   const [upcomingMediations, setUpcomingMediations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -169,7 +182,7 @@ const Dashboard = () => {
           ).values(),
         );
 
-        setComplaints(filedComplaintRows);
+        setComplaints(complaintRows);
 
         if (complaintRows.length > 0) {
           const mediationResults = await Promise.all(
@@ -177,6 +190,11 @@ const Dashboard = () => {
               getComplaintMediationHistory(complaint.id),
             ),
           );
+
+          const mediationSessions = mediationResults.flatMap((result) =>
+            result.success && Array.isArray(result.data) ? result.data : [],
+          );
+          setAllMediationSessions(mediationSessions);
 
           const nowMs = Date.now();
           const upcoming = complaintRows
@@ -213,6 +231,7 @@ const Dashboard = () => {
 
           setUpcomingMediations(upcoming);
         } else {
+          setAllMediationSessions([]);
           setUpcomingMediations([]);
         }
       } catch (error) {
@@ -361,47 +380,47 @@ const Dashboard = () => {
     setSelectedComplaint(null);
   }, []);
 
-  const normalize = useCallback(
-    (str) => (str || "").toLowerCase().replace(/[\s_-]/g, ""),
-    [],
-  );
-
   const {
-    pendingCount,
-    inProgressCount,
-    complianceCount,
-    completedCount,
-    recentRequests,
+    finishedRequestCount,
+    unfinishedRequestCount,
+    finishedComplaintCount,
+    unfinishedComplaintCount,
   } = useMemo(() => {
-    const counts = { pending: 0, inProgress: 0, compliance: 0, completed: 0 };
+    const requestSummary = {
+      total: requests.length,
+      finished: 0,
+    };
 
-    requests.forEach((r) => {
-      const status = (r.request_status || "")
-        .toLowerCase()
-        .replace(/[\s_-]/g, "");
-      if (status === "pending") counts.pending++;
-      else if (status === "inprogress") counts.inProgress++;
-      else if (status === "forcompliance") counts.compliance++;
-      else if (status === "completed") counts.completed++;
+    requests.forEach((request) => {
+      const normalizedStatus = normalizeComplaintValue(request.request_status);
+      if (REQUEST_FINISHED_STATUSES.has(normalizedStatus)) {
+        requestSummary.finished++;
+      }
+    });
+
+    const complaintSummary = {
+      total: complaints.length,
+      finished: 0,
+      unfinished: 0,
+    };
+
+    complaints.forEach((complaint) => {
+      const normalizedStatus = normalizeComplaintValue(complaint.status);
+
+      if (COMPLAINT_FINISHED_STATUSES.has(normalizedStatus)) {
+        complaintSummary.finished++;
+      } else {
+        complaintSummary.unfinished++;
+      }
     });
 
     return {
-      pendingCount: counts.pending,
-      inProgressCount: counts.inProgress,
-      complianceCount: counts.compliance,
-      completedCount: counts.completed,
-      recentRequests: requests.slice(0, 3),
+      finishedRequestCount: requestSummary.finished,
+      unfinishedRequestCount: requestSummary.total - requestSummary.finished,
+      finishedComplaintCount: complaintSummary.finished,
+      unfinishedComplaintCount: complaintSummary.unfinished,
     };
-  }, [requests]);
-
-  const formatDate = useCallback((dateStr) => {
-    if (!dateStr) return "";
-    return new Date(dateStr).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  }, []);
+  }, [requests, complaints]);
 
   const getBadgeClass = useCallback((status) => {
     const n = (status || "").toLowerCase().replace(/[\s_-]/g, "");
@@ -410,11 +429,6 @@ const Dashboard = () => {
     if (n === "pending") return "badge pending";
     if (n === "rejected" || n === "dismissed") return "badge rejected";
     return "badge";
-  }, []);
-
-  const formatStatus = useCallback((status) => {
-    if (!status) return "";
-    return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   }, []);
 
   const latestMediationSession =
@@ -966,49 +980,8 @@ const Dashboard = () => {
           <div className="status-cards">
             <div className="status">
               <div className="status-left">
-                <p>Pending</p>
-                <h2>{loading ? "..." : pendingCount}</h2>
-              </div>
-              <div className="status-icon yellow">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 6v6l4 2" />
-                </svg>
-              </div>
-            </div>
-            <div className="status">
-              <div className="status-left">
-                <p>In Progress</p>
-                <h2>{loading ? "..." : inProgressCount}</h2>
-              </div>
-              <div className="status-icon blue-icon">!</div>
-            </div>
-            <div className="status">
-              <div className="status-left">
-                <p>Compliance</p>
-                <h2>{loading ? "..." : complianceCount}</h2>
-              </div>
-              <div className="status-icon yellow">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M9 12h6M9 16h6M9 8h6" />
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                </svg>
-              </div>
-            </div>
-            <div className="status">
-              <div className="status-left">
-                <p>Completed</p>
-                <h2>{loading ? "..." : completedCount}</h2>
+                <p>Finished Requests</p>
+                <h2>{loading ? "..." : finishedRequestCount}</h2>
               </div>
               <div className="status-icon green-icon">
                 <svg
@@ -1022,56 +995,50 @@ const Dashboard = () => {
                 </svg>
               </div>
             </div>
-          </div>
 
-          <div className="recent">
-            <div className="recent-header">
-              <h3>Recent Requests</h3>
-              <a href="/requests">View all</a>
+            <div className="status">
+              <div className="status-left">
+                <p>Unfinished Requests</p>
+                <h2>{loading ? "..." : unfinishedRequestCount}</h2>
+              </div>
+              <div className="status-icon yellow">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 6v6l4 2" />
+                </svg>
+              </div>
             </div>
 
-            {loading ? (
-              <p style={{ padding: "16px", color: "#888" }}>
-                Loading requests...
-              </p>
-            ) : recentRequests.length === 0 ? (
-              <p style={{ padding: "16px", color: "#888" }}>No requests yet.</p>
-            ) : (
-              recentRequests.map((req) => (
-                <div className="request-item" key={req.id}>
-                  <div className="icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                      <path
-                        d="M6 2H14L20 8V22H6V2Z"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinejoin="round"
-                      />
-                      <path
-                        d="M14 2V8H20"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinejoin="round"
-                      />
-                      <path
-                        d="M9 13H15M9 17H15"
-                        stroke="currentColor"
-                        strokeLinecap="round"
-                        strokeWidth="1.5"
-                      />
-                    </svg>
-                  </div>
-                  <div className="details">
-                    <h4>{req.subject}</h4>
-                    <p>{req.description}</p>
-                    <span>{formatDate(req.created_at)}</span>
-                  </div>
-                  <span className={getBadgeClass(req.request_status)}>
-                    {formatStatus(req.request_status)}
-                  </span>
-                </div>
-              ))
-            )}
+            <div className="status">
+              <div className="status-left">
+                <p>Finished Complaints</p>
+                <h2>{loading ? "..." : finishedComplaintCount}</h2>
+              </div>
+              <div className="status-icon green-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M9 12l2 2 4-4" />
+                </svg>
+              </div>
+            </div>
+
+            <div className="status">
+              <div className="status-left">
+                <p>Unfinished Complaints</p>
+                <h2>{loading ? "..." : unfinishedComplaintCount}</h2>
+              </div>
+              <div className="status-icon blue-icon">!</div>
+            </div>
           </div>
         </main>
       </div>
