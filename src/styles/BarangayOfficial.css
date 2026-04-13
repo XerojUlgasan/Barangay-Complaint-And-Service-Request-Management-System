@@ -974,11 +974,17 @@
 .stat-box.red {
   border-left: 4px solid #ef4444;
 }
+.stat-box.teal {
+  border-left: 4px solid #14b8a6;
+}
+.stat-box.purple {
+  border-left: 4px solid #8b5cf6;
+}
 
 /* Charts Section */
 .charts-section {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
 }
@@ -1265,6 +1271,16 @@
   white-space: normal;
   overflow-wrap: break-word;
   max-width: 100%;
+}
+
+.task-category {
+  font-size: 11px;
+  color: #8b5cf6;
+  margin: 0;
+  padding: 0;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 /* Task submitted by label */
