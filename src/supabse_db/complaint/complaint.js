@@ -45,6 +45,7 @@ const MEDIATION_STATUS_CONFIG = {
 const MEDIATION_ACTIVE_STATUSES = ["scheduled", "rescheduled"];
 const MEDIATION_FINAL_STATUSES = ["resolved", "rejected"];
 const MEDIATION_ROLLOVER_STATUSES = ["unresolved", "rescheduled"];
+const COMPLAINT_ASSIGNABLE_STATUSES = ["pending", "for review", "recorded"];
 
 const normalizeMediationStatus = (value) => normalizeComplaintValue(value);
 
@@ -663,7 +664,7 @@ export const updateComplaintMediationAccepted = async (complaintId) => {
     .from("complaint_tbl")
     .update({
       mediation_accepted: true,
-      status: "for review",
+  status: "for review",
       updated_at: new Date().toISOString(),
     })
     .eq("id", complaintId)
@@ -1197,7 +1198,11 @@ export const assignAllUnassignedComplaints = async () => {
     };
   }
 
-  return assignAllUnassignedByTable("complaint_tbl", "status");
+  return assignAllUnassignedByTable(
+    "complaint_tbl",
+    "status",
+    COMPLAINT_ASSIGNABLE_STATUSES,
+  );
 };
 
 export const transferComplaintAssignment = async (

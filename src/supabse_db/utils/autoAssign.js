@@ -69,7 +69,11 @@ const getPresentActiveOfficials = async () => {
   };
 };
 
-const pickLeastBusyUid = async (tableName, statusColumnName) => {
+const pickLeastBusyUid = async (
+  tableName,
+  statusColumnName,
+  unfinishedStatuses = UNFINISHED_STATUSES,
+) => {
   const available = await getPresentActiveOfficials();
   const presentUids = available.uids;
   if (!presentUids.length) {
@@ -82,7 +86,7 @@ const pickLeastBusyUid = async (tableName, statusColumnName) => {
     .from(tableName)
     .select("assigned_official_id")
     .in("assigned_official_id", presentUids)
-    .in(statusColumnName, UNFINISHED_STATUSES);
+    .in(statusColumnName, unfinishedStatuses);
 
   if (error) {
     console.log(`pickLeastBusyUid error (${tableName}):`, error);
@@ -110,8 +114,17 @@ const pickLeastBusyUid = async (tableName, statusColumnName) => {
   return tied[randomIndex] || null;
 };
 
-const assignSingle = async (tableName, statusColumnName, rowId) => {
-  const selectedUid = await pickLeastBusyUid(tableName, statusColumnName);
+const assignSingle = async (
+  tableName,
+  statusColumnName,
+  rowId,
+  unfinishedStatuses = UNFINISHED_STATUSES,
+) => {
+  const selectedUid = await pickLeastBusyUid(
+    tableName,
+    statusColumnName,
+    unfinishedStatuses,
+  );
 
   if (!selectedUid) {
     return { success: false, reason: "no_active_official" };
@@ -143,6 +156,7 @@ const assignSingle = async (tableName, statusColumnName, rowId) => {
 export const assignAllUnassignedByTable = async (
   tableName,
   statusColumnName,
+  unfinishedStatuses = UNFINISHED_STATUSES,
 ) => {
   const available = await getPresentActiveOfficials();
 
@@ -150,7 +164,7 @@ export const assignAllUnassignedByTable = async (
     .from(tableName)
     .select("id")
     .is("assigned_official_id", null)
-    .in(statusColumnName, UNFINISHED_STATUSES)
+    .in(statusColumnName, unfinishedStatuses)
     .order("created_at", { ascending: true });
 
   if (error) {
@@ -176,7 +190,12 @@ export const assignAllUnassignedByTable = async (
   const failures = [];
 
   for (const row of targetRows) {
-    const result = await assignSingle(tableName, statusColumnName, row.id);
+    const result = await assignSingle(
+      tableName,
+      statusColumnName,
+      row.id,
+      unfinishedStatuses,
+    );
 
     if (!result.success && result.reason === "no_active_official") {
       return {

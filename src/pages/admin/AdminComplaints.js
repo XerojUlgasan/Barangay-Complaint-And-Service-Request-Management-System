@@ -14,44 +14,48 @@ import { getActiveOfficialsForAssignment } from "../../supabse_db/official/offic
 
 const STATUS_COLORS = {
   Pending: "#fbbf24",
-  "In Progress": "#3b82f6",
-  Completed: "#10b981",
+  "For Review": "#6366f1",
+  Recorded: "#0ea5e9",
   Rejected: "#ef4444",
-  Investigating: "#8b5cf6",
   Resolved: "#06b6d4",
 };
 
 const STATUS_TEXT_COLORS = {
   Pending: "#92400e",
-  "In Progress": "#1e3a8a",
-  Completed: "#065f46",
+  "For Review": "#312e81",
+  Recorded: "#0c4a6e",
   Rejected: "#7f1d1d",
-  Investigating: "#4c1d95",
   Resolved: "#0f766e",
 };
 
 const STATUS_LABELS = {
   pending: "Pending",
-  in_progress: "In Progress",
-  investigating: "Investigating",
-  completed: "Completed",
+  for_review: "For Review",
+  recorded: "Recorded",
   rejected: "Rejected",
   resolved: "Resolved",
 };
 
 const STATUS_COLOR_MAP = {
   PENDING: "#F59E0B",
-  IN_PROGRESS: "#0EA5E9",
-  INVESTIGATING: "#8B5CF6",
-  COMPLETED: "#10B981",
+  FOR_REVIEW: "#6366F1",
+  RECORDED: "#0EA5E9",
   REJECTED: "#EF4444",
   RESOLVED: "#06B6D4",
 };
 
 const normalizeStatus = (status) => {
   if (!status) return "Pending";
-  const normalized = typeof status === "string" ? status.toLowerCase() : status;
-  return STATUS_LABELS[normalized] || status;
+  if (typeof status !== "string") return "Pending";
+
+  const normalized = status.trim().toLowerCase().replace(/\s+/g, "_");
+  return (
+    STATUS_LABELS[normalized] ||
+    normalized
+      .split("_")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ")
+  );
 };
 
 const getStatusColor = (statusLabel) => STATUS_COLORS[statusLabel] || "#9ca3af";
@@ -403,8 +407,8 @@ export default function AdminComplaints() {
   const statusOptions = [
     "All Status",
     "Pending",
-    "Investigating",
-    "In Progress",
+    "For Review",
+    "Recorded",
     "Resolved",
     "Rejected",
   ];
