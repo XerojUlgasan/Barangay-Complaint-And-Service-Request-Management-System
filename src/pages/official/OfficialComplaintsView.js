@@ -12,12 +12,14 @@ import {
   getComplaintMediationHistory,
   updateComplaintMediationStatus,
 } from "../../supabse_db/complaint/complaint";
+import { fetchImagesForItem } from "../../supabse_db/uploadImages";
 import {
   formatPhilippineDateOnly,
   formatPhilippineDateTime,
   formatPhilippineShortDateTime,
   toPhilippineDateTimeLocalValue,
 } from "../../utils/philippineTime";
+import ImageLightbox from "../../components/ImageLightbox";
 import "../../styles/BarangayAdmin.css";
 
 const SECTION_CONFIGS = [
@@ -142,6 +144,9 @@ const ComplaintDetailModal = ({
   onSetCategory,
   isUpdatingCategory,
   onStartMediation,
+  images = [],
+  imagesLoading = false,
+  onImageClick = null,
 }) => {
   if (!isOpen || !complaint) return null;
 
@@ -257,6 +262,41 @@ const ComplaintDetailModal = ({
             <div className="complaint-description-section complaint-notes-section">
               <label>Remarks</label>
               <p>{complaint.remarks}</p>
+            </div>
+          ) : null}
+
+          {imagesLoading ? (
+            <div className="complaint-images-section">
+              <label>Evidence Photos</label>
+              <p style={{ color: "#6b7280", fontSize: "13px" }}>
+                Loading images...
+              </p>
+            </div>
+          ) : images.length > 0 ? (
+            <div className="complaint-images-section">
+              <label>Evidence Photos ({images.length})</label>
+              <div className="complaint-images-grid">
+                {images.map((image, index) => (
+                  <div
+                    key={index}
+                    className="complaint-image-thumbnail"
+                    onClick={() => onImageClick && onImageClick()}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <img
+                      src={image.url}
+                      alt={image.name}
+                      onError={(e) => {
+                        e.target.src =
+                          'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23f0f0f0" width="200" height="200"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="14"%3EImage Error%3C/text%3E%3C/svg%3E';
+                      }}
+                    />
+                    <div className="complaint-image-overlay">
+                      <span>View</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           ) : null}
         </div>
@@ -690,6 +730,9 @@ export default function OfficialComplaintsView() {
   const [mediationSaving, setMediationSaving] = useState(false);
   const [mediationError, setMediationError] = useState("");
   const [mediationSuccess, setMediationSuccess] = useState("");
+  const [complaintImages, setComplaintImages] = useState([]);
+  const [complaintImagesLoading, setComplaintImagesLoading] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const fetchComplaints = async () => {
     try {
@@ -938,10 +981,18 @@ export default function OfficialComplaintsView() {
     startDate,
   ]);
 
-  const openModal = (complaint) => {
+  const openModal = async (complaint) => {
     setSelectedComplaint(complaint);
     setShowMediationModal(false);
     setIsModalOpen(true);
+    setComplaintImagesLoading(true);
+    setComplaintImages([]);
+
+    const imagesResult = await fetchImagesForItem("complaint", complaint.id);
+    if (imagesResult.success) {
+      setComplaintImages(imagesResult.images || []);
+    }
+    setComplaintImagesLoading(false);
   };
 
   const closeModal = () => {
@@ -949,6 +1000,8 @@ export default function OfficialComplaintsView() {
     setShowMediationModal(false);
     setMediationError("");
     setMediationSuccess("");
+    setComplaintImages([]);
+    setLightboxOpen(false);
     setTimeout(() => setSelectedComplaint(null), 250);
   };
 
@@ -1202,6 +1255,24 @@ export default function OfficialComplaintsView() {
         onSetCategory={handleSetCategory}
         isUpdatingCategory={isUpdatingCategory}
         onStartMediation={openMediationDialog}
+        images={complaintImages}
+        imagesLoading={complaintImagesLoading}
+        onImageClick={() => setLightboxOpen(true)}
+      />
+
+      <ImageLightbox
+        images={complaintImages}
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        images={complaintImages}
+        imagesLoading={complaintImagesLoading}
+        onImageClick={() => setLightboxOpen(true)}
+      />
+
+      <ImageLightbox
+        images={complaintImages}
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
       />
 
       <MediationSessionModal

@@ -8,6 +8,7 @@ import {
   updateComplaintMediationAccepted,
 } from "../../supabse_db/complaint/complaint";
 import { logout } from "../../supabse_db/auth/auth";
+import { fetchImagesForItem } from "../../supabse_db/uploadImages";
 import {
   formatResidentFullName,
   getResidentsByAuthUids,
@@ -22,6 +23,7 @@ import { useAuth } from "../../context/AuthContext";
 import ResidentSidebar from "../../components/ResidentSidebar";
 import ResidentSettings from "../../components/ResidentSettings";
 import ResidentProfile from "../../components/ResidentProfile";
+import ImageLightbox from "../../components/ImageLightbox";
 import "../../styles/UserPages.css";
 
 const COMPLAINT_SECTIONS = [
@@ -159,6 +161,9 @@ const MyComplaints = () => {
   const [mediationNotice, setMediationNotice] = useState("");
   const [mediationError, setMediationError] = useState("");
   const [respondentNames, setRespondentNames] = useState({});
+  const [complaintImages, setComplaintImages] = useState([]);
+  const [complaintImagesLoading, setComplaintImagesLoading] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   useEffect(() => {
     // Wait until auth context has finished loading the resident so this
@@ -469,18 +474,25 @@ const MyComplaints = () => {
     setSelectedComplaint(complaint);
     setHistoryLoading(true);
     setMediationHistoryLoading(true);
+    setComplaintImagesLoading(true);
     setHistoryData([]);
     setMediationHistory([]);
+    setComplaintImages([]);
 
-    const [history, mediationHistoryRows] = await Promise.all([
+    const [history, mediationHistoryRows, imagesResult] = await Promise.all([
       loadComplaintHistory(complaint),
       loadComplaintMediationHistory(complaint.id),
+      fetchImagesForItem("complaint", complaint.id),
     ]);
 
     setHistoryData(history);
     setMediationHistory(mediationHistoryRows);
+    if (imagesResult.success) {
+      setComplaintImages(imagesResult.images || []);
+    }
     setHistoryLoading(false);
     setMediationHistoryLoading(false);
+    setComplaintImagesLoading(false);
     setMediationNotice("");
     setMediationError("");
     setShowDetailsModal(true);
@@ -503,6 +515,8 @@ const MyComplaints = () => {
     setMediationError("");
     setMediationHistory([]);
     setMediationHistoryLoading(false);
+    setComplaintImages([]);
+    setLightboxOpen(false);
   };
 
   const handleOpenMediationConfirmation = () => {
@@ -854,6 +868,44 @@ const MyComplaints = () => {
                   )}
                 </div>
 
+                {complaintImagesLoading ? (
+                  <div className="resident-history-section">
+                    <div className="resident-history-header">
+                      <h4>Evidence Photos</h4>
+                    </div>
+                    <p className="modal-empty-text">Loading images...</p>
+                  </div>
+                ) : complaintImages.length > 0 ? (
+                  <div className="resident-history-section">
+                    <div className="resident-history-header">
+                      <h4>Evidence Photos</h4>
+                      <span>{complaintImages.length} image(s) attached</span>
+                    </div>
+                    <div className="complaint-images-grid">
+                      {complaintImages.map((image, index) => (
+                        <div
+                          key={index}
+                          className="complaint-image-thumbnail"
+                          onClick={() => setLightboxOpen(true)}
+                          style={{ cursor: "pointer" }}
+                        >
+                          <img
+                            src={image.url}
+                            alt={image.name}
+                            onError={(e) => {
+                              e.target.src =
+                                'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23f0f0f0" width="200" height="200"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="14"%3EImage Error%3C/text%3E%3C/svg%3E';
+                            }}
+                          />
+                          <div className="complaint-image-overlay">
+                            <span>View</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
                 <div className="resident-history-section">
                   <div className="resident-history-header">
                     <h4>History</h4>
@@ -1110,6 +1162,12 @@ const MyComplaints = () => {
             </div>
           </div>
         )}
+
+        <ImageLightbox
+          images={complaintImages}
+          isOpen={lightboxOpen}
+          onClose={() => setLightboxOpen(false)}
+        />
 
         {showMediationModal && selectedComplaint && (
           <div
