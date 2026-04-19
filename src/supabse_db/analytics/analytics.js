@@ -194,6 +194,75 @@ export const getOfficialsWithStats = async () => {
   }
 };
 
+const getTodayDateString = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+// Get today's attendance records for officials
+export const getOfficialsAttendanceToday = async () => {
+  try {
+    const today = getTodayDateString();
+
+    const { data, error } = await supabase
+      .from("attendance_records")
+      .select(
+        "official_id, attendance_date, time_in, time_out, attendance_status",
+      )
+      .eq("attendance_date", today);
+
+    if (error) {
+      console.error("Error fetching official attendance:", error);
+      return {
+        success: false,
+        message: error.message,
+        data: {
+          attendanceDate: today,
+          recordsByOfficialId: {},
+          presentOfficialIds: [],
+        },
+      };
+    }
+
+    const recordsByOfficialId = {};
+    const presentOfficialIds = [];
+
+    (data || []).forEach((row) => {
+      if (!row?.official_id) return;
+      recordsByOfficialId[row.official_id] = row;
+
+      // Keep attendance status logic aligned with auto-assignment availability.
+      const isPresent = Boolean(row.time_in) && !row.time_out;
+      if (isPresent) {
+        presentOfficialIds.push(row.official_id);
+      }
+    });
+
+    return {
+      success: true,
+      data: {
+        attendanceDate: today,
+        recordsByOfficialId,
+        presentOfficialIds,
+      },
+    };
+  } catch (err) {
+    console.error("Error in getOfficialsAttendanceToday:", err);
+    return {
+      success: false,
+      message: err.message,
+      data: {
+        attendanceDate: getTodayDateString(),
+        recordsByOfficialId: {},
+        presentOfficialIds: [],
+      },
+    };
+  }
+};
+
 // Get time-based trends for requests (last 6 months)
 export const getRequestTrends = async (monthsBack = 6) => {
   try {
@@ -278,6 +347,43 @@ export const getComplaintTrends = async (monthsBack = 6) => {
     return { success: true, data: monthlyData };
   } catch (err) {
     console.error("Error in getComplaintTrends:", err);
+    return { success: false, message: err.message, data: [] };
+  }
+};
+
+// Get all mediation records with related complaint context
+export const getAllMediations = async () => {
+  try {
+    const { data, error } = await supabase
+      .from("mediations_tbl")
+      .select(
+        `
+        id,
+        complaint_id,
+        created_at,
+        session_start,
+        session_end,
+        status,
+        complaint:complaint_tbl!mediations_tbl_complaint_id_fkey (
+          id,
+          assigned_official_id,
+          category,
+          mediation_accepted,
+          status,
+          created_at
+        )
+      `,
+      )
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching mediations:", error);
+      return { success: false, message: error.message, data: [] };
+    }
+
+    return { success: true, data: data || [] };
+  } catch (err) {
+    console.error("Error in getAllMediations:", err);
     return { success: false, message: err.message, data: [] };
   }
 };

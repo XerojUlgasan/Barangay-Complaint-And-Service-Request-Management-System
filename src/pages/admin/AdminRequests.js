@@ -67,6 +67,8 @@ const getStatusColor = (statusLabel) => STATUS_COLORS[statusLabel] || "#9ca3af";
 const getStatusTextColor = (statusLabel) =>
   STATUS_TEXT_COLORS[statusLabel] || "#1f2937";
 
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 export default function AdminRequests() {
   const location = useLocation();
   const [selectedRequestStatus, setSelectedRequestStatus] =
@@ -112,6 +114,38 @@ export default function AdminRequests() {
   const [searchQuery, setSearchQuery] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  const searchTerms = Array.from(
+    new Set(searchQuery.toLowerCase().trim().split(/\s+/).filter(Boolean)),
+  );
+
+  const highlightText = (value) => {
+    const text = String(value ?? "");
+    if (!searchTerms.length || !text) return text;
+
+    const pattern = new RegExp(
+      `(${searchTerms.map((term) => escapeRegExp(term)).join("|")})`,
+      "gi",
+    );
+
+    return text.split(pattern).map((part, index) => {
+      const isMatch = searchTerms.includes(part.toLowerCase());
+      if (!isMatch) return part;
+      return (
+        <mark
+          key={`${part}-${index}`}
+          style={{
+            backgroundColor: "#fde68a",
+            color: "#1f2937",
+            padding: "0 2px",
+            borderRadius: "2px",
+          }}
+        >
+          {part}
+        </mark>
+      );
+    });
+  };
 
   // Auto-open modal if navigated with selectedItemId
   useEffect(() => {
@@ -189,12 +223,24 @@ export default function AdminRequests() {
       req.status === selectedRequestStatus;
 
     // Search filter
-    const searchLower = searchQuery.toLowerCase();
+    const searchableColumns = [
+      req.id,
+      req.title,
+      req.subtitle,
+      req.status,
+      req.submittedBy,
+      req.assignedOfficial || "Unassigned",
+      req.date,
+      req.lastUpdate,
+      req.description,
+      req.response,
+    ]
+      .join(" ")
+      .toLowerCase();
+
     const searchMatch =
-      req.title.toLowerCase().includes(searchLower) ||
-      req.subtitle.toLowerCase().includes(searchLower) ||
-      req.submittedBy.toLowerCase().includes(searchLower) ||
-      req.description.toLowerCase().includes(searchLower);
+      searchTerms.length === 0 ||
+      searchTerms.every((term) => searchableColumns.includes(term));
 
     // Date filter
     const reqDate = new Date(req.date);
@@ -954,11 +1000,17 @@ export default function AdminRequests() {
                   filteredRequests.map((request) => (
                     <tr key={request.id}>
                       <td>
-                        <span className="req-id-chip">{request.id}</span>
+                        <span className="req-id-chip">
+                          {highlightText(request.id)}
+                        </span>
                       </td>
                       <td className="req-details">
-                        <div className="req-title">{request.title}</div>
-                        <div className="req-subtitle">{request.subtitle}</div>
+                        <div className="req-title">
+                          {highlightText(request.title)}
+                        </div>
+                        <div className="req-subtitle">
+                          {highlightText(request.subtitle)}
+                        </div>
                       </td>
                       <td className="req-status">
                         <span
@@ -969,12 +1021,16 @@ export default function AdminRequests() {
                             borderColor: "rgba(0,0,0,0.10)",
                           }}
                         >
-                          {request.status}
+                          {highlightText(request.status)}
                         </span>
                       </td>
-                      <td className="req-submitted">{request.submittedBy}</td>
                       <td className="req-submitted">
-                        {request.assignedOfficial || "Unassigned"}
+                        {highlightText(request.submittedBy)}
+                      </td>
+                      <td className="req-submitted">
+                        {highlightText(
+                          request.assignedOfficial || "Unassigned",
+                        )}
                       </td>
                       <td className="req-action">
                         <button

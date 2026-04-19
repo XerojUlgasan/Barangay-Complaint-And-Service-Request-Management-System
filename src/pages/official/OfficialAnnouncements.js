@@ -8,6 +8,8 @@ import {
 import { useAnnouncementsForRole } from "../../hooks/useAnnouncementsForRole";
 import "../../styles/BarangayOfficial.css";
 
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const OfficialAnnouncements = () => {
   // Use the centralized announcement hook for role-based data
   const {
@@ -27,6 +29,56 @@ const OfficialAnnouncements = () => {
   const [userSignups, setUserSignups] = useState({});
   const [activeFilter, setActiveFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+
+  const searchTerms = Array.from(
+    new Set(searchQuery.toLowerCase().trim().split(/\s+/).filter(Boolean)),
+  );
+
+  const highlightText = (value) => {
+    const text = String(value ?? "");
+    if (!searchTerms.length || !text) return text;
+
+    const pattern = new RegExp(
+      `(${searchTerms.map((term) => escapeRegExp(term)).join("|")})`,
+      "gi",
+    );
+
+    return text.split(pattern).map((part, index) => {
+      const isMatch = searchTerms.includes(part.toLowerCase());
+      if (!isMatch) return part;
+      return (
+        <mark
+          key={`${part}-${index}`}
+          style={{
+            backgroundColor: "#fde68a",
+            color: "#1f2937",
+            padding: "0 2px",
+            borderRadius: "2px",
+          }}
+        >
+          {part}
+        </mark>
+      );
+    });
+  };
+
+  const getAnnouncementTitle = (announcement) => {
+    const title =
+      announcement?.title ||
+      announcement?.subject ||
+      announcement?.name ||
+      "Untitled Announcement";
+    return String(title).trim() || "Untitled Announcement";
+  };
+
+  const getAnnouncementDescription = (announcement) => {
+    const description =
+      announcement?.content ||
+      announcement?.description ||
+      announcement?.body ||
+      "";
+    return String(description).trim() || "No description provided.";
+  };
 
   useEffect(() => {
     const loadUserSignups = async () => {
@@ -116,10 +168,18 @@ const OfficialAnnouncements = () => {
   const filteredAnnouncements = announcements.filter((ann) => {
     const cat = (ann.category || "general").toLowerCase();
     const matchesFilter = activeFilter === "all" || cat === activeFilter;
+    const searchableColumns = [
+      getAnnouncementTitle(ann),
+      getAnnouncementDescription(ann),
+      ann.author || "Barangay",
+      formatDateShort(ann.created_at),
+      formatDate(ann.event_start),
+    ]
+      .join(" ")
+      .toLowerCase();
     const matchesSearch =
-      !searchQuery ||
-      ann.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ann.content?.toLowerCase().includes(searchQuery.toLowerCase());
+      searchTerms.length === 0 ||
+      searchTerms.every((term) => searchableColumns.includes(term));
     return matchesFilter && matchesSearch;
   });
 
@@ -128,7 +188,8 @@ const OfficialAnnouncements = () => {
   ).length;
   const signedUpCount = Object.keys(userSignups).length;
 
-  const isSelectedAnnouncementEvent = selectedAnnouncement && 
+  const isSelectedAnnouncementEvent =
+    selectedAnnouncement &&
     (selectedAnnouncement.category || "").toLowerCase() === "event";
 
   if (loading) {
@@ -249,7 +310,7 @@ const OfficialAnnouncements = () => {
                   {hasImage ? (
                     <img
                       src={announcementImages[ann.id]}
-                      alt={ann.title}
+                      alt={getAnnouncementTitle(ann)}
                       className="ann-card-img"
                     />
                   ) : (
@@ -289,16 +350,20 @@ const OfficialAnnouncements = () => {
                 <div className="ann-card-body">
                   <div className="ann-card-meta">
                     <span className="ann-card-author">
-                      {ann.author || "Barangay"}
+                      {highlightText(ann.author || "Barangay")}
                     </span>
                     <span className="ann-card-dot">·</span>
                     <span className="ann-card-date">
-                      {formatDateShort(ann.created_at)}
+                      {highlightText(formatDateShort(ann.created_at))}
                     </span>
                   </div>
 
-                  <h3 className="ann-card-title">{ann.title}</h3>
-                  <p className="ann-card-desc">{ann.content}</p>
+                  <h3 className="ann-card-title">
+                    {highlightText(getAnnouncementTitle(ann))}
+                  </h3>
+                  <p className="ann-card-desc">
+                    {highlightText(getAnnouncementDescription(ann))}
+                  </p>
 
                   {/* Event details */}
                   {isEvent && ann.event_start && (
@@ -315,11 +380,16 @@ const OfficialAnnouncements = () => {
                         <path d="M16 2v4M8 2v4M3 10h18" />
                       </svg>
                       <span>
-                        {new Date(ann.event_start).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
+                        {highlightText(
+                          new Date(ann.event_start).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            },
+                          ),
+                        )}
                       </span>
                     </div>
                   )}
@@ -734,8 +804,8 @@ const OfficialAnnouncements = () => {
                 >
                   Close
                 </button>
-                {isSelectedAnnouncementEvent && (
-                  userSignups && userSignups[selectedAnnouncement.id] ? (
+                {isSelectedAnnouncementEvent &&
+                  (userSignups && userSignups[selectedAnnouncement.id] ? (
                     <button
                       className="ann-modal-btn-confirm danger"
                       onClick={() => {
@@ -759,8 +829,7 @@ const OfficialAnnouncements = () => {
                     >
                       Sign Up for Event
                     </button>
-                  )
-                )}
+                  ))}
               </div>
             </div>
           </div>,

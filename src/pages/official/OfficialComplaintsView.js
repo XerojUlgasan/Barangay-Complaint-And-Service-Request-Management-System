@@ -137,6 +137,8 @@ const isMediationTimeOverlap = (startA, endA, startB, endB) => {
   );
 };
 
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const ComplaintDetailModal = ({
   complaint,
   isOpen,
@@ -734,6 +736,43 @@ export default function OfficialComplaintsView() {
   const [complaintImagesLoading, setComplaintImagesLoading] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
+  const searchTerms = useMemo(
+    () =>
+      Array.from(
+        new Set(searchQuery.toLowerCase().trim().split(/\s+/).filter(Boolean)),
+      ),
+    [searchQuery],
+  );
+
+  const highlightText = (value) => {
+    const text = String(value ?? "");
+    if (!searchTerms.length || !text) return text;
+
+    const pattern = new RegExp(
+      `(${searchTerms.map((term) => escapeRegExp(term)).join("|")})`,
+      "gi",
+    );
+
+    return text.split(pattern).map((part, index) => {
+      const isMatch = searchTerms.includes(part.toLowerCase());
+      if (!isMatch) return part;
+
+      return (
+        <mark
+          key={`${part}-${index}`}
+          style={{
+            backgroundColor: "#fde68a",
+            color: "#1f2937",
+            padding: "0 2px",
+            borderRadius: "2px",
+          }}
+        >
+          {part}
+        </mark>
+      );
+    });
+  };
+
   const fetchComplaints = async () => {
     try {
       setLoadingComplaints(true);
@@ -943,21 +982,27 @@ export default function OfficialComplaintsView() {
   }, [complaints]);
 
   const filteredComplaints = useMemo(() => {
-    const normalizedSearch = searchQuery.trim().toLowerCase();
     const start = startDate ? new Date(`${startDate}T00:00:00`) : null;
     const end = endDate ? new Date(`${endDate}T23:59:59`) : null;
 
     return complaints.filter((complaint) => {
       const sectionMatch = complaint.sectionKey === activeSection;
+      const searchableColumns = [
+        complaint.complaintType,
+        complaint.incidentLocation,
+        complaint.respondentDisplay,
+        complaint.incidentDate,
+        complaint.submittedAt,
+        complaint.statusDisplay,
+        complaint.complainant,
+        complaint.description,
+        complaint.sectionLabel,
+      ]
+        .join(" ")
+        .toLowerCase();
       const searchMatch =
-        !normalizedSearch ||
-        complaint.complaintType.toLowerCase().includes(normalizedSearch) ||
-        complaint.incidentLocation.toLowerCase().includes(normalizedSearch) ||
-        complaint.complainant.toLowerCase().includes(normalizedSearch) ||
-        complaint.respondentDisplay.toLowerCase().includes(normalizedSearch) ||
-        complaint.description.toLowerCase().includes(normalizedSearch) ||
-        complaint.statusDisplay.toLowerCase().includes(normalizedSearch) ||
-        complaint.sectionLabel.toLowerCase().includes(normalizedSearch);
+        searchTerms.length === 0 ||
+        searchTerms.every((term) => searchableColumns.includes(term));
 
       const complaintDate = complaint.created_at
         ? new Date(complaint.created_at)
@@ -977,7 +1022,7 @@ export default function OfficialComplaintsView() {
     activeStatusFilter,
     complaints,
     endDate,
-    searchQuery,
+    searchTerms,
     startDate,
   ]);
 
@@ -1194,26 +1239,26 @@ export default function OfficialComplaintsView() {
                     <td>
                       <div className="complaint-table-main">
                         <span className="req-title">
-                          {complaint.complaintType}
+                          {highlightText(complaint.complaintType)}
                         </span>
                         <span className="complaint-table-subtitle">
-                          {complaint.incidentLocation}
+                          {highlightText(complaint.incidentLocation)}
                         </span>
                       </div>
                     </td>
                     <td>
                       <span className="req-submitted complaint-table-respondents">
-                        {complaint.respondentDisplay}
+                        {highlightText(complaint.respondentDisplay)}
                       </span>
                     </td>
                     <td>
                       <span className="req-submitted">
-                        {complaint.incidentDate}
+                        {highlightText(complaint.incidentDate)}
                       </span>
                     </td>
                     <td>
                       <span className="req-submitted">
-                        {complaint.submittedAt}
+                        {highlightText(complaint.submittedAt)}
                       </span>
                     </td>
                     <td>
@@ -1221,7 +1266,7 @@ export default function OfficialComplaintsView() {
                         className="req-status-badge"
                         style={{ backgroundColor: complaint.statusColor }}
                       >
-                        {complaint.statusDisplay}
+                        {highlightText(complaint.statusDisplay)}
                       </span>
                     </td>
                     <td>

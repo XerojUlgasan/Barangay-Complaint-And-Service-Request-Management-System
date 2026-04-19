@@ -42,9 +42,12 @@ const toStatusCode = (status) => {
   return String(status).toUpperCase().replace(/ /g, "_");
 };
 
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 export default function OfficialRequests() {
   const location = useLocation();
-  const [selectedRequestStatus, setSelectedRequestStatus] = useState("All Status");
+  const [selectedRequestStatus, setSelectedRequestStatus] =
+    useState("All Status");
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [requestDropdownOpen, setRequestDropdownOpen] = useState(false);
@@ -54,6 +57,38 @@ export default function OfficialRequests() {
   const [searchQuery, setSearchQuery] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  const searchTerms = Array.from(
+    new Set(searchQuery.toLowerCase().trim().split(/\s+/).filter(Boolean)),
+  );
+
+  const highlightText = (value) => {
+    const text = String(value ?? "");
+    if (!searchTerms.length || !text) return text;
+
+    const pattern = new RegExp(
+      `(${searchTerms.map((term) => escapeRegExp(term)).join("|")})`,
+      "gi",
+    );
+
+    return text.split(pattern).map((part, index) => {
+      const isMatch = searchTerms.includes(part.toLowerCase());
+      if (!isMatch) return part;
+      return (
+        <mark
+          key={`${part}-${index}`}
+          style={{
+            backgroundColor: "#fde68a",
+            color: "#1f2937",
+            padding: "0 2px",
+            borderRadius: "2px",
+          }}
+        >
+          {part}
+        </mark>
+      );
+    });
+  };
 
   const fetchAssignedRequests = async () => {
     try {
@@ -80,8 +115,8 @@ export default function OfficialRequests() {
             lastUpdate: req.updated_at
               ? new Date(req.updated_at).toISOString().split("T")[0]
               : req.created_at
-              ? new Date(req.created_at).toISOString().split("T")[0]
-              : "N/A",
+                ? new Date(req.created_at).toISOString().split("T")[0]
+                : "N/A",
             description: req.description || "No description provided",
             internalNotes: req.remarks || "",
           };
@@ -119,8 +154,14 @@ export default function OfficialRequests() {
 
   useEffect(() => {
     // Auto-open modal if redirected from dashboard
-    if (location.state?.selectedRequestId && location.state?.openModal && requests.length > 0) {
-      const request = requests.find((r) => r.id === location.state.selectedRequestId);
+    if (
+      location.state?.selectedRequestId &&
+      location.state?.openModal &&
+      requests.length > 0
+    ) {
+      const request = requests.find(
+        (r) => r.id === location.state.selectedRequestId,
+      );
       if (request) {
         openModal(request);
         // Clear the location state after opening
@@ -130,40 +171,70 @@ export default function OfficialRequests() {
   }, [requests, location.state]);
 
   const filterOptions = [
-    "All Status", "Pending", "In Progress", "Completed", "Rejected",
-    "Resident Complied", "For Compliance", "Non Compliant", "For Validation",
+    "All Status",
+    "Pending",
+    "In Progress",
+    "Completed",
+    "Rejected",
+    "Resident Complied",
+    "For Compliance",
+    "Non Compliant",
+    "For Validation",
   ];
 
   const filteredRequests = requests.filter((request) => {
     const statusMatch =
       selectedRequestStatus === "All Status" ||
       request.statusDisplay === selectedRequestStatus;
-    const searchLower = searchQuery.toLowerCase();
+    const searchableColumns = [
+      request.id,
+      request.title,
+      request.type,
+      request.submittedBy,
+      request.date,
+      request.statusDisplay,
+      request.description,
+      request.internalNotes,
+    ]
+      .join(" ")
+      .toLowerCase();
     const searchMatch =
-      request.title.toLowerCase().includes(searchLower) ||
-      request.type.toLowerCase().includes(searchLower) ||
-      request.submittedBy.toLowerCase().includes(searchLower) ||
-      request.description.toLowerCase().includes(searchLower);
+      searchTerms.length === 0 ||
+      searchTerms.every((term) => searchableColumns.includes(term));
     const requestDate = new Date(request.date);
     const start = startDate ? new Date(startDate) : null;
     const end = endDate ? new Date(endDate) : null;
-    const dateMatch = (!start || requestDate >= start) && (!end || requestDate <= end);
+    const dateMatch =
+      (!start || requestDate >= start) && (!end || requestDate <= end);
     return statusMatch && searchMatch && dateMatch;
   });
 
-  const openModal = (request) => { setSelectedRequest(request); setIsModalOpen(true); };
-  const handleCloseModal = () => { setIsModalOpen(false); setSelectedRequest(null); };
+  const openModal = (request) => {
+    setSelectedRequest(request);
+    setIsModalOpen(true);
+  };
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedRequest(null);
+  };
 
   const handleSaveRequest = async (updatedData) => {
     try {
       const statusMap = {
-        PENDING: "pending", IN_PROGRESS: "in_progress", COMPLETED: "completed",
-        REJECTED: "rejected", FOR_COMPLIANCE: "for_compliance",
-        NON_COMPLIANT: "non_compliant", FOR_VALIDATION: "for_validation",
+        PENDING: "pending",
+        IN_PROGRESS: "in_progress",
+        COMPLETED: "completed",
+        REJECTED: "rejected",
+        FOR_COMPLIANCE: "for_compliance",
+        NON_COMPLIANT: "non_compliant",
+        FOR_VALIDATION: "for_validation",
       };
-      const dbStatus = statusMap[updatedData.status] || updatedData.status.toLowerCase();
+      const dbStatus =
+        statusMap[updatedData.status] || updatedData.status.toLowerCase();
       const result = await updateRequestStatus(
-        updatedData.requestId, dbStatus, updatedData.internalNotes,
+        updatedData.requestId,
+        dbStatus,
+        updatedData.internalNotes,
       );
       if (result.success) {
         await fetchAssignedRequests();
@@ -179,7 +250,10 @@ export default function OfficialRequests() {
   return (
     <div className={`admin-page${isModalOpen ? " modal-open-blur" : ""}`}>
       <div className="ar-page-content">
-        <div className="page-actions" style={{ alignItems: "flex-start", marginBottom: 12 }}>
+        <div
+          className="page-actions"
+          style={{ alignItems: "flex-start", marginBottom: 12 }}
+        >
           <div>
             <h3>Assigned Requests</h3>
             <p className="muted">Review and manage requests assigned to you.</p>
@@ -206,8 +280,14 @@ export default function OfficialRequests() {
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  max={new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000)
-                    .toISOString().split("T")[0]}
+                  max={
+                    new Date(
+                      new Date().getTime() -
+                        new Date().getTimezoneOffset() * 60000,
+                    )
+                      .toISOString()
+                      .split("T")[0]
+                  }
                   className="filter-date-input"
                 />
               </div>
@@ -217,14 +297,24 @@ export default function OfficialRequests() {
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  max={new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000)
-                    .toISOString().split("T")[0]}
+                  max={
+                    new Date(
+                      new Date().getTime() -
+                        new Date().getTimezoneOffset() * 60000,
+                    )
+                      .toISOString()
+                      .split("T")[0]
+                  }
                   className="filter-date-input"
                 />
               </div>
               {(startDate || endDate || searchQuery) && (
                 <button
-                  onClick={() => { setSearchQuery(""); setStartDate(""); setEndDate(""); }}
+                  onClick={() => {
+                    setSearchQuery("");
+                    setStartDate("");
+                    setEndDate("");
+                  }}
                   className="filter-clear-btn"
                 >
                   Clear Filters
@@ -234,7 +324,10 @@ export default function OfficialRequests() {
           </div>
 
           {/* ── Status Dropdown ── */}
-          <div className="status-filter-wrapper" style={{ marginBottom: "1rem" }}>
+          <div
+            className="status-filter-wrapper"
+            style={{ marginBottom: "1rem" }}
+          >
             <button
               className="status-filter-btn"
               onClick={() => setRequestDropdownOpen(!requestDropdownOpen)}
@@ -253,7 +346,10 @@ export default function OfficialRequests() {
                     <button
                       key={status}
                       className={`status-option${selectedRequestStatus === status ? " active" : ""}`}
-                      onClick={() => { setSelectedRequestStatus(status); setRequestDropdownOpen(false); }}
+                      onClick={() => {
+                        setSelectedRequestStatus(status);
+                        setRequestDropdownOpen(false);
+                      }}
                     >
                       {status}
                     </button>
@@ -284,7 +380,10 @@ export default function OfficialRequests() {
                 {loadingRequests ? (
                   <tr>
                     <td colSpan="6">
-                      <div className="loading-wrap" style={{ padding: "1rem 0" }}>
+                      <div
+                        className="loading-wrap"
+                        style={{ padding: "1rem 0" }}
+                      >
                         <div className="loading-spinner" aria-hidden="true" />
                         <div className="loading-text">Loading requests...</div>
                       </div>
@@ -292,7 +391,10 @@ export default function OfficialRequests() {
                   </tr>
                 ) : errorRequests ? (
                   <tr>
-                    <td colSpan="6" style={{ color: "#ef4444", textAlign: "center" }}>
+                    <td
+                      colSpan="6"
+                      style={{ color: "#ef4444", textAlign: "center" }}
+                    >
                       {errorRequests}
                     </td>
                   </tr>
@@ -302,27 +404,38 @@ export default function OfficialRequests() {
                     return (
                       <tr key={r.id}>
                         <td>
-                          <span className="req-title">{r.title}</span>
+                          <span className="req-title">
+                            {highlightText(r.title)}
+                          </span>
                         </td>
                         <td>
-                          <span className="req-type-chip">{r.type}</span>
+                          <span className="req-type-chip">
+                            {highlightText(r.type)}
+                          </span>
                         </td>
                         <td>
-                          <span className="req-submitted">{r.submittedBy}</span>
+                          <span className="req-submitted">
+                            {highlightText(r.submittedBy)}
+                          </span>
                         </td>
                         <td>
-                          <span className="req-submitted">{r.date}</span>
+                          <span className="req-submitted">
+                            {highlightText(r.date)}
+                          </span>
                         </td>
                         <td>
                           <span
                             className="req-status-badge"
                             style={{ backgroundColor: color }}
                           >
-                            {r.statusDisplay}
+                            {highlightText(r.statusDisplay)}
                           </span>
                         </td>
                         <td>
-                          <button className="view-details-btn" onClick={() => openModal(r)}>
+                          <button
+                            className="view-details-btn"
+                            onClick={() => openModal(r)}
+                          >
                             View Details
                           </button>
                         </td>

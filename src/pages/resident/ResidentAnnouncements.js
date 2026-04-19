@@ -15,6 +15,8 @@ import ResidentProfile from "../../components/ResidentProfile";
 import "../../styles/UserPages.css";
 import "../../styles/BarangayOfficial.css";
 
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const Announcements = () => {
   const navigate = useNavigate();
   const { authUser, userLoading, userName } = useAuth();
@@ -40,6 +42,39 @@ const Announcements = () => {
   const [activeFilter, setActiveFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [userProfile, setUserProfile] = useState(null);
+
+  const searchTerms = Array.from(
+    new Set(searchQuery.toLowerCase().trim().split(/\s+/).filter(Boolean)),
+  );
+
+  const highlightText = (value) => {
+    const text = String(value ?? "");
+    if (!searchTerms.length || !text) return text;
+
+    const pattern = new RegExp(
+      `(${searchTerms.map((term) => escapeRegExp(term)).join("|")})`,
+      "gi",
+    );
+
+    return text.split(pattern).map((part, index) => {
+      const isMatch = searchTerms.includes(part.toLowerCase());
+      if (!isMatch) return part;
+
+      return (
+        <mark
+          key={`${part}-${index}`}
+          style={{
+            backgroundColor: "#fde68a",
+            color: "#1f2937",
+            padding: "0 2px",
+            borderRadius: "2px",
+          }}
+        >
+          {part}
+        </mark>
+      );
+    });
+  };
 
   // Load user signups for events
   useEffect(() => {
@@ -547,19 +582,19 @@ const Announcements = () => {
                       <div className="ann-card-body">
                         <div className="ann-card-meta">
                           <span className="ann-card-author">
-                            {ann.author || "Barangay"}
+                            {highlightText(ann.author || "Barangay")}
                           </span>
                           <span className="ann-card-dot">·</span>
                           <span className="ann-card-date">
-                            {formatDateShort(ann.created_at)}
+                            {highlightText(formatDateShort(ann.created_at))}
                           </span>
                         </div>
 
                         <h3 className="ann-card-title">
-                          {getAnnouncementTitle(ann)}
+                          {highlightText(getAnnouncementTitle(ann))}
                         </h3>
                         <p className="ann-card-desc">
-                          {getAnnouncementDescription(ann)}
+                          {highlightText(getAnnouncementDescription(ann))}
                         </p>
 
                         {/* Event details */}
@@ -577,13 +612,15 @@ const Announcements = () => {
                               <path d="M16 2v4M8 2v4M3 10h18" />
                             </svg>
                             <span>
-                              {new Date(ann.event_start).toLocaleDateString(
-                                "en-US",
-                                {
-                                  month: "short",
-                                  day: "numeric",
-                                  year: "numeric",
-                                },
+                              {highlightText(
+                                new Date(ann.event_start).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  },
+                                ),
                               )}
                             </span>
                           </div>

@@ -15,8 +15,10 @@ import {
 import "../../styles/BarangayAdmin.css";
 import {
   getAllComplaints,
+  getAllMediations,
   getAllRequests,
   getOfficialsWithStats,
+  getOfficialsAttendanceToday,
   getResidentStats,
   analyzeComplaintsByLocation,
   analyzeComplaintsByType,
@@ -1313,18 +1315,12 @@ function DashboardView({
 function CasesOverviewView({
   requests = [],
   complaints = [],
+  mediations = [],
   allRequests = [],
   allComplaints = [],
+  allMediations = [],
   timeFilter = "month",
   setTimeFilter = () => {},
-  feedSearch = "",
-  setFeedSearch = () => {},
-  feedFilterType = "all",
-  setFeedFilterType = () => {},
-  feedFilterStatus = "all",
-  setFeedFilterStatus = () => {},
-  feedSortBy = "newest",
-  setFeedSortBy = () => {},
 }) {
   const navigate = useNavigate();
   const [showInsights, setShowInsights] = useState(false);
@@ -1349,6 +1345,71 @@ function CasesOverviewView({
   const completionRate =
     totalCases > 0 ? ((totalFinished / totalCases) * 100).toFixed(0) : 0;
 
+  const requestStatusCounts = {
+    pending: requests.filter(
+      (r) => normalizeStatus(r.status || r.request_status) === "pending",
+    ).length,
+    inProgress: requests.filter(
+      (r) => normalizeStatus(r.status || r.request_status) === "in_progress",
+    ).length,
+    completed: requests.filter(
+      (r) => normalizeStatus(r.status || r.request_status) === "completed",
+    ).length,
+    rejected: requests.filter(
+      (r) => normalizeStatus(r.status || r.request_status) === "rejected",
+    ).length,
+  };
+
+  const complaintStatusCounts = {
+    forReview: complaints.filter(
+      (c) => normalizeStatus(c.status || c.complaint_status) === "for_review",
+    ).length,
+    pending: complaints.filter(
+      (c) => normalizeStatus(c.status || c.complaint_status) === "pending",
+    ).length,
+    resolved: complaints.filter(
+      (c) => normalizeStatus(c.status || c.complaint_status) === "resolved",
+    ).length,
+    rejected: complaints.filter(
+      (c) => normalizeStatus(c.status || c.complaint_status) === "rejected",
+    ).length,
+  };
+
+  const complaintCategoryCounts = {
+    blotter: complaints.filter((c) => normalizeStatus(c.category) === "blotter")
+      .length,
+    forMediation: complaints.filter(
+      (c) => normalizeStatus(c.category) === "for_mediation",
+    ).length,
+    communityConcern: complaints.filter(
+      (c) => normalizeStatus(c.category) === "community_concern",
+    ).length,
+    uncategorized: complaints.filter((c) => !normalizeStatus(c.category))
+      .length,
+  };
+
+  const mediationAcceptedComplaints = complaints.filter((c) =>
+    Boolean(c.mediation_accepted),
+  ).length;
+  const mediationRecords = mediations;
+  const mediationStatusCounts = {
+    scheduled: mediationRecords.filter(
+      (m) => normalizeStatus(m.status) === "scheduled",
+    ).length,
+    rescheduled: mediationRecords.filter(
+      (m) => normalizeStatus(m.status) === "rescheduled",
+    ).length,
+    resolved: mediationRecords.filter(
+      (m) => normalizeStatus(m.status) === "resolved",
+    ).length,
+    unresolved: mediationRecords.filter(
+      (m) => normalizeStatus(m.status) === "unresolved",
+    ).length,
+    rejected: mediationRecords.filter(
+      (m) => normalizeStatus(m.status) === "rejected",
+    ).length,
+  };
+
   const insights = (() => {
     // Get items within period
     const requestsInPeriod = allRequests.filter((r) =>
@@ -1356,6 +1417,12 @@ function CasesOverviewView({
     );
     const complaintsInPeriod = allComplaints.filter((c) =>
       isWithinPeriod(c.created_at, timeFilter),
+    );
+    const mediationsInPeriod = allMediations.filter((m) =>
+      isWithinPeriod(
+        m.created_at || m.session_start || m.session_end,
+        timeFilter,
+      ),
     );
 
     const insightsList = [];
@@ -1480,6 +1547,35 @@ function CasesOverviewView({
       );
     }
 
+    // 11. MEDIATION FUNNEL
+    const complaintsForMediation = complaintsInPeriod.filter(
+      (c) => normalizeStatus(c.category) === "for_mediation",
+    ).length;
+    const acceptedMediation = complaintsInPeriod.filter((c) =>
+      Boolean(c.mediation_accepted),
+    ).length;
+    if (complaintsForMediation > 0 || acceptedMediation > 0) {
+      insightsList.push(
+        `Mediation Funnel: ${complaintsForMediation} complaints tagged for mediation, ${acceptedMediation} accepted by involved residents, ${mediationsInPeriod.length} mediation session records in this period.`,
+      );
+    }
+
+    // 12. MEDIATION OUTCOME
+    if (mediationsInPeriod.length > 0) {
+      const resolvedCount = mediationsInPeriod.filter(
+        (m) => normalizeStatus(m.status) === "resolved",
+      ).length;
+      const unresolvedCount = mediationsInPeriod.filter(
+        (m) => normalizeStatus(m.status) === "unresolved",
+      ).length;
+      const resolutionRate = Math.round(
+        (resolvedCount / mediationsInPeriod.length) * 100,
+      );
+      insightsList.push(
+        `Mediation Outcome: ${resolvedCount}/${mediationsInPeriod.length} resolved (${resolutionRate}%), ${unresolvedCount} unresolved.`,
+      );
+    }
+
     // Default message if no insights
     if (insightsList.length === 0) {
       insightsList.push(
@@ -1527,281 +1623,227 @@ function CasesOverviewView({
   const requestTrendData = trendRows.map((row) => row.requests);
   const complaintTrendData = trendRows.map((row) => row.complaints);
 
-  const combinedFeed = [
-    ...requests.map((item) => ({
-      ...item,
-      type: "request",
-      title: item.subject || "Request",
-      subtype: item.certificate_type || "Service Request",
-      status: normalizeStatus(item.status || item.request_status || "pending"),
-      date: item.created_at,
-    })),
-    ...complaints.map((item) => ({
-      ...item,
-      type: "complaint",
-      title: item.subject || "Complaint",
-      subtype: item.complaint_type || "General Complaint",
-      status: normalizeStatus(
-        item.status || item.complaint_status || "pending",
-      ),
-      date: item.created_at,
-    })),
-  ];
-
-  const filteredFeed = combinedFeed
-    .filter((item) => {
-      const search = feedSearch.trim().toLowerCase();
-      if (feedFilterType !== "all" && item.type !== feedFilterType)
-        return false;
-      if (feedFilterStatus !== "all" && item.status !== feedFilterStatus) {
-        return false;
-      }
-      if (!search) return true;
-      return [item.title, item.subtype, item.status]
-        .join(" ")
-        .toLowerCase()
-        .includes(search);
-    })
-    .sort((a, b) => {
-      const aDate = new Date(a.date).getTime() || 0;
-      const bDate = new Date(b.date).getTime() || 0;
-      return feedSortBy === "oldest" ? aDate - bDate : bDate - aDate;
-    });
-
-  const liveFeedItems = filteredFeed.slice(0, 8);
-
-  const statusOptions = [
-    "pending",
-    "in_progress",
-    "completed",
-    "rejected",
-    "for_compliance",
-    "non_compliant",
-    "for_validation",
-    "resident_complied",
-  ];
-
-  const STATUS_COLORS = {
-    pending: "#f59e0b",
-    in_progress: "#0ea5e9",
-    completed: "#10b981",
-    rejected: "#ef4444",
-    for_compliance: "#8b5cf6",
-    non_compliant: "#ec4899",
-    for_validation: "#06b6d4",
-    resident_complied: "#14b8a6",
-  };
-
-  const displayStatus = (status) =>
-    String(status)
-      .replace(/_/g, " ")
-      .replace(/\b\w/g, (match) => match.toUpperCase());
-
-  const statusSegments = statusOptions.map((status) => {
-    const requestCount = requests.filter(
-      (r) => normalizeStatus(r.status || r.request_status) === status,
-    ).length;
-    const complaintCount = complaints.filter(
-      (c) => normalizeStatus(c.status || c.complaint_status) === status,
-    ).length;
-
-    return {
-      key: status,
-      value: requestCount + complaintCount,
-      color: STATUS_COLORS[status],
-      label: displayStatus(status),
-    };
-  });
-
   return (
     <div className="admin-page">
       <section className="analytics">
-        <div
-          className="analytics-header"
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-            gap: "1rem",
-            flexWrap: "wrap",
-          }}
-        >
-          <div>
-            <h3>Requests and Complaints Dashboard</h3>
-            <p className="muted">
-              Unified operational view for service requests and community
-              complaints ({PERIOD_LABEL_MAP[timeFilter]})
-            </p>
-          </div>
-          <div
-            style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end" }}
-          >
-            <button
-              onClick={() => setShowInsights((prev) => !prev)}
-              style={{
-                border: "1px solid #d1d5db",
-                backgroundColor: showInsights ? "#eff6ff" : "#ffffff",
-                color: "#1f2937",
-                borderRadius: "0.5rem",
-                padding: "0.5rem 0.75rem",
-                fontSize: "0.875rem",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              {showInsights ? "Hide Insights" : "View Insights"}
-            </button>
-            <TimeFilterDropdown
-              timeFilter={timeFilter}
-              setTimeFilter={setTimeFilter}
-            />
-          </div>
+        <div className="analytics-header">
+          <h3>System Analytics Overview</h3>
+          <p className="muted">
+            Comprehensive barangay services and community insights
+          </p>
         </div>
-
-        {showInsights && (
-          <div
-            className="chart-card"
-            style={{
-              marginBottom: "1rem",
-              background: "#f8fafc",
-              border: "1px solid #dbeafe",
-            }}
-          >
-            <div className="chart-header" style={{ color: "#1d4ed8" }}>
-              Insights ({PERIOD_LABEL_MAP[timeFilter]})
-            </div>
-            <div className="chart-body">
-              <div
-                style={{
-                  display: "grid",
-                  gap: "0.5rem",
-                  color: "#334155",
-                  fontSize: "0.92rem",
-                }}
-              >
-                {insights.map((line, idx) => (
-                  <div key={idx}>• {line}</div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
 
         <div className="stat-row" style={{ marginBottom: "2rem" }}>
           <div className="stat-box yellow">
             <span className="stat-icon">
-              <Clock size={18} />
+              <FileText size={18} />
             </span>
-            <div className="stat-label">Unfinished Requests</div>
-            <div className="stat-num">{unfinishedRequests}</div>
+            <div className="stat-label">Total Requests</div>
+            <div className="stat-num">{requests.length}</div>
+            <div className="stat-sub">
+              {
+                requests.filter(
+                  (r) =>
+                    normalizeStatus(r.status || r.request_status) ===
+                    "completed",
+                ).length
+              }{" "}
+              completed •{" "}
+              {
+                requests.filter(
+                  (r) =>
+                    normalizeStatus(r.status || r.request_status) === "pending",
+                ).length
+              }{" "}
+              pending
+            </div>
           </div>
 
           <div className="stat-box red">
             <span className="stat-icon">
               <AlertCircle size={18} />
             </span>
-            <div className="stat-label">Unfinished Complaints</div>
-            <div className="stat-num">{unfinishedComplaints}</div>
+            <div className="stat-label">Complaints</div>
+            <div className="stat-num">{complaints.length}</div>
+            <div className="stat-sub">
+              {
+                complaints.filter(
+                  (c) => normalizeStatus(c.status) === "resolved",
+                ).length
+              }{" "}
+              resolved •{" "}
+              {
+                complaints.filter(
+                  (c) =>
+                    normalizeStatus(c.status) === "in_progress" ||
+                    normalizeStatus(c.status) === "investigating",
+                ).length
+              }{" "}
+              active
+            </div>
           </div>
 
           <div className="stat-box blue">
             <span className="stat-icon">
-              <CheckCircle size={18} />
+              <Users size={18} />
             </span>
-            <div className="stat-label">Completed Requests</div>
-            <div className="stat-num">{finishedRequests}</div>
+            <div className="stat-label">Accepted Mediations</div>
+            <div className="stat-num">{mediationAcceptedComplaints}</div>
+            <div className="stat-sub">
+              Residents accepted mediation requests
+            </div>
           </div>
 
+          <div className="stat-box orange">
+            <span className="stat-icon">
+              <Megaphone size={18} />
+            </span>
+            <div className="stat-label">Mediation Sessions</div>
+            <div className="stat-num">{mediations.length}</div>
+            <div className="stat-sub">
+              {mediationStatusCounts.scheduled} scheduled
+            </div>
+          </div>
+        </div>
+
+        <div className="stat-row">
+          <div className="stat-box yellow">
+            <span className="stat-icon">
+              <Clock size={18} />
+            </span>
+            <div className="stat-label">Avg Response</div>
+            <div className="stat-num">
+              {calculateAverageResponseTime(requests)}h
+            </div>
+          </div>
+          <div className="stat-box blue">
+            <span className="stat-icon">
+              <TrendingUp size={18} />
+            </span>
+            <div className="stat-label">Avg Resolution</div>
+            <div className="stat-num">
+              {calculateAverageResolutionTime(requests)}d
+            </div>
+          </div>
           <div className="stat-box green">
             <span className="stat-icon">
               <CheckCircle size={18} />
             </span>
-            <div className="stat-label">Completed Complaints</div>
-            <div className="stat-num">{finishedComplaints}</div>
+            <div className="stat-label">Completed</div>
+            <div className="stat-num">
+              {
+                requests.filter(
+                  (r) =>
+                    normalizeStatus(r.status || r.request_status) ===
+                    "completed",
+                ).length
+              }
+            </div>
+          </div>
+          <div className="stat-box red">
+            <span className="stat-icon">
+              <AlertCircle size={18} />
+            </span>
+            <div className="stat-label">Pending</div>
+            <div className="stat-num">
+              {requests.filter(
+                (r) =>
+                  normalizeStatus(r.status || r.request_status) === "pending",
+              ).length +
+                complaints.filter(
+                  (c) => normalizeStatus(c.status) === "pending",
+                ).length}
+            </div>
           </div>
         </div>
 
-        <div className="charts-grid">
-          <div className="chart-card big">
-            <div className="chart-header">
-              <BarChart3 size={18} />
-              Case Trend (Blue: Requests, Red: Complaints)
-            </div>
-            <div className="chart-body">
-              {trendRows.length > 0 ? (
-                <CombinedLineChart
-                  labels={trendLabels}
-                  requestsData={requestTrendData}
-                  complaintsData={complaintTrendData}
-                />
-              ) : (
-                <div
-                  style={{
-                    padding: "2rem",
-                    textAlign: "center",
-                    color: "#999",
-                  }}
-                >
-                  No case trend data available
-                </div>
-              )}
-            </div>
-            <div
-              className="status-legend"
-              style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}
-            >
-              <div className="legend-item">
-                <span
-                  className="legend-color"
-                  style={{ background: "#2563eb" }}
-                ></span>
-                <span className="legend-label">Requests</span>
-              </div>
-              <div className="legend-item">
-                <span
-                  className="legend-color"
-                  style={{ background: "#dc2626" }}
-                ></span>
-                <span className="legend-label">Complaints</span>
-              </div>
-            </div>
+        <div className="chart-card" style={{ marginBottom: "1rem" }}>
+          <div className="chart-header" style={{ color: "#1e3a8a" }}>
+            <FileText size={18} />
+            Requests Section
           </div>
 
-          <div className="chart-card big">
-            <div className="chart-header">
-              <TrendingUp size={18} />
-              Case Status Distribution
+          <div className="charts-grid" style={{ marginTop: 0 }}>
+            <div className="chart-card big">
+              <div className="chart-header">
+                <BarChart3 size={18} />
+                Request Trend ({PERIOD_LABEL_MAP[timeFilter]})
+              </div>
+              <div className="chart-body">
+                {trendRows.length > 0 ? (
+                  <BarChart data={requestTrendData} labels={trendLabels} />
+                ) : (
+                  <div
+                    style={{
+                      padding: "2rem",
+                      textAlign: "center",
+                      color: "#999",
+                    }}
+                  >
+                    No request trend data available
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="chart-body donut">
-              <DonutChart
-                segments={statusSegments.map((seg) => ({
-                  value: seg.value,
-                  color: seg.color,
-                }))}
-                labels={statusSegments.map((seg) => seg.label)}
-              />
-            </div>
-            <div
-              className="status-legend"
-              style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}
-            >
-              {statusSegments.map((seg) => (
-                <div className="legend-item" key={seg.key}>
+
+            <div className="chart-card big">
+              <div className="chart-header">
+                <TrendingUp size={18} />
+                Request Status Distribution
+              </div>
+              <div className="chart-body donut">
+                <DonutChart
+                  segments={[
+                    { value: requestStatusCounts.pending, color: "#f59e0b" },
+                    { value: requestStatusCounts.inProgress, color: "#3b82f6" },
+                    { value: requestStatusCounts.completed, color: "#10b981" },
+                    { value: requestStatusCounts.rejected, color: "#ef4444" },
+                  ]}
+                  labels={["Pending", "In Progress", "Completed", "Rejected"]}
+                />
+              </div>
+              <div className="status-legend chart-legend-grid">
+                <div className="legend-item">
                   <span
                     className="legend-color"
-                    style={{ background: seg.color }}
+                    style={{ background: "#f59e0b" }}
                   ></span>
                   <span className="legend-label">
-                    {seg.label} ({seg.value})
+                    Pending ({requestStatusCounts.pending})
                   </span>
                 </div>
-              ))}
+                <div className="legend-item">
+                  <span
+                    className="legend-color"
+                    style={{ background: "#3b82f6" }}
+                  ></span>
+                  <span className="legend-label">
+                    In Progress ({requestStatusCounts.inProgress})
+                  </span>
+                </div>
+                <div className="legend-item">
+                  <span
+                    className="legend-color"
+                    style={{ background: "#10b981" }}
+                  ></span>
+                  <span className="legend-label">
+                    Completed ({requestStatusCounts.completed})
+                  </span>
+                </div>
+                <div className="legend-item">
+                  <span
+                    className="legend-color"
+                    style={{ background: "#ef4444" }}
+                  ></span>
+                  <span className="legend-label">
+                    Rejected ({requestStatusCounts.rejected})
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="charts-grid">
-          <div className="chart-card">
+          <div className="chart-card" style={{ marginTop: "1rem" }}>
             <div className="chart-header">
               <FileText size={18} />
               Popular Request Types
@@ -1830,168 +1872,210 @@ function CasesOverviewView({
               )}
             </div>
           </div>
-
-          <div className="chart-card">
-            <div className="chart-header">
-              <MessageSquare size={18} />
-              Popular Complaint Types
-            </div>
-            <div className="chart-body">
-              {complaintTypes.length > 0 ? (
-                <div className="location-list">
-                  {complaintTypes.map((type, idx) => (
-                    <div key={idx} className="location-item">
-                      <div className="location-rank">#{idx + 1}</div>
-                      <div className="location-name">{type.type}</div>
-                      <div className="location-count">{type.count}</div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div
-                  style={{
-                    padding: "2rem",
-                    textAlign: "center",
-                    color: "#999",
-                  }}
-                >
-                  No complaint data available
-                </div>
-              )}
-            </div>
-          </div>
         </div>
 
-        <div className="live-feed">
-          <div
-            className="live-header"
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: "1rem",
-              flexWrap: "wrap",
-            }}
-          >
-            <div>
-              Live Cases Feed <span className="badge">REAL-TIME</span>
+        <div className="chart-card" style={{ marginBottom: "1rem" }}>
+          <div className="chart-header" style={{ color: "#991b1b" }}>
+            <MessageSquare size={18} />
+            Complaints Section
+          </div>
+
+          <div className="stat-row" style={{ marginBottom: "1rem" }}>
+            <div className="stat-box yellow">
+              <span className="stat-icon">
+                <Clock size={18} />
+              </span>
+              <div className="stat-label">For Review</div>
+              <div className="stat-num">{complaintStatusCounts.forReview}</div>
             </div>
-            <div
-              style={{
-                display: "flex",
-                gap: "0.5rem",
-                alignItems: "center",
-                flexWrap: "wrap",
-              }}
-            >
-              <input
-                type="text"
-                placeholder="Search..."
-                value={feedSearch}
-                onChange={(e) => setFeedSearch(e.target.value)}
-                style={{
-                  padding: "0.5rem",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "0.375rem",
-                  fontSize: "0.875rem",
-                  width: "170px",
-                }}
-              />
-              <select
-                value={feedFilterType}
-                onChange={(e) => setFeedFilterType(e.target.value)}
-                style={{
-                  padding: "0.5rem",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "0.375rem",
-                  fontSize: "0.875rem",
-                }}
-              >
-                <option value="all">All Types</option>
-                <option value="request">Requests</option>
-                <option value="complaint">Complaints</option>
-              </select>
-              <select
-                value={feedFilterStatus}
-                onChange={(e) =>
-                  setFeedFilterStatus(normalizeStatus(e.target.value))
-                }
-                style={{
-                  padding: "0.5rem",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "0.375rem",
-                  fontSize: "0.875rem",
-                }}
-              >
-                <option value="all">All Status</option>
-                {statusOptions.map((status) => (
-                  <option key={status} value={status}>
-                    {displayStatus(status)}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={feedSortBy}
-                onChange={(e) => setFeedSortBy(e.target.value)}
-                style={{
-                  padding: "0.5rem",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "0.375rem",
-                  fontSize: "0.875rem",
-                }}
-              >
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-              </select>
+            <div className="stat-box blue">
+              <span className="stat-icon">
+                <AlertCircle size={18} />
+              </span>
+              <div className="stat-label">Pending</div>
+              <div className="stat-num">{complaintStatusCounts.pending}</div>
+            </div>
+            <div className="stat-box green">
+              <span className="stat-icon">
+                <CheckCircle size={18} />
+              </span>
+              <div className="stat-label">Resolved</div>
+              <div className="stat-num">{complaintStatusCounts.resolved}</div>
+            </div>
+            <div className="stat-box red">
+              <span className="stat-icon">
+                <AlertCircle size={18} />
+              </span>
+              <div className="stat-label">Rejected</div>
+              <div className="stat-num">{complaintStatusCounts.rejected}</div>
             </div>
           </div>
 
-          <div className="feed-list">
-            {liveFeedItems.length > 0 ? (
-              liveFeedItems.map((item) => (
-                <div
-                  key={`${item.type}-${item.id}`}
-                  className="feed-item"
-                  onClick={() => {
-                    const path =
-                      item.type === "request"
-                        ? "/BarangayAdmin/requests"
-                        : "/BarangayAdmin/complaints";
-                    navigate(path, {
-                      state: { selectedItemId: item.id },
-                    });
-                  }}
-                  style={{ cursor: "pointer" }}
-                >
-                  <div className="feed-icon">
-                    {item.type === "request" ? "📄" : "⚠️"}
+          <div className="charts-grid" style={{ marginTop: 0 }}>
+            <div className="chart-card big">
+              <div className="chart-header">
+                <BarChart3 size={18} />
+                Complaint Trend ({PERIOD_LABEL_MAP[timeFilter]})
+              </div>
+              <div className="chart-body">
+                {trendRows.length > 0 ? (
+                  <LineChart data={complaintTrendData} labels={trendLabels} />
+                ) : (
+                  <div
+                    style={{
+                      padding: "2rem",
+                      textAlign: "center",
+                      color: "#999",
+                    }}
+                  >
+                    No complaint trend data available
                   </div>
-                  <div className="feed-body">
-                    <div className="feed-title">{item.title}</div>
-                    <div className="feed-sub muted">
-                      {item.subtype} •{" "}
-                      {new Date(item.date).toLocaleDateString()}
+                )}
+              </div>
+            </div>
+
+            <div className="chart-card big">
+              <div className="chart-header">
+                <TrendingUp size={18} />
+                Complaint Categories
+              </div>
+              <div className="chart-body donut">
+                <DonutChart
+                  segments={[
+                    {
+                      value: complaintCategoryCounts.uncategorized,
+                      color: "#94a3b8",
+                    },
+                    {
+                      value: complaintCategoryCounts.blotter,
+                      color: "#ef4444",
+                    },
+                    {
+                      value: complaintCategoryCounts.forMediation,
+                      color: "#0ea5e9",
+                    },
+                    {
+                      value: complaintCategoryCounts.communityConcern,
+                      color: "#10b981",
+                    },
+                  ]}
+                  labels={[
+                    "Uncategorized",
+                    "Blotter",
+                    "For Mediation",
+                    "Community Concern",
+                  ]}
+                />
+              </div>
+              <div className="status-legend chart-legend-grid">
+                <div className="legend-item">
+                  <span
+                    className="legend-color"
+                    style={{ background: "#94a3b8" }}
+                  ></span>
+                  <span className="legend-label">
+                    Uncategorized ({complaintCategoryCounts.uncategorized})
+                  </span>
+                </div>
+                <div className="legend-item">
+                  <span
+                    className="legend-color"
+                    style={{ background: "#ef4444" }}
+                  ></span>
+                  <span className="legend-label">
+                    Blotter ({complaintCategoryCounts.blotter})
+                  </span>
+                </div>
+                <div className="legend-item">
+                  <span
+                    className="legend-color"
+                    style={{ background: "#0ea5e9" }}
+                  ></span>
+                  <span className="legend-label">
+                    For Mediation ({complaintCategoryCounts.forMediation})
+                  </span>
+                </div>
+                <div className="legend-item">
+                  <span
+                    className="legend-color"
+                    style={{ background: "#10b981" }}
+                  ></span>
+                  <span className="legend-label">
+                    Community Concern (
+                    {complaintCategoryCounts.communityConcern})
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="charts-grid" style={{ marginTop: "1rem" }}>
+            <div className="chart-card">
+              <div className="chart-header">
+                <MessageSquare size={18} />
+                Popular Complaint Types
+              </div>
+              <div className="chart-body">
+                {complaintTypes.length > 0 ? (
+                  <div className="location-list">
+                    {complaintTypes.map((type, idx) => (
+                      <div key={idx} className="location-item">
+                        <div className="location-rank">#{idx + 1}</div>
+                        <div className="location-name">{type.type}</div>
+                        <div className="location-count">{type.count}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      padding: "2rem",
+                      textAlign: "center",
+                      color: "#999",
+                    }}
+                  >
+                    No complaint data available
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="chart-card">
+              <div className="chart-header">
+                <Users size={18} />
+                Mediation Overview
+              </div>
+              <div className="chart-body">
+                <div className="mediation-overview-grid">
+                  <div className="mediation-metric-card">
+                    <div className="mediation-metric-label">
+                      Accepted Complaints
+                    </div>
+                    <div className="mediation-metric-value">
+                      {mediationAcceptedComplaints}
                     </div>
                   </div>
-                  <div
-                    className={`feed-status ${item.status
-                      .toLowerCase()
-                      .replace(/[_ ]/g, "-")}`}
-                  >
-                    {displayStatus(item.status)}
+                  <div className="mediation-metric-card">
+                    <div className="mediation-metric-label">Scheduled</div>
+                    <div className="mediation-metric-value">
+                      {mediationStatusCounts.scheduled}
+                    </div>
                   </div>
-                </div>
-              ))
-            ) : (
-              <div className="feed-item">
-                <div className="feed-body">
-                  <div className="feed-title">No items found</div>
-                  <div className="feed-sub muted">
-                    Try adjusting your search or filters
+                  <div className="mediation-metric-card">
+                    <div className="mediation-metric-label">Resolved</div>
+                    <div className="mediation-metric-value">
+                      {mediationStatusCounts.resolved}
+                    </div>
+                  </div>
+                  <div className="mediation-metric-card">
+                    <div className="mediation-metric-label">Unresolved</div>
+                    <div className="mediation-metric-value">
+                      {mediationStatusCounts.unresolved}
+                    </div>
                   </div>
                 </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </section>
@@ -2001,10 +2085,14 @@ function CasesOverviewView({
 
 function OfficialsView({
   officials = [],
+  allOfficialsForAttendance = [],
   allRequests = [],
   allComplaints = [],
+  allMediations = [],
   timeFilter = "month",
   setTimeFilter = () => {},
+  attendanceFilter = "all",
+  setAttendanceFilter = () => {},
 }) {
   const [showInsights, setShowInsights] = useState(false);
 
@@ -2018,6 +2106,17 @@ function OfficialsView({
   const officialsInsights = (() => {
     const insightsList = [];
     const officialsList = officials.filter((o) => o.stats?.totalCases > 0);
+    const mediationsInPeriod = allMediations.filter((m) =>
+      isWithinPeriod(
+        m.created_at || m.session_start || m.session_end,
+        timeFilter,
+      ),
+    );
+    const trackedOfficialUids = new Set(officials.map((o) => o.auth_uid));
+    const mediationForTrackedOfficials = mediationsInPeriod.filter((m) => {
+      const assignedUid = m?.complaint?.assigned_official_id;
+      return assignedUid && trackedOfficialUids.has(assignedUid);
+    });
 
     // 1. WORKLOAD BALANCE ANALYSIS
     if (officialsList.length > 0) {
@@ -2145,6 +2244,36 @@ function OfficialsView({
       );
     }
 
+    // 9. MEDIATION LOAD
+    const officialsWithMediationLoad = officials.filter(
+      (o) => (o.stats?.mediationCases || 0) > 0,
+    ).length;
+    const totalMediationCases = officials.reduce(
+      (sum, o) => sum + (o.stats?.mediationCases || 0),
+      0,
+    );
+    if (totalMediationCases > 0) {
+      insightsList.push(
+        `Mediation Caseload: ${totalMediationCases} mediation-linked complaint assignment${totalMediationCases > 1 ? "s" : ""} across ${officialsWithMediationLoad} official${officialsWithMediationLoad > 1 ? "s" : ""}.`,
+      );
+    }
+
+    // 10. MEDIATION OUTCOME
+    if (mediationForTrackedOfficials.length > 0) {
+      const resolved = mediationForTrackedOfficials.filter(
+        (m) => normalizeStatus(m.status) === "resolved",
+      ).length;
+      const unresolved = mediationForTrackedOfficials.filter(
+        (m) => normalizeStatus(m.status) === "unresolved",
+      ).length;
+      const resolutionRate = Math.round(
+        (resolved / mediationForTrackedOfficials.length) * 100,
+      );
+      insightsList.push(
+        `Mediation Performance: ${resolved}/${mediationForTrackedOfficials.length} resolved (${resolutionRate}%), ${unresolved} unresolved under current official assignments.`,
+      );
+    }
+
     // Default message
     if (insightsList.length === 0) {
       insightsList.push(
@@ -2157,6 +2286,23 @@ function OfficialsView({
 
   const totalCases = officials.reduce(
     (sum, o) => sum + (o.stats?.totalCases || 0),
+    0,
+  );
+  const attendancePopulation =
+    allOfficialsForAttendance.length > 0
+      ? allOfficialsForAttendance
+      : officials;
+  const totalOfficials = attendancePopulation.length;
+  const presentTodayCount = attendancePopulation.filter(
+    (o) => o.isPresentToday,
+  ).length;
+  const timedOutTodayCount = attendancePopulation.filter(
+    (o) => o.isTimedOutToday,
+  ).length;
+  const absentTodayCount =
+    totalOfficials - presentTodayCount - timedOutTodayCount;
+  const totalMediationCases = attendancePopulation.reduce(
+    (sum, o) => sum + (o.stats?.mediationCases || 0),
     0,
   );
   const totalCompleted = officials.reduce(
@@ -2208,6 +2354,31 @@ function OfficialsView({
           >
             {showInsights ? "Hide Insights" : "View Insights"}
           </button>
+          <div style={{ minWidth: "180px" }}>
+            <label
+              htmlFor="official-attendance-filter"
+              style={{
+                display: "block",
+                fontSize: "0.75rem",
+                color: "#6b7280",
+                marginBottom: "0.25rem",
+                fontWeight: 600,
+              }}
+            >
+              Attendance Filter
+            </label>
+            <select
+              id="official-attendance-filter"
+              className="official-status-filter-select"
+              value={attendanceFilter}
+              onChange={(e) => setAttendanceFilter(e.target.value)}
+            >
+              <option value="all">All Officials</option>
+              <option value="present">Present Today</option>
+              <option value="timed_out">Timed Out Today</option>
+              <option value="absent">Absent Today</option>
+            </select>
+          </div>
           <TimeFilterDropdown
             timeFilter={timeFilter}
             setTimeFilter={setTimeFilter}
@@ -2257,7 +2428,30 @@ function OfficialsView({
                 <Users size={18} />
               </span>
               <div className="stat-label">Total Officials</div>
-              <div className="stat-num">{officials.length}</div>
+              <div className="stat-num">{totalOfficials}</div>
+            </div>
+            <div className="stat-box green">
+              <span className="stat-icon">
+                <CheckCircle size={18} />
+              </span>
+              <div className="stat-label">Present Today</div>
+              <div className="stat-num">
+                {presentTodayCount}/{totalOfficials}
+              </div>
+            </div>
+            <div className="stat-box red">
+              <span className="stat-icon">
+                <AlertCircle size={18} />
+              </span>
+              <div className="stat-label">Absent Today</div>
+              <div className="stat-num">{absentTodayCount}</div>
+            </div>
+            <div className="stat-box yellow">
+              <span className="stat-icon">
+                <Clock size={18} />
+              </span>
+              <div className="stat-label">Timed Out Today</div>
+              <div className="stat-num">{timedOutTodayCount}</div>
             </div>
             <div className="stat-box">
               <span className="stat-icon">
@@ -2265,6 +2459,13 @@ function OfficialsView({
               </span>
               <div className="stat-label">Total Cases</div>
               <div className="stat-num">{totalCases}</div>
+            </div>
+            <div className="stat-box blue">
+              <span className="stat-icon">
+                <Users size={18} />
+              </span>
+              <div className="stat-label">Mediation Cases</div>
+              <div className="stat-num">{totalMediationCases}</div>
             </div>
             <div className="stat-box green">
               <span className="stat-icon">
@@ -2301,6 +2502,21 @@ function OfficialsView({
                   </div>
                   <div className="official-role">
                     {official.role || "Official"}
+                  </div>
+                  <div
+                    className={`official-attendance-chip ${
+                      official.isPresentToday
+                        ? "present"
+                        : official.isTimedOutToday
+                          ? "timed-out"
+                          : "absent"
+                    }`}
+                  >
+                    {official.isPresentToday
+                      ? "Present Today"
+                      : official.isTimedOutToday
+                        ? "Timed Out Today"
+                        : "Absent Today"}
                   </div>
                 </div>
               </div>
@@ -2373,16 +2589,19 @@ export default function AdminDashboard() {
   const [timeFilter, setTimeFilter] = useState("month");
   const [requests, setRequests] = useState([]);
   const [complaints, setComplaints] = useState([]);
+  const [mediations, setMediations] = useState([]);
   const [officials, setOfficials] = useState([]);
+  const [officialAttendanceToday, setOfficialAttendanceToday] = useState({
+    attendanceDate: null,
+    recordsByOfficialId: {},
+    presentOfficialIds: [],
+  });
+  const [officialAttendanceFilter, setOfficialAttendanceFilter] =
+    useState("all");
   const [announcements, setAnnouncements] = useState([]);
   const [residentStats, setResidentStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const [feedSearch, setFeedSearch] = useState("");
-  const [feedFilterType, setFeedFilterType] = useState("all");
-  const [feedFilterStatus, setFeedFilterStatus] = useState("all");
-  const [feedSortBy, setFeedSortBy] = useState("newest");
 
   // Sample data for demonstration when DB is empty
   const SAMPLE_REQUESTS = [
@@ -2509,6 +2728,26 @@ export default function AdminDashboard() {
           setOfficials(officialsResult.data);
         }
 
+        // Fetch mediations
+        const mediationsResult = await getAllMediations();
+        if (mediationsResult.success && Array.isArray(mediationsResult.data)) {
+          setMediations(mediationsResult.data);
+        } else {
+          setMediations([]);
+        }
+
+        // Fetch today's official attendance
+        const attendanceResult = await getOfficialsAttendanceToday();
+        if (attendanceResult.success && attendanceResult.data) {
+          setOfficialAttendanceToday(attendanceResult.data);
+        } else {
+          setOfficialAttendanceToday({
+            attendanceDate: null,
+            recordsByOfficialId: {},
+            presentOfficialIds: [],
+          });
+        }
+
         // Fetch resident stats
         const residentStatsResult = await getResidentStats();
         if (residentStatsResult.success) {
@@ -2546,6 +2785,13 @@ export default function AdminDashboard() {
     isWithinPeriod(complaint.created_at, timeFilter),
   );
 
+  const filteredMediations = mediations.filter((mediation) =>
+    isWithinPeriod(
+      mediation.created_at || mediation.session_start || mediation.session_end,
+      timeFilter,
+    ),
+  );
+
   const filteredOfficials = officials.map((official) => {
     const officialRequests = filteredRequests.filter(
       (request) => request.assigned_official_id === official.auth_uid,
@@ -2578,18 +2824,62 @@ export default function AdminDashboard() {
     ).length;
     const pendingCases = pendingRequests + pendingComplaints;
 
+    const mediationCaseIds = new Set(
+      filteredMediations
+        .filter((mediation) => {
+          const mediationAssignedUid =
+            mediation?.complaint?.assigned_official_id;
+          if (mediationAssignedUid) {
+            return mediationAssignedUid === official.auth_uid;
+          }
+
+          const sourceComplaint = complaints.find(
+            (c) => c.id === mediation?.complaint_id,
+          );
+          return sourceComplaint?.assigned_official_id === official.auth_uid;
+        })
+        .map((mediation) => mediation?.complaint_id)
+        .filter(Boolean),
+    );
+    const mediationCases = mediationCaseIds.size;
+
+    const officialId = official.official_id || official.id;
+    const attendanceRecord =
+      officialAttendanceToday.recordsByOfficialId?.[officialId];
+    const hasTimeIn = Boolean(attendanceRecord?.time_in);
+    const hasTimeOut = Boolean(attendanceRecord?.time_out);
+    const isPresentToday = hasTimeIn && !hasTimeOut;
+    const isTimedOutToday = hasTimeIn && hasTimeOut;
+
     return {
       ...official,
       stats: {
         totalRequests,
         totalComplaints,
+        mediationCases,
         totalCases,
         completedCases,
         pendingCases,
         completionRate:
           totalCases > 0 ? ((completedCases / totalCases) * 100).toFixed(1) : 0,
       },
+      attendanceRecord,
+      isPresentToday,
+      isTimedOutToday,
     };
+  });
+
+  const attendanceFilteredOfficials = filteredOfficials.filter((official) => {
+    if (officialAttendanceFilter === "present") {
+      return official.isPresentToday;
+    }
+    if (officialAttendanceFilter === "timed_out") {
+      return official.isTimedOutToday;
+    }
+    if (officialAttendanceFilter === "absent") {
+      return !official.isPresentToday && !official.isTimedOutToday;
+    }
+    return true;
   });
 
   // Render appropriate view based on active tab
@@ -2599,28 +2889,26 @@ export default function AdminDashboard() {
       <CasesOverviewView
         requests={filteredRequests}
         complaints={filteredComplaints}
+        mediations={filteredMediations}
         allRequests={requests}
         allComplaints={complaints}
+        allMediations={mediations}
         timeFilter={timeFilter}
         setTimeFilter={setTimeFilter}
-        feedSearch={feedSearch}
-        setFeedSearch={setFeedSearch}
-        feedFilterType={feedFilterType}
-        setFeedFilterType={setFeedFilterType}
-        feedFilterStatus={feedFilterStatus}
-        setFeedFilterStatus={setFeedFilterStatus}
-        feedSortBy={feedSortBy}
-        setFeedSortBy={setFeedSortBy}
       />
     );
   } else if (active === "Officials") {
     Content = (
       <OfficialsView
-        officials={filteredOfficials}
+        officials={attendanceFilteredOfficials}
+        allOfficialsForAttendance={filteredOfficials}
         allRequests={requests}
         allComplaints={complaints}
+        allMediations={mediations}
         timeFilter={timeFilter}
         setTimeFilter={setTimeFilter}
+        attendanceFilter={officialAttendanceFilter}
+        setAttendanceFilter={setOfficialAttendanceFilter}
       />
     );
   }

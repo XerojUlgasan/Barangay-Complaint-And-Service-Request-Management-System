@@ -7,6 +7,7 @@ import "../../styles/RequestDetail.css";
 import {
   getComplaints,
   getComplaintHistory,
+  getComplaintMediationHistory,
   assignAllUnassignedComplaints,
   transferComplaintAssignment,
 } from "../../supabse_db/complaint/complaint";
@@ -44,6 +45,20 @@ const STATUS_COLOR_MAP = {
   RESOLVED: "#06B6D4",
 };
 
+const COMPLAINT_CATEGORIES = {
+  blotter: "Blotter",
+  for_mediation: "For Mediation",
+  community_concern: "Community Concern",
+  uncategorized: "Uncategorized",
+};
+
+const COMPLAINT_CATEGORY_COLORS = {
+  blotter: "#ef4444",
+  for_mediation: "#0ea5e9",
+  community_concern: "#10b981",
+  uncategorized: "#94a3b8",
+};
+
 const normalizeStatus = (status) => {
   if (!status) return "Pending";
   if (typeof status !== "string") return "Pending";
@@ -62,10 +77,29 @@ const getStatusColor = (statusLabel) => STATUS_COLORS[statusLabel] || "#9ca3af";
 const getStatusTextColor = (statusLabel) =>
   STATUS_TEXT_COLORS[statusLabel] || "#1f2937";
 
+const normalizeComplaintCategory = (value) => {
+  const normalized = String(value || "")
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .trim();
+
+  return normalized || "uncategorized";
+};
+
+const getComplaintCategoryLabel = (category) =>
+  COMPLAINT_CATEGORIES[normalizeComplaintCategory(category)] || "Uncategorized";
+
+const getComplaintCategoryColor = (category) =>
+  COMPLAINT_CATEGORY_COLORS[normalizeComplaintCategory(category)] || "#94a3b8";
+
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 export default function AdminComplaints() {
   const location = useLocation();
   const [selectedComplaintStatus, setSelectedComplaintStatus] =
     useState("All Status");
+  const [selectedComplaintCategory, setSelectedComplaintCategory] =
+    useState("all");
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [complaintDropdownOpen, setComplaintDropdownOpen] = useState(false);
@@ -75,6 +109,8 @@ export default function AdminComplaints() {
 
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [mediationHistory, setMediationHistory] = useState([]);
+  const [mediationHistoryLoading, setMediationHistoryLoading] = useState(false);
   const [assigningComplaints, setAssigningComplaints] = useState(false);
   const [assignPopup, setAssignPopup] = useState({
     open: false,
@@ -91,6 +127,38 @@ export default function AdminComplaints() {
   const [searchQuery, setSearchQuery] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  const searchTerms = Array.from(
+    new Set(searchQuery.toLowerCase().trim().split(/\s+/).filter(Boolean)),
+  );
+
+  const highlightText = (value) => {
+    const text = String(value ?? "");
+    if (!searchTerms.length || !text) return text;
+
+    const pattern = new RegExp(
+      `(${searchTerms.map((term) => escapeRegExp(term)).join("|")})`,
+      "gi",
+    );
+
+    return text.split(pattern).map((part, index) => {
+      const isMatch = searchTerms.includes(part.toLowerCase());
+      if (!isMatch) return part;
+      return (
+        <mark
+          key={`${part}-${index}`}
+          style={{
+            backgroundColor: "#fde68a",
+            color: "#1f2937",
+            padding: "0 2px",
+            borderRadius: "2px",
+          }}
+        >
+          {part}
+        </mark>
+      );
+    });
+  };
 
   // Auto-open modal if navigated with selectedItemId
   useEffect(() => {
@@ -110,6 +178,8 @@ export default function AdminComplaints() {
       title: dbComplaint.complaint_type || "Untitled Complaint",
       location: dbComplaint.incident_location || "Unknown Location",
       status: normalizeStatus(dbComplaint.status),
+      category: normalizeComplaintCategory(dbComplaint.category),
+      mediationAccepted: Boolean(dbComplaint.mediation_accepted),
       complainant: dbComplaint.complainant_name || "Unknown",
       assignedOfficial: dbComplaint.assigned_official_name || "",
       date: dbComplaint.created_at
@@ -173,13 +243,31 @@ export default function AdminComplaints() {
       selectedComplaintStatus === "All Status" ||
       complaint.status === selectedComplaintStatus;
 
+    const categoryMatch =
+      selectedComplaintCategory === "all" ||
+      complaint.category === selectedComplaintCategory;
+
     // Search filter
-    const searchLower = searchQuery.toLowerCase();
+    const searchableColumns = [
+      complaint.id,
+      complaint.title,
+      complaint.location,
+      getComplaintCategoryLabel(complaint.category),
+      complaint.status,
+      complaint.mediationAccepted ? "Accepted" : "No",
+      complaint.complainant,
+      complaint.assignedOfficial || "Unassigned",
+      complaint.date,
+      complaint.lastUpdate,
+      complaint.description,
+      complaint.remarks,
+    ]
+      .join(" ")
+      .toLowerCase();
+
     const searchMatch =
-      complaint.title.toLowerCase().includes(searchLower) ||
-      complaint.location.toLowerCase().includes(searchLower) ||
-      complaint.complainant.toLowerCase().includes(searchLower) ||
-      complaint.description.toLowerCase().includes(searchLower);
+      searchTerms.length === 0 ||
+      searchTerms.every((term) => searchableColumns.includes(term));
 
     // Date filter
     const complaintDate = new Date(complaint.date);
@@ -188,7 +276,7 @@ export default function AdminComplaints() {
     const dateMatch =
       (!start || complaintDate >= start) && (!end || complaintDate <= end);
 
-    return statusMatch && searchMatch && dateMatch;
+    return statusMatch && categoryMatch && searchMatch && dateMatch;
   });
 
   const unassignedComplaints = complaints.filter((complaint) => {
@@ -218,12 +306,14 @@ export default function AdminComplaints() {
     setSelectedOfficialUid("");
     setIsModalOpen(true);
     fetchHistory(complaint.id);
+    fetchMediationHistory(complaint.id);
     fetchActiveOfficials();
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
     setHistory([]);
+    setMediationHistory([]);
     setOfficialSearch("");
     setShowOfficialOptions(false);
     setSelectedOfficialUid("");
@@ -274,6 +364,27 @@ export default function AdminComplaints() {
       setHistory([]);
     }
     setHistoryLoading(false);
+  };
+
+  const fetchMediationHistory = async (complaintId) => {
+    if (!complaintId) return;
+    setMediationHistoryLoading(true);
+    try {
+      const result = await getComplaintMediationHistory(complaintId);
+      if (result.success) {
+        setMediationHistory(result.data || []);
+      } else {
+        console.error(
+          "AdminComplaints: mediation history fetch failed",
+          result.message,
+        );
+        setMediationHistory([]);
+      }
+    } catch (err) {
+      console.error("AdminComplaints: error fetching mediation history", err);
+      setMediationHistory([]);
+    }
+    setMediationHistoryLoading(false);
   };
 
   const handleAssignAllUnassigned = async () => {
@@ -411,6 +522,14 @@ export default function AdminComplaints() {
     "Recorded",
     "Resolved",
     "Rejected",
+  ];
+
+  const categoryOptions = [
+    { value: "all", label: "All Categories" },
+    { value: "blotter", label: "Blotter" },
+    { value: "for_mediation", label: "For Mediation" },
+    { value: "community_concern", label: "Community Concern" },
+    { value: "uncategorized", label: "Uncategorized" },
   ];
 
   return (
@@ -554,6 +673,47 @@ export default function AdminComplaints() {
                   Clear Filters
                 </button>
               )}
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: "0.75rem",
+              alignItems: "flex-end",
+              flexWrap: "wrap",
+              marginBottom: "1rem",
+            }}
+          >
+            <div style={{ minWidth: "220px" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "0.875rem",
+                  fontWeight: "500",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                Category
+              </label>
+              <select
+                value={selectedComplaintCategory}
+                onChange={(e) => setSelectedComplaintCategory(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "0.625rem",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "0.375rem",
+                  fontSize: "0.875rem",
+                  backgroundColor: "#ffffff",
+                }}
+              >
+                {categoryOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -773,7 +933,9 @@ export default function AdminComplaints() {
                 <tr>
                   <th>ID</th>
                   <th>Request Details</th>
+                  <th>Category</th>
                   <th>Status</th>
+                  <th>Mediation</th>
                   <th>Complainant</th>
                   <th>Assigned To</th>
                   <th>Action</th>
@@ -784,11 +946,33 @@ export default function AdminComplaints() {
                   filteredComplaints.map((complaint) => (
                     <tr key={complaint.id}>
                       <td>
-                        <span className="req-id-chip">{complaint.id}</span>
+                        <span className="req-id-chip">
+                          {highlightText(complaint.id)}
+                        </span>
                       </td>
                       <td className="req-details">
-                        <div className="req-title">{complaint.title}</div>
-                        <div className="req-subtitle">{complaint.location}</div>
+                        <div className="req-title">
+                          {highlightText(complaint.title)}
+                        </div>
+                        <div className="req-subtitle">
+                          {highlightText(complaint.location)}
+                        </div>
+                      </td>
+                      <td>
+                        <span
+                          className="ar-status-badge"
+                          style={{
+                            backgroundColor: getComplaintCategoryColor(
+                              complaint.category,
+                            ),
+                            color: "#ffffff",
+                            borderColor: "rgba(0,0,0,0.10)",
+                          }}
+                        >
+                          {highlightText(
+                            getComplaintCategoryLabel(complaint.category),
+                          )}
+                        </span>
                       </td>
                       <td className="req-status">
                         <span
@@ -799,12 +983,34 @@ export default function AdminComplaints() {
                             borderColor: "rgba(0,0,0,0.10)",
                           }}
                         >
-                          {complaint.status}
+                          {highlightText(complaint.status)}
                         </span>
                       </td>
-                      <td className="req-submitted">{complaint.complainant}</td>
+                      <td>
+                        <span
+                          className="ar-status-badge"
+                          style={{
+                            backgroundColor: complaint.mediationAccepted
+                              ? "#10b981"
+                              : "#e2e8f0",
+                            color: complaint.mediationAccepted
+                              ? "#ffffff"
+                              : "#334155",
+                            borderColor: "rgba(0,0,0,0.10)",
+                          }}
+                        >
+                          {highlightText(
+                            complaint.mediationAccepted ? "Accepted" : "No",
+                          )}
+                        </span>
+                      </td>
                       <td className="req-submitted">
-                        {complaint.assignedOfficial || "Unassigned"}
+                        {highlightText(complaint.complainant)}
+                      </td>
+                      <td className="req-submitted">
+                        {highlightText(
+                          complaint.assignedOfficial || "Unassigned",
+                        )}
                       </td>
                       <td className="req-action">
                         <button
@@ -819,7 +1025,7 @@ export default function AdminComplaints() {
                 ) : (
                   <tr>
                     <td
-                      colSpan="6"
+                      colSpan="8"
                       style={{
                         padding: "2rem",
                         textAlign: "center",
@@ -958,6 +1164,44 @@ export default function AdminComplaints() {
                   <label className="ar-metadata-label">Assigned Official</label>
                   <p className="ar-metadata-value ar-official-value">
                     {selectedComplaint.assignedOfficial || "Unassigned"}
+                  </p>
+                </div>
+                <div className="ar-metadata-item">
+                  <label className="ar-metadata-label">Category</label>
+                  <p className="ar-metadata-value">
+                    <span
+                      className="ar-status-badge"
+                      style={{
+                        backgroundColor: getComplaintCategoryColor(
+                          selectedComplaint.category,
+                        ),
+                        color: "#ffffff",
+                        borderColor: "rgba(0,0,0,0.10)",
+                      }}
+                    >
+                      {getComplaintCategoryLabel(selectedComplaint.category)}
+                    </span>
+                  </p>
+                </div>
+                <div className="ar-metadata-item">
+                  <label className="ar-metadata-label">Mediation</label>
+                  <p className="ar-metadata-value">
+                    <span
+                      className="ar-status-badge"
+                      style={{
+                        backgroundColor: selectedComplaint.mediationAccepted
+                          ? "#10b981"
+                          : "#e2e8f0",
+                        color: selectedComplaint.mediationAccepted
+                          ? "#ffffff"
+                          : "#334155",
+                        borderColor: "rgba(0,0,0,0.10)",
+                      }}
+                    >
+                      {selectedComplaint.mediationAccepted
+                        ? "Accepted"
+                        : "Not Accepted"}
+                    </span>
                   </p>
                 </div>
               </div>
@@ -1124,6 +1368,66 @@ export default function AdminComplaints() {
                   </ul>
                 ) : (
                   <p className="no-history">No history available.</p>
+                )}
+              </div>
+
+              <div className="history-section">
+                <div className="history-header">
+                  <h3>Mediation History</h3>
+                </div>
+                {mediationHistoryLoading ? (
+                  <p className="history-loading">
+                    Loading mediation history...
+                  </p>
+                ) : mediationHistory && mediationHistory.length > 0 ? (
+                  <ul className="history-list">
+                    {mediationHistory.map((session, idx) => {
+                      const startDate = session.session_start
+                        ? new Date(session.session_start)
+                        : session.created_at
+                          ? new Date(session.created_at)
+                          : null;
+                      const endDate = session.session_end
+                        ? new Date(session.session_end)
+                        : null;
+                      return (
+                        <li
+                          key={session.id || idx}
+                          className="history-item"
+                          style={{
+                            "--dot-color": session.status_color || "#6B7280",
+                          }}
+                        >
+                          <div className="history-row">
+                            <div className="history-row-top">
+                              <span
+                                className="history-status"
+                                style={{
+                                  backgroundColor:
+                                    session.status_color || "#6B7280",
+                                }}
+                              >
+                                {session.status_label || "Unknown"}
+                              </span>
+                              <span className="history-user">
+                                Mediation Session #{idx + 1}
+                              </span>
+                            </div>
+                            <span className="history-date">
+                              {startDate
+                                ? startDate.toLocaleString()
+                                : "No start time"}
+                              {endDate ? ` - ${endDate.toLocaleString()}` : ""}
+                            </span>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="no-history">
+                    No mediation history available for this complaint.
+                  </p>
                 )}
               </div>
             </div>
