@@ -52,17 +52,17 @@ const COMPLAINT_STATUS_META = {
 };
 
 const COMPLAINT_CATEGORY_ORDER = [
-  "blotter",
-  "for mediation",
   "community concern",
-  "uncategorized",
+  "barangay complaint",
+  "community dispute",
+  "personal complaint",
 ];
 
 const COMPLAINT_CATEGORY_META = {
-  blotter: { label: "Blotter", color: "#8B5CF6" },
-  "for mediation": { label: "For Mediation", color: "#0EA5E9" },
   "community concern": { label: "Community Concern", color: "#10B981" },
-  uncategorized: { label: "Uncategorized", color: "#6B7280" },
+  "barangay complaint": { label: "Barangay Complaint", color: "#0EA5E9" },
+  "community dispute": { label: "Community Dispute", color: "#EF4444" },
+  "personal complaint": { label: "Personal Complaint", color: "#8B5CF6" },
 };
 
 const MEDIATION_STATUS_ORDER = [
@@ -354,13 +354,20 @@ const OfficialDashboard = () => {
     .sort((left, right) => right.value - left.value)
     .slice(0, 6);
 
-  const forMediationComplaints = assignedComplaints.filter(
-    (complaint) => normalizeValue(complaint.category) === "for mediation",
-  ).length;
-
-  const activeMediations = assignedMediations.filter((mediation) =>
-    ACTIVE_MEDIATION_STATUSES.has(normalizeValue(mediation.status)),
-  ).length;
+  const complaintCategoryCounts = {
+    communityConcern: assignedComplaints.filter(
+      (complaint) => normalizeValue(complaint.category) === "community concern",
+    ).length,
+    barangayComplaint: assignedComplaints.filter(
+      (complaint) => normalizeValue(complaint.category) === "barangay complaint",
+    ).length,
+    communityDispute: assignedComplaints.filter(
+      (complaint) => normalizeValue(complaint.category) === "community dispute",
+    ).length,
+    personalComplaint: assignedComplaints.filter(
+      (complaint) => normalizeValue(complaint.category) === "personal complaint",
+    ).length,
+  };
 
   // Get recent items for active tab with search, sort, filter by type and status
   const getRecentItems = () => {
@@ -495,32 +502,40 @@ const OfficialDashboard = () => {
                 <span className="stat-icon">
                   <CheckCircle2 size={18} />
                 </span>
-                <div className="stat-label">Finished Complaints</div>
-                <div className="stat-num">{finishedComplaints}</div>
+                <div className="stat-label">Community Concern</div>
+                <div className="stat-num">
+                  {complaintCategoryCounts.communityConcern}
+                </div>
               </div>
 
               <div className="stat-box green">
                 <span className="stat-icon">
                   <Clock size={18} />
                 </span>
-                <div className="stat-label">Unfinished Complaints</div>
-                <div className="stat-num">{unfinishedComplaints}</div>
+                <div className="stat-label">Barangay Complaint</div>
+                <div className="stat-num">
+                  {complaintCategoryCounts.barangayComplaint}
+                </div>
               </div>
 
               <div className="stat-box red">
                 <span className="stat-icon">
                   <FileText size={18} />
                 </span>
-                <div className="stat-label">For Mediation Complaints</div>
-                <div className="stat-num">{forMediationComplaints}</div>
+                <div className="stat-label">Community Dispute</div>
+                <div className="stat-num">
+                  {complaintCategoryCounts.communityDispute}
+                </div>
               </div>
 
               <div className="stat-box purple">
                 <span className="stat-icon">
                   <TrendingUp size={18} />
                 </span>
-                <div className="stat-label">Active Mediation Sessions</div>
-                <div className="stat-num">{activeMediations}</div>
+                <div className="stat-label">Personal Complaint</div>
+                <div className="stat-num">
+                  {complaintCategoryCounts.personalComplaint}
+                </div>
               </div>
             </div>
 

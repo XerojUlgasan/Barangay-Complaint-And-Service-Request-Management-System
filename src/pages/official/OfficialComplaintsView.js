@@ -6,18 +6,10 @@ import {
   getAssignedComplaints,
   updateComplaintCategory,
 } from "../../supabse_db/official/official";
-import {
-  createComplaintMediationSession,
-  getActiveMediationSessions,
-  getComplaintMediationHistory,
-  updateComplaintMediationStatus,
-} from "../../supabse_db/complaint/complaint";
 import { fetchImagesForItem } from "../../supabse_db/uploadImages";
 import {
   formatPhilippineDateOnly,
   formatPhilippineDateTime,
-  formatPhilippineShortDateTime,
-  toPhilippineDateTimeLocalValue,
 } from "../../utils/philippineTime";
 import ImageLightbox from "../../components/ImageLightbox";
 import "../../styles/BarangayAdmin.css";
@@ -29,19 +21,24 @@ const SECTION_CONFIGS = [
     description: "Complaints without a category. Only these can be classified.",
   },
   {
-    key: "blotter",
-    label: "Blotter",
-    description: "Complaints already categorized as blotter cases.",
-  },
-  {
-    key: "for mediation",
-    label: "For Mediation",
-    description: "Complaints routed for mediation.",
-  },
-  {
     key: "community concern",
     label: "Community Concern",
     description: "Complaints categorized as community concerns.",
+  },
+  {
+    key: "barangay complaint",
+    label: "Barangay Complaint",
+    description: "Complaints categorized as barangay complaints.",
+  },
+  {
+    key: "community dispute",
+    label: "Community Dispute",
+    description: "Complaints categorized as community disputes.",
+  },
+  {
+    key: "personal complaint",
+    label: "Personal Complaint",
+    description: "Complaints categorized as personal complaints.",
   },
 ];
 
@@ -100,43 +97,6 @@ const getSectionLabel = (sectionKey) =>
   SECTION_CONFIGS.find((section) => section.key === sectionKey)?.label ||
   titleCase(sectionKey);
 
-const MEDIATION_ACTIONS = [
-  { value: "scheduled", label: "Schedule" },
-  { value: "unresolved", label: "Unresolved" },
-  { value: "rejected", label: "Reject" },
-  { value: "resolved", label: "Resolve" },
-  { value: "rescheduled", label: "Reschedule" },
-];
-
-const formatDateTimeLocalValue = (value) => {
-  return toPhilippineDateTimeLocalValue(value);
-};
-
-const formatMediationDateTime = (value) => {
-  return formatPhilippineShortDateTime(value, "—");
-};
-
-const formatMediationRange = (sessionStart, sessionEnd) => {
-  if (!sessionStart || !sessionEnd) return "—";
-  return `${formatMediationDateTime(sessionStart)} to ${formatMediationDateTime(sessionEnd)}`;
-};
-
-const isMediationTimeOverlap = (startA, endA, startB, endB) => {
-  const rangeStartA = new Date(startA);
-  const rangeEndA = new Date(endA);
-  const rangeStartB = new Date(startB);
-  const rangeEndB = new Date(endB);
-
-  return (
-    !Number.isNaN(rangeStartA.getTime()) &&
-    !Number.isNaN(rangeEndA.getTime()) &&
-    !Number.isNaN(rangeStartB.getTime()) &&
-    !Number.isNaN(rangeEndB.getTime()) &&
-    rangeStartA < rangeEndB &&
-    rangeEndA > rangeStartB
-  );
-};
-
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const ComplaintDetailModal = ({
@@ -145,7 +105,6 @@ const ComplaintDetailModal = ({
   onClose,
   onSetCategory,
   isUpdatingCategory,
-  onStartMediation,
   images = [],
   imagesLoading = false,
   onImageClick = null,
@@ -311,396 +270,33 @@ const ComplaintDetailModal = ({
             <>
               <button
                 className="complaint-detail-action"
-                onClick={() => onSetCategory("blotter")}
-                disabled={isUpdatingCategory}
-              >
-                Set as Blotter
-              </button>
-              <button
-                className="complaint-detail-action"
-                onClick={() => onSetCategory("for mediation")}
-                disabled={isUpdatingCategory}
-              >
-                Set as For Mediation
-              </button>
-              <button
-                className="complaint-detail-action"
                 onClick={() => onSetCategory("community concern")}
                 disabled={isUpdatingCategory}
               >
                 Set as Community Concern
               </button>
+              <button
+                className="complaint-detail-action"
+                onClick={() => onSetCategory("barangay complaint")}
+                disabled={isUpdatingCategory}
+              >
+                Set as Barangay Complaint
+              </button>
+              <button
+                className="complaint-detail-action"
+                onClick={() => onSetCategory("community dispute")}
+                disabled={isUpdatingCategory}
+              >
+                Set as Community Dispute
+              </button>
+              <button
+                className="complaint-detail-action"
+                onClick={() => onSetCategory("personal complaint")}
+                disabled={isUpdatingCategory}
+              >
+                Set as Personal Complaint
+              </button>
             </>
-          ) : complaint.sectionKey === "for mediation" &&
-            complaint.mediation_accepted ? (
-            <button
-              className="complaint-detail-action complaint-detail-action-mediation"
-              onClick={onStartMediation}
-            >
-              Mediations
-            </button>
-          ) : null}
-        </div>
-      </div>
-    </>,
-    document.body,
-  );
-};
-
-const MediationSessionModal = ({
-  complaint,
-  isOpen,
-  onClose,
-  history,
-  activeSessions,
-  action,
-  onActionChange,
-  sessionStart,
-  onSessionStartChange,
-  sessionEnd,
-  onSessionEndChange,
-  onSubmit,
-  saving,
-  error,
-  success,
-}) => {
-  if (!isOpen || !complaint) return null;
-
-  // Extract date portion from datetime-local strings (YYYY-MM-DD)
-  const getDatePart = (dateTimeLocal) => {
-    if (!dateTimeLocal) return "";
-    return dateTimeLocal.split("T")[0];
-  };
-
-  // Extract time portion from datetime-local strings (HH:mm)
-  const getTimePart = (dateTimeLocal) => {
-    if (!dateTimeLocal) return "";
-    return dateTimeLocal.split("T")[1] || "";
-  };
-
-  // Auto-update end date when start date changes
-  const handleStartChange = (newStart) => {
-    onSessionStartChange(newStart);
-
-    // If end is empty or on a different day, set it to same day, 1 hour later
-    if (newStart) {
-      const startDate = getDatePart(newStart);
-      const endDate = getDatePart(sessionEnd);
-
-      if (!sessionEnd || startDate !== endDate) {
-        const startTime = getTimePart(newStart);
-        if (startTime) {
-          const [hours, minutes] = startTime.split(":");
-          const startHour = parseInt(hours, 10);
-          const endHour = Math.min(startHour + 1, 23); // Avoid hour 24
-          const endTime = `${endHour.toString().padStart(2, "0")}:${minutes}`;
-          onSessionEndChange(`${startDate}T${endTime}`);
-        }
-      }
-    }
-  };
-
-  // Constrain end date to same day as start and time must be after start time
-  const handleEndChange = (newEnd) => {
-    const startDate = getDatePart(sessionStart);
-    const endDate = getDatePart(newEnd);
-    const startTime = getTimePart(sessionStart);
-    const endTime = getTimePart(newEnd);
-
-    // If user tries to select a different date, force it back to start date
-    if (newEnd && startDate && endDate !== startDate) {
-      onSessionEndChange(`${startDate}T${endTime}`);
-      return;
-    }
-
-    // Check if end time is earlier than start time (same day)
-    if (
-      newEnd &&
-      startDate &&
-      endDate === startDate &&
-      startTime &&
-      endTime &&
-      endTime < startTime
-    ) {
-      // Force end time to be at least the start time
-      onSessionEndChange(`${startDate}T${startTime}`);
-      return;
-    }
-
-    onSessionEndChange(newEnd);
-  };
-
-  // Calculate max time for end input (end of start date)
-  const startDate = getDatePart(sessionStart);
-  const maxEndDateTime = startDate ? `${startDate}T23:59` : "";
-
-  const latestSession = history[history.length - 1] || null;
-  const latestStatus = normalizeKey(latestSession?.status);
-  const complaintStatus = normalizeKey(complaint?.status);
-  const complaintClosed =
-    complaintStatus === "resolved" || complaintStatus === "rejected";
-  const mediationClosed =
-    latestStatus === "resolved" || latestStatus === "rejected";
-  const canCreateScheduled = !latestSession || latestStatus === "unresolved";
-  const canUpdateScheduled = ["scheduled", "rescheduled"].includes(
-    latestStatus,
-  );
-  const canFinalize = ["scheduled", "rescheduled"].includes(latestStatus);
-  const canReschedule =
-    latestStatus === "scheduled" || latestStatus === "rescheduled";
-  const actionConfig =
-    MEDIATION_ACTIONS.find((item) => item.value === action) ||
-    MEDIATION_ACTIONS[0];
-  const actionEnabledMap = {
-    scheduled: !mediationClosed && canCreateScheduled,
-    unresolved: !mediationClosed && canUpdateScheduled,
-    rejected: !mediationClosed && canFinalize,
-    resolved: !mediationClosed && canFinalize,
-    rescheduled: canReschedule && Boolean(latestSession),
-  };
-  const actionEnabled = Boolean(actionEnabledMap[action]);
-  const actionNeedsSchedule = ["scheduled", "rescheduled"].includes(action);
-  const effectiveStart = actionNeedsSchedule
-    ? sessionStart
-    : latestSession?.session_start || "";
-  const effectiveEnd = actionNeedsSchedule
-    ? sessionEnd
-    : latestSession?.session_end || "";
-  const conflictSessions = !actionNeedsSchedule
-    ? []
-    : activeSessions.filter((session) =>
-        isMediationTimeOverlap(
-          effectiveStart,
-          effectiveEnd,
-          session.session_start,
-          session.session_end,
-        ),
-      );
-  const isTimedAction = actionNeedsSchedule;
-  const isScheduleAction = action === "scheduled";
-  const isRejectedAction = action === "rejected";
-  const isResolvedAction = action === "resolved";
-  const isUnresolvedAction = action === "unresolved";
-  const lockDateInputs =
-    isRejectedAction || isResolvedAction || isUnresolvedAction;
-  const requiresLatestSession = action !== "scheduled";
-  const canSubmit =
-    !saving &&
-    actionEnabled &&
-    (!requiresLatestSession || Boolean(latestSession)) &&
-    (!isTimedAction ||
-      (effectiveStart && effectiveEnd && conflictSessions.length === 0));
-
-  return createPortal(
-    <>
-      <div className="complaint-detail-overlay" onClick={onClose} />
-      <div
-        className="complaint-detail-dialog mediation-session-dialog"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="complaint-detail-header">
-          <div className="complaint-detail-header-content">
-            <span className="complaint-status-badge mediation-status-badge">
-              Mediation
-            </span>
-            <span className="complaint-section-pill">
-              {complaint.complaintType}
-            </span>
-          </div>
-          <button className="complaint-detail-close" onClick={onClose}>
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="complaint-detail-body mediation-session-body">
-          <div className="complaint-detail-title-wrap">
-            <h2 className="complaint-detail-title">Mediation session</h2>
-            <p className="complaint-detail-subtitle">
-              Manage mediation schedules and status updates for this complaint.
-            </p>
-          </div>
-
-          {success ? (
-            <div className="mediation-session-success">{success}</div>
-          ) : null}
-          {error ? (
-            <div className="mediation-session-error">{error}</div>
-          ) : null}
-          {mediationClosed ? (
-            <div className="mediation-session-note">
-              This mediation is already closed. You can view history, but you
-              can no longer modify this mediation or its complaint.
-            </div>
-          ) : null}
-          {complaintClosed ? (
-            <div className="mediation-session-note">
-              This complaint is already {complaintStatus}. Mediation actions are
-              hidden.
-            </div>
-          ) : null}
-
-          <div className="complaint-detail-grid mediation-summary-grid">
-            <div className="complaint-detail-card">
-              <label>Current status</label>
-              <div>
-                <Tag size={16} />
-                <span>
-                  {latestSession?.status_label || "Awaiting schedule"}
-                </span>
-              </div>
-            </div>
-            <div className="complaint-detail-card">
-              <label>Latest schedule</label>
-              <div>
-                <CalendarDays size={16} />
-                <span>
-                  {latestSession
-                    ? formatMediationRange(
-                        latestSession.session_start,
-                        latestSession.session_end,
-                      )
-                    : "No session yet"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {!complaintClosed ? (
-            <>
-              <div className="mediation-session-actions">
-                {MEDIATION_ACTIONS.map((item) => (
-                  <button
-                    key={item.value}
-                    type="button"
-                    className={`mediation-action-chip${action === item.value ? " active" : ""}`}
-                    onClick={() => onActionChange(item.value)}
-                    disabled={!actionEnabledMap[item.value]}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="mediation-session-form">
-                <div className="mediation-session-form-row">
-                  <label>
-                    Start date and time
-                    <input
-                      type="datetime-local"
-                      value={sessionStart}
-                      onChange={(event) =>
-                        handleStartChange(event.target.value)
-                      }
-                      disabled={lockDateInputs || !actionNeedsSchedule}
-                      min={formatDateTimeLocalValue(new Date().toISOString())}
-                    />
-                  </label>
-                  <label>
-                    End date and time
-                    <input
-                      type="datetime-local"
-                      value={sessionEnd}
-                      onChange={(event) => handleEndChange(event.target.value)}
-                      disabled={
-                        lockDateInputs || !actionNeedsSchedule || !sessionStart
-                      }
-                      min={sessionStart}
-                      max={maxEndDateTime}
-                    />
-                  </label>
-                </div>
-
-                {isRejectedAction ? (
-                  <div className="mediation-session-note">
-                    Rejected uses the latest scheduled session and does not
-                    require a new schedule.
-                  </div>
-                ) : null}
-
-                {isTimedAction && conflictSessions.length > 0 ? (
-                  <div className="mediation-session-conflicts">
-                    <strong>Conflicts detected</strong>
-                    <p>
-                      The selected schedule overlaps with an existing mediation
-                      session.
-                    </p>
-                    <ul>
-                      {conflictSessions.map((session) => (
-                        <li key={session.id}>
-                          {formatMediationRange(
-                            session.session_start,
-                            session.session_end,
-                          )}
-                          {session.status_label
-                            ? ` · ${session.status_label}`
-                            : ""}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-
-                {!actionEnabled ? (
-                  <div className="mediation-session-note">
-                    This action is not available in the current mediation state.
-                  </div>
-                ) : null}
-              </div>
-            </>
-          ) : null}
-
-          <div className="mediation-history-section">
-            <div className="mediation-history-header">
-              <h3>Mediation history</h3>
-              <span>Records are ordered by created_at and id.</span>
-            </div>
-
-            {history.length === 0 ? (
-              <p className="mediation-history-empty">
-                No mediation history yet.
-              </p>
-            ) : (
-              <div className="mediation-history-list">
-                {history.map((item) => (
-                  <div className="mediation-history-item" key={item.id}>
-                    <span
-                      className="mediation-history-status"
-                      style={{ backgroundColor: item.status_color }}
-                    >
-                      {item.status_label}
-                    </span>
-                    <div className="mediation-history-range">
-                      {formatMediationRange(
-                        item.session_start,
-                        item.session_end,
-                      )}
-                    </div>
-                    <div className="mediation-history-date">
-                      {formatMediationDateTime(item.created_at)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="complaint-detail-footer">
-          <button className="complaint-detail-secondary" onClick={onClose}>
-            Close
-          </button>
-          {!complaintClosed ? (
-            <button
-              className="complaint-detail-action"
-              onClick={onSubmit}
-              disabled={!canSubmit}
-            >
-              {saving
-                ? "Saving..."
-                : isScheduleAction
-                  ? "Start mediation session"
-                  : actionConfig.label}
-            </button>
           ) : null}
         </div>
       </div>
@@ -722,16 +318,6 @@ export default function OfficialComplaintsView() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUpdatingCategory, setIsUpdatingCategory] = useState(false);
   const [activeStatusFilter, setActiveStatusFilter] = useState("All Status");
-  const [showMediationModal, setShowMediationModal] = useState(false);
-  const [mediationHistory, setMediationHistory] = useState([]);
-  const [mediationActiveSessions, setMediationActiveSessions] = useState([]);
-  const [mediationAction, setMediationAction] = useState("scheduled");
-  const [mediationSessionStart, setMediationSessionStart] = useState("");
-  const [mediationSessionEnd, setMediationSessionEnd] = useState("");
-  const [mediationLoading, setMediationLoading] = useState(false);
-  const [mediationSaving, setMediationSaving] = useState(false);
-  const [mediationError, setMediationError] = useState("");
-  const [mediationSuccess, setMediationSuccess] = useState("");
   const [complaintImages, setComplaintImages] = useState([]);
   const [complaintImagesLoading, setComplaintImagesLoading] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -823,114 +409,6 @@ export default function OfficialComplaintsView() {
     }
   };
 
-  const loadMediationDialogData = async (complaintId) => {
-    setMediationLoading(true);
-    setMediationError("");
-    setMediationSuccess("");
-
-    const [historyResult, activeSessionsResult] = await Promise.all([
-      getComplaintMediationHistory(complaintId),
-      getActiveMediationSessions(complaintId),
-    ]);
-
-    if (!historyResult.success) {
-      setMediationHistory([]);
-      setMediationActiveSessions([]);
-      setMediationError(
-        historyResult.message || "Failed to load mediation history",
-      );
-      setMediationLoading(false);
-      return;
-    }
-
-    setMediationHistory(historyResult.data || []);
-    setMediationActiveSessions(
-      activeSessionsResult.success ? activeSessionsResult.data || [] : [],
-    );
-
-    const latestSession = (historyResult.data || []).slice(-1)[0] || null;
-    const latestStatus = normalizeKey(latestSession?.status);
-    const mediationClosed =
-      latestStatus === "resolved" || latestStatus === "rejected";
-    const defaultAction = mediationClosed
-      ? "scheduled"
-      : latestStatus === "rescheduled"
-        ? "rescheduled"
-        : !latestSession || ["unresolved"].includes(latestStatus)
-          ? "scheduled"
-          : "unresolved";
-
-    setMediationAction(defaultAction);
-    setMediationSessionStart(
-      formatDateTimeLocalValue(latestSession?.session_start || ""),
-    );
-    setMediationSessionEnd(
-      formatDateTimeLocalValue(latestSession?.session_end || ""),
-    );
-    setMediationLoading(false);
-  };
-
-  const openMediationDialog = async () => {
-    if (!selectedComplaint) return;
-
-    setShowMediationModal(true);
-    await loadMediationDialogData(selectedComplaint.id);
-  };
-
-  const closeMediationDialog = () => {
-    setShowMediationModal(false);
-    setMediationLoading(false);
-    setMediationSaving(false);
-    setMediationError("");
-    setMediationSuccess("");
-    setMediationHistory([]);
-    setMediationActiveSessions([]);
-    setMediationAction("scheduled");
-    setMediationSessionStart("");
-    setMediationSessionEnd("");
-  };
-
-  const handleSubmitMediationSession = async () => {
-    if (!selectedComplaint) return;
-
-    setMediationSaving(true);
-    setMediationError("");
-    setMediationSuccess("");
-
-    const actionNeedsSchedule = ["scheduled", "rescheduled"].includes(
-      mediationAction,
-    );
-    const startValue = actionNeedsSchedule ? mediationSessionStart : null;
-    const endValue = actionNeedsSchedule ? mediationSessionEnd : null;
-
-    const actionResult =
-      mediationAction === "scheduled"
-        ? await createComplaintMediationSession({
-            complaintId: selectedComplaint.id,
-            sessionStart: startValue,
-            sessionEnd: endValue,
-          })
-        : await updateComplaintMediationStatus({
-            complaintId: selectedComplaint.id,
-            status: mediationAction,
-            sessionStart: startValue,
-            sessionEnd: endValue,
-          });
-
-    if (!actionResult.success) {
-      setMediationError(
-        actionResult.message || "Failed to update mediation session",
-      );
-      setMediationSaving(false);
-      return;
-    }
-
-    await loadMediationDialogData(selectedComplaint.id);
-    setMediationSuccess(
-      actionResult.message || "Mediation session updated successfully",
-    );
-    setMediationSaving(false);
-  };
 
   useEffect(() => {
     fetchComplaints();
@@ -1028,7 +506,6 @@ export default function OfficialComplaintsView() {
 
   const openModal = async (complaint) => {
     setSelectedComplaint(complaint);
-    setShowMediationModal(false);
     setIsModalOpen(true);
     setComplaintImagesLoading(true);
     setComplaintImages([]);
@@ -1042,9 +519,6 @@ export default function OfficialComplaintsView() {
 
   const closeModal = () => {
     setIsModalOpen(false);
-    setShowMediationModal(false);
-    setMediationError("");
-    setMediationSuccess("");
     setComplaintImages([]);
     setLightboxOpen(false);
     setTimeout(() => setSelectedComplaint(null), 250);
@@ -1092,8 +566,8 @@ export default function OfficialComplaintsView() {
             </p>
           </div>
           <div className="complaints-header-note">
-            Only uncategorized complaints can be moved to blotter, mediation, or
-            community concern.
+            Only uncategorized complaints can be moved to community concern,
+            barangay complaint, community dispute, or personal complaint.
           </div>
         </div>
 
@@ -1299,7 +773,6 @@ export default function OfficialComplaintsView() {
         onClose={closeModal}
         onSetCategory={handleSetCategory}
         isUpdatingCategory={isUpdatingCategory}
-        onStartMediation={openMediationDialog}
         images={complaintImages}
         imagesLoading={complaintImagesLoading}
         onImageClick={() => setLightboxOpen(true)}
@@ -1309,33 +782,6 @@ export default function OfficialComplaintsView() {
         images={complaintImages}
         isOpen={lightboxOpen}
         onClose={() => setLightboxOpen(false)}
-        images={complaintImages}
-        imagesLoading={complaintImagesLoading}
-        onImageClick={() => setLightboxOpen(true)}
-      />
-
-      <ImageLightbox
-        images={complaintImages}
-        isOpen={lightboxOpen}
-        onClose={() => setLightboxOpen(false)}
-      />
-
-      <MediationSessionModal
-        complaint={selectedComplaint}
-        isOpen={showMediationModal}
-        onClose={closeMediationDialog}
-        history={mediationHistory}
-        activeSessions={mediationActiveSessions}
-        action={mediationAction}
-        onActionChange={setMediationAction}
-        sessionStart={mediationSessionStart}
-        onSessionStartChange={setMediationSessionStart}
-        sessionEnd={mediationSessionEnd}
-        onSessionEndChange={setMediationSessionEnd}
-        onSubmit={handleSubmitMediationSession}
-        saving={mediationSaving}
-        error={mediationLoading ? "Loading mediation data..." : mediationError}
-        success={mediationSuccess}
       />
     </div>
   );

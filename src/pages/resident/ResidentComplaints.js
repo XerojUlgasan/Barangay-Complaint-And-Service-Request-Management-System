@@ -1,11 +1,9 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   getComplaints,
   getComplaintsAgainstResident,
   getComplaintHistory,
-  getComplaintMediationHistory,
-  updateComplaintMediationAccepted,
 } from "../../supabse_db/complaint/complaint";
 import { logout } from "../../supabse_db/auth/auth";
 import { fetchImagesForItem } from "../../supabse_db/uploadImages";
@@ -27,10 +25,12 @@ import ImageLightbox from "../../components/ImageLightbox";
 import "../../styles/UserPages.css";
 
 const COMPLAINT_SECTIONS = [
+  { key: "all", label: "All" },
   { key: "uncategorized", label: "Uncategorized" },
-  { key: "blotter", label: "Blotters" },
-  { key: "for mediation", label: "For Mediation" },
   { key: "community concern", label: "Community Concern" },
+  { key: "barangay complaint", label: "Barangay Complaint" },
+  { key: "community dispute", label: "Community Dispute" },
+  { key: "personal complaint", label: "Personal Complaint" },
 ];
 
 const STATUS_OPTIONS = [
@@ -66,11 +66,8 @@ const getResidentNameEntry = (map, uid, fallback = "Unknown Resident") => {
   return map[normalizedUid] || fallback;
 };
 
-const isExplicitFalse = (value) =>
-  value === false || normalizeComplaintValue(value) === "false";
-
 const formatLongDate = (value) => {
-  return formatPhilippineDateOnly(value, "—");
+  return formatPhilippineDateOnly(value, "-");
 };
 
 const formatLongDateTime = (value) => {
@@ -79,10 +76,29 @@ const formatLongDateTime = (value) => {
 
 const getComplaintSectionKey = (category) => {
   const value = normalizeComplaintValue(category);
-  return value || "uncategorized";
+
+  if (
+    value === "community concern" ||
+    value === "barangay complaint" ||
+    value === "community dispute" ||
+    value === "personal complaint"
+  ) {
+    return value;
+  }
+
+  return "uncategorized";
 };
 
 const getComplaintSectionLabel = (category) => {
+  const normalizedValue = normalizeComplaintValue(category);
+  const directSection = COMPLAINT_SECTIONS.find(
+    (section) => section.key === normalizedValue,
+  );
+
+  if (directSection) {
+    return directSection.label;
+  }
+
   const key = getComplaintSectionKey(category);
   return (
     COMPLAINT_SECTIONS.find((section) => section.key === key)?.label ||
@@ -111,28 +127,6 @@ const getComplaintStatusColor = (status) => {
   return "#f59e0b";
 };
 
-const getMediationStatusLabel = (status) => {
-  const value = normalizeComplaintValue(status);
-  if (value === "scheduled") return "Scheduled";
-  if (value === "resolved") return "Resolved";
-  if (value === "unresolved") return "Unresolved";
-  if (value === "rejected") return "Rejected";
-  if (value === "rescheduled") return "Rescheduled";
-  return value
-    ? value.replace(/\b\w/g, (char) => char.toUpperCase())
-    : "Scheduled";
-};
-
-const getMediationStatusColor = (status) => {
-  const value = normalizeComplaintValue(status);
-  if (value === "scheduled") return "#0ea5e9";
-  if (value === "resolved") return "#10b981";
-  if (value === "unresolved") return "#f59e0b";
-  if (value === "rejected") return "#ef4444";
-  if (value === "rescheduled") return "#14b8a6";
-  return "#6b7280";
-};
-
 const MyComplaints = () => {
   const navigate = useNavigate();
   const { authUser, residentLoading, userName, userRole } = useAuth();
@@ -142,8 +136,7 @@ const MyComplaints = () => {
   const [againstComplaints, setAgainstComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [againstLoading, setAgainstLoading] = useState(true);
-  const [activeComplaintSection, setActiveComplaintSection] =
-    useState("uncategorized");
+  const [activeComplaintSection, setActiveComplaintSection] = useState("all");
   const [filter, setFilter] = useState("All Status");
   const [againstFilter, setAgainstFilter] = useState("All Status");
   const [againstError, setAgainstError] = useState("");
@@ -154,21 +147,12 @@ const MyComplaints = () => {
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [historyData, setHistoryData] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [mediationHistory, setMediationHistory] = useState([]);
-  const [mediationHistoryLoading, setMediationHistoryLoading] = useState(false);
-  const [showMediationModal, setShowMediationModal] = useState(false);
-  const [mediationProcessing, setMediationProcessing] = useState(false);
-  const [mediationNotice, setMediationNotice] = useState("");
-  const [mediationError, setMediationError] = useState("");
   const [respondentNames, setRespondentNames] = useState({});
   const [complaintImages, setComplaintImages] = useState([]);
   const [complaintImagesLoading, setComplaintImagesLoading] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
   useEffect(() => {
-    // Wait until auth context has finished loading the resident so this
-    // effect only fires once — not once for authUser changing and again
-    // when resident data arrives.
     if (residentLoading) return;
 
     const fetchData = async () => {
@@ -460,41 +444,24 @@ const MyComplaints = () => {
     return sorted;
   };
 
-  const loadComplaintMediationHistory = async (complaintId) => {
-    const result = await getComplaintMediationHistory(complaintId);
-
-    if (!result.success) {
-      return [];
-    }
-
-    return Array.isArray(result.data) ? result.data : [];
-  };
-
   const handleOpenComplaintDetails = async (complaint) => {
     setSelectedComplaint(complaint);
     setHistoryLoading(true);
-    setMediationHistoryLoading(true);
     setComplaintImagesLoading(true);
     setHistoryData([]);
-    setMediationHistory([]);
     setComplaintImages([]);
 
-    const [history, mediationHistoryRows, imagesResult] = await Promise.all([
+    const [history, imagesResult] = await Promise.all([
       loadComplaintHistory(complaint),
-      loadComplaintMediationHistory(complaint.id),
       fetchImagesForItem("complaint", complaint.id),
     ]);
 
     setHistoryData(history);
-    setMediationHistory(mediationHistoryRows);
     if (imagesResult.success) {
       setComplaintImages(imagesResult.images || []);
     }
     setHistoryLoading(false);
-    setMediationHistoryLoading(false);
     setComplaintImagesLoading(false);
-    setMediationNotice("");
-    setMediationError("");
     setShowDetailsModal(true);
   };
 
@@ -509,85 +476,58 @@ const MyComplaints = () => {
 
   const closeComplaintDetails = () => {
     setShowDetailsModal(false);
-    setShowMediationModal(false);
-    setMediationProcessing(false);
-    setMediationNotice("");
-    setMediationError("");
-    setMediationHistory([]);
-    setMediationHistoryLoading(false);
     setComplaintImages([]);
     setLightboxOpen(false);
-  };
-
-  const handleOpenMediationConfirmation = () => {
-    setMediationError("");
-    setMediationNotice("");
-    setShowMediationModal(true);
-  };
-
-  const handleConfirmMediation = async () => {
-    if (!selectedComplaint) return;
-
-    setMediationProcessing(true);
-    setMediationError("");
-
-    const result = await updateComplaintMediationAccepted(selectedComplaint.id);
-
-    if (!result.success) {
-      setMediationError(result.message || "Failed to accept mediation request");
-      setMediationProcessing(false);
-      return;
-    }
-
-    const updatedComplaint = {
-      ...selectedComplaint,
-      mediation_accepted: true,
-      status: "for review",
-      statusLabel: getComplaintStatusLabel("for review"),
-      statusColor: getComplaintStatusColor("for review"),
-    };
-
-    setSelectedComplaint(updatedComplaint);
-    setComplaints((prevComplaints) =>
-      prevComplaints.map((complaint) =>
-        complaint.id === updatedComplaint.id
-          ? {
-              ...complaint,
-              mediation_accepted: true,
-              status: "for review",
-              statusLabel: getComplaintStatusLabel("for review"),
-              statusColor: getComplaintStatusColor("for review"),
-            }
-          : complaint,
-      ),
-    );
-    const refreshedHistory = await loadComplaintHistory(updatedComplaint);
-    setHistoryData(refreshedHistory);
-    setMediationProcessing(false);
-    setShowMediationModal(true);
-    setMediationNotice(
-      "Mediation request accepted. Please wait for further informamtion about the schedule.",
-    );
   };
 
   const closeSidebar = () => setSidebarOpen(false);
 
   const normalize = (str) => (str || "").toLowerCase().replace(/[\s_-]/g, "");
 
-  const filtered = complaints.filter((c) => {
-    const sectionMatch =
-      getComplaintSectionKey(c.category) === activeComplaintSection;
-    const statusMatch =
-      filter === "All Status" || normalize(c.statusLabel) === normalize(filter);
-    return sectionMatch && statusMatch;
-  });
+  const compareNewestToOldest = (a, b) => {
+    const dateA = new Date(a?.created_at || 0).getTime();
+    const dateB = new Date(b?.created_at || 0).getTime();
+    return dateB - dateA;
+  };
+
+  const activeComplaintSectionKeys = COMPLAINT_SECTIONS.filter(
+    (section) => section.key !== "all",
+  ).map((section) => section.key);
+
+  const filtered = complaints
+    .filter((c) => {
+      const complaintSectionKey = getComplaintSectionKey(c.category);
+      const isActiveComplaint = activeComplaintSectionKeys.includes(
+        complaintSectionKey,
+      );
+      const sectionMatch =
+        activeComplaintSection === "all"
+          ? isActiveComplaint
+          : complaintSectionKey === activeComplaintSection;
+      const statusMatch =
+        filter === "All Status" ||
+        normalize(c.statusLabel) === normalize(filter);
+      return sectionMatch && statusMatch;
+    })
+    .sort(compareNewestToOldest);
 
   const filteredAgainst =
     againstFilter === "All Status"
       ? againstComplaints
-      : againstComplaints.filter(
-          (c) => normalize(c.status) === normalize(againstFilter),
-        );
+          .filter((complaint) =>
+            activeComplaintSectionKeys.includes(
+              getComplaintSectionKey(complaint.category),
+            ),
+          )
+          .sort(compareNewestToOldest)
+      : againstComplaints
+          .filter((c) => normalize(c.status) === normalize(againstFilter))
+          .filter((complaint) =>
+            activeComplaintSectionKeys.includes(
+              getComplaintSectionKey(complaint.category),
+            ),
+          )
+          .sort(compareNewestToOldest);
 
   const getBadgeClass = (status) => {
     const n = normalize(status);
@@ -603,20 +543,31 @@ const MyComplaints = () => {
   };
 
   const sectionCounts = COMPLAINT_SECTIONS.reduce((accumulator, section) => {
-    accumulator[section.key] = complaints.filter(
-      (complaint) => getComplaintSectionKey(complaint.category) === section.key,
-    ).length;
+    if (section.key === "all") {
+      accumulator[section.key] = complaints.filter((complaint) =>
+        activeComplaintSectionKeys.includes(
+          getComplaintSectionKey(complaint.category),
+        ),
+      ).length;
+    } else {
+      accumulator[section.key] = complaints.filter(
+        (complaint) => {
+          const complaintSectionKey = getComplaintSectionKey(complaint.category);
+          return (
+            activeComplaintSectionKeys.includes(complaintSectionKey) &&
+            complaintSectionKey === section.key
+          );
+        },
+      ).length;
+    }
     return accumulator;
   }, {});
 
-  const latestMediationSession =
-    mediationHistory[mediationHistory.length - 1] || null;
-
   // Resolves respondent UUIDs to full names using the fetched map
   const formatRespondents = (respondentId) => {
-    if (!respondentId) return "—";
+    if (!respondentId) return "-";
     const ids = Array.isArray(respondentId) ? respondentId : [respondentId];
-    if (ids.length === 0) return "—";
+    if (ids.length === 0) return "-";
     const names = ids.map((id) =>
       getResidentNameEntry(respondentNames, id, "Unknown Resident"),
     );
@@ -785,27 +736,6 @@ const MyComplaints = () => {
                 </button>
               </div>
 
-              {getComplaintSectionKey(selectedComplaint.category) ===
-                "for mediation" &&
-                selectedComplaint.viewerPerspective !== "respondent" &&
-                isExplicitFalse(selectedComplaint.mediation_accepted) && (
-                  <div className="resident-mediation-cta-wrap">
-                    <div className="resident-mediation-cta-copy">
-                      <strong>Mediation Request</strong>
-                      <span>
-                        Request barangay mediation for this complaint.
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      className="resident-mediation-cta"
-                      onClick={handleOpenMediationConfirmation}
-                    >
-                      Accept Mediation
-                    </button>
-                  </div>
-                )}
-
               <div className="history-modal-body">
                 <div className="details-grid">
                   <div className="details-row">
@@ -835,13 +765,13 @@ const MyComplaints = () => {
                   <div className="details-row">
                     <span className="details-label">Location</span>
                     <span className="details-value">
-                      {selectedComplaint.incident_location || "—"}
+                      {selectedComplaint.incident_location || "-"}
                     </span>
                   </div>
                   <div className="details-row">
                     <span className="details-label">Assigned To</span>
                     <span className="details-value">
-                      {selectedComplaint.assigned_official_name || "—"}
+                      {selectedComplaint.assigned_official_name || "-"}
                     </span>
                   </div>
                   <div className="details-row">
@@ -946,16 +876,6 @@ const MyComplaints = () => {
                           ) {
                             changeNotes.push(`Category set to ${itemCategory}`);
                           }
-                          if (
-                            normalizeComplaintValue(
-                              previousItem.mediation_accepted,
-                            ) !==
-                            normalizeComplaintValue(item.mediation_accepted)
-                          ) {
-                            changeNotes.push(
-                              `Mediation ${item.mediation_accepted ? "accepted" : "not accepted"}`,
-                            );
-                          }
                         }
 
                         return (
@@ -982,7 +902,7 @@ const MyComplaints = () => {
 
                               {changeNotes.length > 0 && (
                                 <div className="resident-history-changes">
-                                  {changeNotes.join(" • ")}
+                                  {changeNotes.join(" | ")}
                                 </div>
                               )}
 
@@ -1015,149 +935,7 @@ const MyComplaints = () => {
                       })}
                     </div>
                   )}
-                </div>
-
-                {((selectedComplaint.category || "").toLowerCase() ===
-                  "for mediation" ||
-                  selectedComplaint.mediation_accepted ||
-                  mediationHistory.length > 0) && (
-                  <div className="resident-history-section resident-mediation-history-section">
-                    <div className="resident-history-header">
-                      <h4>Mediation Status</h4>
-                      <span>
-                        Tracks the mediation table history linked to this
-                        complaint.
-                      </span>
-                    </div>
-
-                    <div className="details-grid resident-mediation-summary-grid">
-                      <div className="details-row">
-                        <span className="details-label">Current status</span>
-                        <span
-                          className="badge"
-                          style={{
-                            backgroundColor: latestMediationSession
-                              ? getMediationStatusColor(
-                                  latestMediationSession.status,
-                                )
-                              : selectedComplaint.mediation_accepted
-                                ? "#0ea5e9"
-                                : "#6b7280",
-                          }}
-                        >
-                          {latestMediationSession
-                            ? getMediationStatusLabel(
-                                latestMediationSession.status,
-                              )
-                            : selectedComplaint.mediation_accepted
-                              ? "Accepted"
-                              : "Awaiting schedule"}
-                        </span>
-                      </div>
-                      <div className="details-row">
-                        <span className="details-label">Latest schedule</span>
-                        <span className="details-value">
-                          {latestMediationSession
-                            ? `${formatLongDateTime(latestMediationSession.session_start)} to ${formatLongDateTime(latestMediationSession.session_end)}`
-                            : "No session yet"}
-                        </span>
-                      </div>
-                      <div className="details-row">
-                        <span className="details-label">Last update</span>
-                        <span className="details-value">
-                          {latestMediationSession
-                            ? formatLongDateTime(
-                                latestMediationSession.created_at,
-                              )
-                            : "—"}
-                        </span>
-                      </div>
-                    </div>
-
-                    {mediationHistoryLoading ? (
-                      <p className="modal-empty-text">
-                        Loading mediation history...
-                      </p>
-                    ) : mediationHistory.length === 0 ? (
-                      <p className="modal-empty-text">
-                        No mediation history available yet.
-                      </p>
-                    ) : (
-                      <div className="history-timeline resident-history-timeline">
-                        {mediationHistory.map((item, index) => {
-                          const previousItem =
-                            mediationHistory[index - 1] || null;
-                          const changeNotes = [];
-
-                          if (!previousItem) {
-                            changeNotes.push("Mediation record created");
-                          } else if (
-                            normalizeComplaintValue(previousItem.status) !==
-                            normalizeComplaintValue(item.status)
-                          ) {
-                            changeNotes.push(
-                              `Status set to ${getMediationStatusLabel(item.status)}`,
-                            );
-                          }
-
-                          return (
-                            <div
-                              className="timeline-item"
-                              key={item.id || index}
-                            >
-                              <div
-                                className="timeline-dot"
-                                style={{
-                                  backgroundColor: getMediationStatusColor(
-                                    item.status,
-                                  ),
-                                }}
-                              />
-                              {index < mediationHistory.length - 1 && (
-                                <div className="timeline-line" />
-                              )}
-                              <div className="timeline-content">
-                                <div className="resident-history-badges">
-                                  <span
-                                    className="resident-history-badge"
-                                    style={{
-                                      backgroundColor: getMediationStatusColor(
-                                        item.status,
-                                      ),
-                                    }}
-                                  >
-                                    {getMediationStatusLabel(item.status)}
-                                  </span>
-                                  <span className="resident-history-badge category">
-                                    {formatLongDateTime(item.session_start)}
-                                  </span>
-                                </div>
-
-                                {changeNotes.length > 0 && (
-                                  <div className="resident-history-changes">
-                                    {changeNotes.join(" • ")}
-                                  </div>
-                                )}
-
-                                <div className="timeline-priority">
-                                  Session:{" "}
-                                  {formatLongDateTime(item.session_start)} to{" "}
-                                  {formatLongDateTime(item.session_end)}
-                                </div>
-
-                                <div className="timeline-meta">
-                                  <span className="timeline-date">
-                                    {formatLongDateTime(item.created_at)}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
                   </div>
-                )}
               </div>
             </div>
           </div>
@@ -1168,122 +946,6 @@ const MyComplaints = () => {
           isOpen={lightboxOpen}
           onClose={() => setLightboxOpen(false)}
         />
-
-        {showMediationModal && selectedComplaint && (
-          <div
-            className="logout-modal-overlay"
-            onClick={() => setShowMediationModal(false)}
-          >
-            <div
-              className="details-modal resident-mediation-modal"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="history-modal-header">
-                <div>
-                  <h3 className="history-modal-title">
-                    Mediation Confirmation
-                  </h3>
-                  <p className="history-modal-sub">
-                    {selectedComplaint.complaint_type}
-                  </p>
-                </div>
-                <button
-                  className="history-modal-close"
-                  onClick={() => setShowMediationModal(false)}
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    width="20"
-                    height="20"
-                  >
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
-              <div className="history-modal-body resident-mediation-body">
-                {mediationNotice ? (
-                  <div className="resident-mediation-success">
-                    <p>{mediationNotice}</p>
-                    <button
-                      type="button"
-                      className="resident-mediation-close-btn"
-                      onClick={() => setShowMediationModal(false)}
-                    >
-                      Close
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="resident-mediation-copy">
-                      <p>
-                        You are about to request mediation assistance from the
-                        Barangay regarding your concern.
-                      </p>
-                      <p>
-                        By proceeding, you agree to participate in a peaceful
-                        and voluntary settlement process facilitated by
-                        authorized barangay officials. The purpose of mediation
-                        is to resolve disputes amicably between parties without
-                        escalating the matter to formal legal action.
-                      </p>
-                      <div className="resident-mediation-notes">
-                        <strong>Please note:</strong>
-                        <ul>
-                          <li>
-                            Both parties will be invited to attend a scheduled
-                            mediation session.
-                          </li>
-                          <li>
-                            Your cooperation and honest participation are
-                            expected.
-                          </li>
-                          <li>
-                            Any agreement reached during mediation may be
-                            documented and recognized by the barangay.
-                          </li>
-                        </ul>
-                      </div>
-                      <p className="resident-mediation-question">
-                        Do you wish to proceed with your request for mediation?
-                      </p>
-                    </div>
-
-                    {mediationError && (
-                      <div className="resident-mediation-error">
-                        {mediationError}
-                      </div>
-                    )}
-
-                    <div className="resident-mediation-actions">
-                      <button
-                        type="button"
-                        className="resident-mediation-cancel"
-                        onClick={() => setShowMediationModal(false)}
-                        disabled={mediationProcessing}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        className="resident-mediation-confirm"
-                        onClick={handleConfirmMediation}
-                        disabled={mediationProcessing}
-                      >
-                        {mediationProcessing
-                          ? "Accepting..."
-                          : "Accept Mediation"}
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* SIDEBAR COMPONENT */}
         <ResidentSidebar
@@ -1348,7 +1010,7 @@ const MyComplaints = () => {
               Track and manage your complaint records
             </p>
 
-            {/* ── TAB SWITCHER ── */}
+            {/* â”€â”€ TAB SWITCHER â”€â”€ */}
             <div className="complaints-tab-bar">
               <button
                 className={`complaints-tab${activeTab === "filed" ? " active" : ""}`}
@@ -1393,7 +1055,7 @@ const MyComplaints = () => {
               </button>
             </div>
 
-            {/* ── TAB: COMPLAINTS I FILED ── */}
+            {/* â”€â”€ TAB: COMPLAINTS I FILED â”€â”€ */}
             {activeTab === "filed" && (
               <>
                 <div className="resident-complaint-section-tabs">
@@ -1479,6 +1141,7 @@ const MyComplaints = () => {
                       <thead>
                         <tr>
                           <th>Complaint Type</th>
+                          <th>Category</th>
                           <th>Respondent(s)</th>
                           <th>Incident Date</th>
                           <th>Submitted</th>
@@ -1495,9 +1158,15 @@ const MyComplaints = () => {
                                   {complaint.complaint_type}
                                 </span>
                                 <span className="resident-complaint-subtitle">
-                                  {complaint.incident_location || "—"}
+                                  {complaint.incident_location || "-"}
                                 </span>
                               </div>
+                            </td>
+                            <td>
+                              <span className="resident-complaint-date">
+                                {complaint.sectionLabel ||
+                                  getComplaintSectionLabel(complaint.category)}
+                              </span>
                             </td>
                             <td>
                               <span className="resident-complaint-respondents">
@@ -1546,7 +1215,7 @@ const MyComplaints = () => {
               </>
             )}
 
-            {/* ── TAB: FILED AGAINST ME ── */}
+            {/* â”€â”€ TAB: FILED AGAINST ME â”€â”€ */}
             {activeTab === "against" && (
               <>
                 <div className="mr-filter-bar">
@@ -1603,7 +1272,7 @@ const MyComplaints = () => {
                       No complaints against you
                     </p>
                     <p className="against-empty-sub">
-                      You're all clear — no one has filed a complaint against
+                      You're all clear - no one has filed a complaint against
                       you.
                     </p>
                   </div>

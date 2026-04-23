@@ -46,17 +46,17 @@ const STATUS_COLOR_MAP = {
 };
 
 const COMPLAINT_CATEGORIES = {
-  blotter: "Blotter",
-  for_mediation: "For Mediation",
   community_concern: "Community Concern",
-  uncategorized: "Uncategorized",
+  barangay_complaint: "Barangay Complaint",
+  community_dispute: "Community Dispute",
+  personal_complaint: "Personal Complaint",
 };
 
 const COMPLAINT_CATEGORY_COLORS = {
-  blotter: "#ef4444",
-  for_mediation: "#0ea5e9",
   community_concern: "#10b981",
-  uncategorized: "#94a3b8",
+  barangay_complaint: "#0ea5e9",
+  community_dispute: "#ef4444",
+  personal_complaint: "#8b5cf6",
 };
 
 const normalizeStatus = (status) => {
@@ -526,10 +526,10 @@ export default function AdminComplaints() {
 
   const categoryOptions = [
     { value: "all", label: "All Categories" },
-    { value: "blotter", label: "Blotter" },
-    { value: "for_mediation", label: "For Mediation" },
     { value: "community_concern", label: "Community Concern" },
-    { value: "uncategorized", label: "Uncategorized" },
+    { value: "barangay_complaint", label: "Barangay Complaint" },
+    { value: "community_dispute", label: "Community Dispute" },
+    { value: "personal_complaint", label: "Personal Complaint" },
   ];
 
   return (
@@ -935,7 +935,6 @@ export default function AdminComplaints() {
                   <th>Request Details</th>
                   <th>Category</th>
                   <th>Status</th>
-                  <th>Mediation</th>
                   <th>Complainant</th>
                   <th>Assigned To</th>
                   <th>Action</th>
@@ -986,24 +985,6 @@ export default function AdminComplaints() {
                           {highlightText(complaint.status)}
                         </span>
                       </td>
-                      <td>
-                        <span
-                          className="ar-status-badge"
-                          style={{
-                            backgroundColor: complaint.mediationAccepted
-                              ? "#10b981"
-                              : "#e2e8f0",
-                            color: complaint.mediationAccepted
-                              ? "#ffffff"
-                              : "#334155",
-                            borderColor: "rgba(0,0,0,0.10)",
-                          }}
-                        >
-                          {highlightText(
-                            complaint.mediationAccepted ? "Accepted" : "No",
-                          )}
-                        </span>
-                      </td>
                       <td className="req-submitted">
                         {highlightText(complaint.complainant)}
                       </td>
@@ -1025,7 +1006,7 @@ export default function AdminComplaints() {
                 ) : (
                   <tr>
                     <td
-                      colSpan="8"
+                      colSpan="7"
                       style={{
                         padding: "2rem",
                         textAlign: "center",

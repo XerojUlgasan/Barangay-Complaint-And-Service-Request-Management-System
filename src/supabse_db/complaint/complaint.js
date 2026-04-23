@@ -645,26 +645,11 @@ export const updateComplaintMediationAccepted = async (complaintId) => {
     };
   }
 
-  if (normalizeComplaintValue(complaintData.category) !== "for mediation") {
-    return {
-      success: false,
-      message:
-        "Mediation can only be accepted for complaints under For Mediation",
-    };
-  }
-
-  if (complaintData.mediation_accepted === true) {
-    return {
-      success: false,
-      message: "Mediation request has already been accepted",
-    };
-  }
-
   const { error } = await supabase
     .from("complaint_tbl")
     .update({
       mediation_accepted: true,
-  status: "for review",
+      status: "for review",
       updated_at: new Date().toISOString(),
     })
     .eq("id", complaintId)
@@ -677,8 +662,8 @@ export const updateComplaintMediationAccepted = async (complaintId) => {
   }
 
   return {
-    success: true,
-    message: "Mediation request accepted successfully",
+    success: false,
+    message: "Mediation workflow has been removed.",
   };
 };
 
@@ -798,128 +783,10 @@ export const createComplaintMediationSession = async ({
   sessionStart,
   sessionEnd,
 }) => {
-  const accessResult = await getComplaintAccessForOfficialAction(complaintId);
-
-  if (!accessResult.success) {
-    return accessResult;
-  }
-
-  const complaintData = accessResult.complaintData;
-
-  if (normalizeComplaintValue(complaintData.category) !== "for mediation") {
-    return {
-      success: false,
-      message:
-        "Mediation sessions can only be started for complaints under For Mediation",
-    };
-  }
-
-  if (complaintData.mediation_accepted !== true) {
-    return {
-      success: false,
-      message: "Mediation must be accepted before a session can be started",
-    };
-  }
-
-  if (
-    ["resolved", "rejected"].includes(
-      normalizeComplaintValue(complaintData.status),
-    )
-  ) {
-    return {
-      success: false,
-      message:
-        "This complaint is already closed and cannot receive new mediation sessions.",
-    };
-  }
-
-  const latestResult = await getLatestMediationSession(complaintId);
-
-  if (!latestResult.success) {
-    return latestResult;
-  }
-
-  const latestSession = latestResult.data;
-  const latestStatus = normalizeMediationStatus(latestSession?.status);
-
-  if (latestSession && MEDIATION_FINAL_STATUSES.includes(latestStatus)) {
-    return {
-      success: false,
-      message:
-        "This mediation is already closed. No new mediation session can be created.",
-    };
-  }
-
-  if (latestSession && !MEDIATION_ROLLOVER_STATUSES.includes(latestStatus)) {
-    return {
-      success: false,
-      message:
-        "A latest mediation session is still active. Update the newest session instead of creating a new one.",
-    };
-  }
-
-  const normalizedSessionStart = normalizeMediationDateInput(sessionStart);
-  const normalizedSessionEnd = normalizeMediationDateInput(sessionEnd);
-
-  if (!normalizedSessionStart || !normalizedSessionEnd) {
-    return {
-      success: false,
-      message: "Please provide a valid mediation start and end time",
-    };
-  }
-
-  if (!isValidMediationRange(normalizedSessionStart, normalizedSessionEnd)) {
-    return {
-      success: false,
-      message: "Please provide a valid mediation start and end time",
-    };
-  }
-
-  const conflictResult = await getMediationConflictSessions({
-    sessionStart: normalizedSessionStart,
-    sessionEnd: normalizedSessionEnd,
-    excludeComplaintId: complaintId,
-  });
-
-  if (!conflictResult.success) {
-    return conflictResult;
-  }
-
-  if (conflictResult.data.length > 0) {
-    return {
-      success: false,
-      message: "The selected mediation schedule conflicts with another session",
-      conflicts: conflictResult.data,
-    };
-  }
-
-  const { data, error } = await supabase
-    .from("mediations_tbl")
-    .insert(
-      buildMediationSessionPayload({
-        complaintId,
-        status: "scheduled",
-        sessionStart: normalizedSessionStart,
-        sessionEnd: normalizedSessionEnd,
-      }),
-    )
-    .select("id, complaint_id, created_at, session_start, session_end, status")
-    .single();
-
-  if (error) {
-    console.error("Error creating mediation session:", error);
-    return { success: false, message: "Failed to create mediation session" };
-  }
-
-  return {
-    success: true,
-    message: "Mediation session scheduled successfully",
-    data: {
-      ...data,
-      status_label: formatMediationStatusLabel(data.status),
-      status_color: getMediationStatusColor(data.status),
-    },
-  };
+  void complaintId;
+  void sessionStart;
+  void sessionEnd;
+  return { success: false, message: "Mediation workflow has been removed." };
 };
 
 export const updateComplaintMediationStatus = async ({

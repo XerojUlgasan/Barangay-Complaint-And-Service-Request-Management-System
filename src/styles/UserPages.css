@@ -146,11 +146,13 @@
 
 .user-landing-page .resident-complaints-table-card {
   margin-top: 0.25rem;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .user-landing-page .resident-complaints-table {
-  table-layout: fixed;
+  table-layout: auto;
+  min-width: 980px;
 }
 
 .user-landing-page .resident-complaints-table th,

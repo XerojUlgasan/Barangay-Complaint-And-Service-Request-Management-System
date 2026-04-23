@@ -1376,16 +1376,18 @@ function CasesOverviewView({
   };
 
   const complaintCategoryCounts = {
-    blotter: complaints.filter((c) => normalizeStatus(c.category) === "blotter")
-      .length,
-    forMediation: complaints.filter(
-      (c) => normalizeStatus(c.category) === "for_mediation",
-    ).length,
     communityConcern: complaints.filter(
       (c) => normalizeStatus(c.category) === "community_concern",
     ).length,
-    uncategorized: complaints.filter((c) => !normalizeStatus(c.category))
-      .length,
+    barangayComplaint: complaints.filter(
+      (c) => normalizeStatus(c.category) === "barangay_complaint",
+    ).length,
+    communityDispute: complaints.filter(
+      (c) => normalizeStatus(c.category) === "community_dispute",
+    ).length,
+    personalComplaint: complaints.filter(
+      (c) => normalizeStatus(c.category) === "personal_complaint",
+    ).length,
   };
 
   const mediationAcceptedComplaints = complaints.filter((c) =>
@@ -1547,20 +1549,7 @@ function CasesOverviewView({
       );
     }
 
-    // 11. MEDIATION FUNNEL
-    const complaintsForMediation = complaintsInPeriod.filter(
-      (c) => normalizeStatus(c.category) === "for_mediation",
-    ).length;
-    const acceptedMediation = complaintsInPeriod.filter((c) =>
-      Boolean(c.mediation_accepted),
-    ).length;
-    if (complaintsForMediation > 0 || acceptedMediation > 0) {
-      insightsList.push(
-        `Mediation Funnel: ${complaintsForMediation} complaints tagged for mediation, ${acceptedMediation} accepted by involved residents, ${mediationsInPeriod.length} mediation session records in this period.`,
-      );
-    }
-
-    // 12. MEDIATION OUTCOME
+    // 11. MEDIATION OUTCOME
     if (mediationsInPeriod.length > 0) {
       const resolvedCount = mediationsInPeriod.filter(
         (m) => normalizeStatus(m.status) === "resolved",
@@ -1943,27 +1932,27 @@ function CasesOverviewView({
                 <DonutChart
                   segments={[
                     {
-                      value: complaintCategoryCounts.uncategorized,
-                      color: "#94a3b8",
-                    },
-                    {
-                      value: complaintCategoryCounts.blotter,
-                      color: "#ef4444",
-                    },
-                    {
-                      value: complaintCategoryCounts.forMediation,
-                      color: "#0ea5e9",
-                    },
-                    {
                       value: complaintCategoryCounts.communityConcern,
                       color: "#10b981",
                     },
+                    {
+                      value: complaintCategoryCounts.barangayComplaint,
+                      color: "#0ea5e9",
+                    },
+                    {
+                      value: complaintCategoryCounts.communityDispute,
+                      color: "#ef4444",
+                    },
+                    {
+                      value: complaintCategoryCounts.personalComplaint,
+                      color: "#8b5cf6",
+                    },
                   ]}
                   labels={[
-                    "Uncategorized",
-                    "Blotter",
-                    "For Mediation",
                     "Community Concern",
+                    "Barangay Complaint",
+                    "Community Dispute",
+                    "Personal Complaint",
                   ]}
                 />
               </div>
@@ -1971,19 +1960,10 @@ function CasesOverviewView({
                 <div className="legend-item">
                   <span
                     className="legend-color"
-                    style={{ background: "#94a3b8" }}
+                    style={{ background: "#10b981" }}
                   ></span>
                   <span className="legend-label">
-                    Uncategorized ({complaintCategoryCounts.uncategorized})
-                  </span>
-                </div>
-                <div className="legend-item">
-                  <span
-                    className="legend-color"
-                    style={{ background: "#ef4444" }}
-                  ></span>
-                  <span className="legend-label">
-                    Blotter ({complaintCategoryCounts.blotter})
+                    Community Concern ({complaintCategoryCounts.communityConcern})
                   </span>
                 </div>
                 <div className="legend-item">
@@ -1992,17 +1972,25 @@ function CasesOverviewView({
                     style={{ background: "#0ea5e9" }}
                   ></span>
                   <span className="legend-label">
-                    For Mediation ({complaintCategoryCounts.forMediation})
+                    Barangay Complaint ({complaintCategoryCounts.barangayComplaint})
                   </span>
                 </div>
                 <div className="legend-item">
                   <span
                     className="legend-color"
-                    style={{ background: "#10b981" }}
+                    style={{ background: "#ef4444" }}
                   ></span>
                   <span className="legend-label">
-                    Community Concern (
-                    {complaintCategoryCounts.communityConcern})
+                    Community Dispute ({complaintCategoryCounts.communityDispute})
+                  </span>
+                </div>
+                <div className="legend-item">
+                  <span
+                    className="legend-color"
+                    style={{ background: "#8b5cf6" }}
+                  ></span>
+                  <span className="legend-label">
+                    Personal Complaint ({complaintCategoryCounts.personalComplaint})
                   </span>
                 </div>
               </div>

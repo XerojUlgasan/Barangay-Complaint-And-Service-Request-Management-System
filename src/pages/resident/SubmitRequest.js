@@ -12,6 +12,20 @@ import ResidentProfile from "../../components/ResidentProfile";
 import "../../styles/UserPages.css";
 import supabase from "../../supabse_db/supabase_client";
 
+const COMPLAINT_TYPE_OPTIONS = [
+  "Family & Domestic Disputes",
+  "Property & Boundary Disputes",
+  "Financial / Debt Issues",
+  "Physical Injury / Altercation",
+  "Public Disturbance / Nuisance",
+  "Defamation (Slander / Libel)",
+  "Trespassing",
+  "Community Rule Violations",
+  "Pet / Animal Complaints",
+  "Minor Civil Disputes",
+  "Others",
+];
+
 const SubmitRequest = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -44,6 +58,7 @@ const SubmitRequest = () => {
 
   const [formData, setFormData] = useState({
     complaintType: "",
+    otherComplaintType: "",
     certificateType: "",
     incidentDate: "",
     incidentLocation: "",
@@ -190,6 +205,15 @@ const SubmitRequest = () => {
     e.preventDefault();
     setSubmitError("");
 
+    if (
+      isComplaint &&
+      formData.complaintType === "Others" &&
+      !formData.otherComplaintType.trim()
+    ) {
+      setSubmitError("Please specify the complaint type.");
+      return;
+    }
+
     if (isComplaint && formData.incidentDate) {
       const selected = new Date(formData.incidentDate);
       const now = new Date();
@@ -221,9 +245,13 @@ const SubmitRequest = () => {
       // 1. Create the complaint or request first
       if (isComplaint) {
         const respondentIds = selectedRespondents.map((r) => r.id);
+        const normalizedComplaintType =
+          formData.complaintType === "Others"
+            ? `Others: ${formData.otherComplaintType.trim()}`
+            : formData.complaintType;
 
         result = await insertComplaint(
-          formData.complaintType,
+          normalizedComplaintType,
           formData.incidentDate,
           formData.incidentLocation,
           formData.description,
@@ -302,7 +330,13 @@ const SubmitRequest = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+      ...(name === "complaintType" && value !== "Others"
+        ? { otherComplaintType: "" }
+        : {}),
+    }));
   };
 
   const handleFileChange = (e) => {
@@ -506,20 +540,32 @@ const SubmitRequest = () => {
                         required
                       >
                         <option value="">Select complaint type</option>
-                        <option value="Noise Complaint">Noise Complaint</option>
-                        <option value="Illegal Dumping">Illegal Dumping</option>
-                        <option value="Property Dispute">
-                          Property Dispute
-                        </option>
-                        <option value="Public Disturbance">
-                          Public Disturbance
-                        </option>
-                        <option value="Road/Infrastructure Issue">
-                          Road/Infrastructure Issue
-                        </option>
-                        <option value="Other">Other</option>
+                        {COMPLAINT_TYPE_OPTIONS.map((typeOption) => (
+                          <option key={typeOption} value={typeOption}>
+                            {typeOption}
+                          </option>
+                        ))}
                       </select>
                     </div>
+
+                    {formData.complaintType === "Others" && (
+                      <div className="form-group">
+                        <label htmlFor="otherComplaintType">
+                          Please specify{" "}
+                          <span className="required-star">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          id="otherComplaintType"
+                          name="otherComplaintType"
+                          value={formData.otherComplaintType}
+                          onChange={handleChange}
+                          placeholder="Enter the specific complaint type"
+                          className="form-input"
+                          required
+                        />
+                      </div>
+                    )}
 
                     <div className="form-group">
                       <label htmlFor="incidentDate">

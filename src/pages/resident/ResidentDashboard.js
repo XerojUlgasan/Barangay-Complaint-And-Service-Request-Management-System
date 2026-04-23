@@ -20,10 +20,10 @@ import PasswordChangeModal from "../../components/PasswordChangeModal";
 import "../../styles/UserPages.css";
 
 const COMPLAINT_SECTIONS = [
-  { key: "uncategorized", label: "Uncategorized" },
-  { key: "blotter", label: "Blotter" },
-  { key: "for mediation", label: "For Mediation" },
   { key: "community concern", label: "Community Concern" },
+  { key: "barangay complaint", label: "Barangay Complaint" },
+  { key: "community dispute", label: "Community Dispute" },
+  { key: "personal complaint", label: "Personal Complaint" },
 ];
 
 const REQUEST_FINISHED_STATUSES = new Set([

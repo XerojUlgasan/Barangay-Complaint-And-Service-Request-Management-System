@@ -437,13 +437,13 @@ export const updateComplaintCategory = async (complaintId, category) => {
     };
   }
 
-  const validCategories = ["blotter", "for mediation", "community concern"];
+  const validCategories = [
+    "community concern",
+    "barangay complaint",
+    "community dispute",
+    "personal complaint",
+  ];
   const normalizedCategory = normalizeComplaintValue(category);
-  const categoryToStatusMap = {
-    blotter: "recorded",
-    "community concern": "recorded",
-    "for mediation": "pending",
-  };
 
   if (!validCategories.includes(normalizedCategory)) {
     return {
@@ -456,7 +456,7 @@ export const updateComplaintCategory = async (complaintId, category) => {
     .from("complaint_tbl")
     .update({
       category: normalizedCategory,
-      status: categoryToStatusMap[normalizedCategory] || complaintData.status,
+      status: complaintData.status,
       updated_by: userData.user.id,
       updated_at: new Date().toISOString(),
     })
