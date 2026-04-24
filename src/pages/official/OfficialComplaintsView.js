@@ -16,6 +16,11 @@ import "../../styles/BarangayAdmin.css";
 
 const SECTION_CONFIGS = [
   {
+    key: "all",
+    label: "All",
+    description: "All complaints across all categories.",
+  },
+  {
     key: "uncategorized",
     label: "Uncategorized",
     description: "Complaints without a category. Only these can be classified.",
@@ -109,10 +114,53 @@ const ComplaintDetailModal = ({
   imagesLoading = false,
   onImageClick = null,
 }) => {
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [successMessage, setSuccessMessage] = useState(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSelectedCategory(null);
+      setShowConfirmation(false);
+      setSuccessMessage(null);
+    }
+  }, [isOpen]);
+
   if (!isOpen || !complaint) return null;
 
   const isUncategorized = complaint.sectionKey === "uncategorized";
   const statusConfig = getStatusConfig(complaint.status);
+
+  const handleCategorySelect = (category) => {
+    setSelectedCategory(category);
+    setShowConfirmation(true);
+  };
+
+  const handleConfirmCategory = async () => {
+    if (!selectedCategory) return;
+
+    setShowConfirmation(false);
+    const result = await onSetCategory(selectedCategory);
+
+    if (!result?.success) return;
+
+    setSuccessMessage(
+      `Category set to "${titleCase(selectedCategory)}" and status set to "Recorded".`,
+    );
+
+    setTimeout(() => {
+      setSuccessMessage(null);
+      setSelectedCategory(null);
+      onClose();
+    }, 1200);
+  };
+
+  const CATEGORY_OPTIONS = [
+    "community concern",
+    "barangay complaint",
+    "community dispute",
+    "personal complaint",
+  ];
 
   return createPortal(
     <>
@@ -266,39 +314,134 @@ const ComplaintDetailModal = ({
           <button className="complaint-detail-secondary" onClick={onClose}>
             Close
           </button>
-          {isUncategorized ? (
-            <>
+          {successMessage && (
+            <div
+              style={{
+                color: "#10b981",
+                fontSize: "14px",
+                fontWeight: "500",
+                marginLeft: "auto",
+              }}
+            >
+              ✓ {successMessage}
+            </div>
+          )}
+          {isUncategorized && !successMessage ? (
+            <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}>
+              <select
+                className="filter-date-input"
+                value={selectedCategory || ""}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                disabled={isUpdatingCategory}
+                style={{ minWidth: "200px" }}
+              >
+                <option value="">Select Category</option>
+                {CATEGORY_OPTIONS.map((category) => (
+                  <option key={category} value={category}>
+                    {titleCase(category)}
+                  </option>
+                ))}
+              </select>
               <button
                 className="complaint-detail-action"
-                onClick={() => onSetCategory("community concern")}
-                disabled={isUpdatingCategory}
+                onClick={() => handleCategorySelect(selectedCategory)}
+                disabled={!selectedCategory || isUpdatingCategory}
               >
-                Set as Community Concern
+                Set Category
               </button>
-              <button
-                className="complaint-detail-action"
-                onClick={() => onSetCategory("barangay complaint")}
-                disabled={isUpdatingCategory}
-              >
-                Set as Barangay Complaint
-              </button>
-              <button
-                className="complaint-detail-action"
-                onClick={() => onSetCategory("community dispute")}
-                disabled={isUpdatingCategory}
-              >
-                Set as Community Dispute
-              </button>
-              <button
-                className="complaint-detail-action"
-                onClick={() => onSetCategory("personal complaint")}
-                disabled={isUpdatingCategory}
-              >
-                Set as Personal Complaint
-              </button>
-            </>
+            </div>
           ) : null}
         </div>
+
+        {showConfirmation && selectedCategory && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 10000,
+            }}
+            onClick={() => setShowConfirmation(false)}
+          >
+            <div
+              style={{
+                backgroundColor: "white",
+                padding: "24px",
+                borderRadius: "8px",
+                boxShadow: "0 10px 25px rgba(0, 0, 0, 0.2)",
+                maxWidth: "400px",
+                textAlign: "center",
+                zIndex: 10001,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 style={{ marginBottom: "12px", marginTop: 0 }}>
+                Confirm Category
+              </h3>
+              <p style={{ color: "#6b7280", marginBottom: "20px" }}>
+                Categorize this complaint as:
+              </p>
+              <div
+                style={{
+                  backgroundColor: "#f3f4f6",
+                  padding: "12px",
+                  borderRadius: "6px",
+                  marginBottom: "20px",
+                  fontWeight: "500",
+                }}
+              >
+                {titleCase(selectedCategory)}
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "8px",
+                  justifyContent: "center",
+                }}
+              >
+                <button
+                  style={{
+                    padding: "8px 16px",
+                    backgroundColor: "#e5e7eb",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                  }}
+                  onClick={() => {
+                    setShowConfirmation(false);
+                    setSelectedCategory(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  style={{
+                    padding: "8px 16px",
+                    backgroundColor: "#3b82f6",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                  }}
+                  onClick={handleConfirmCategory}
+                  disabled={isUpdatingCategory}
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>,
     document.body,
@@ -409,7 +552,6 @@ export default function OfficialComplaintsView() {
     }
   };
 
-
   useEffect(() => {
     fetchComplaints();
   }, []);
@@ -452,9 +594,12 @@ export default function OfficialComplaintsView() {
 
   const sectionCounts = useMemo(() => {
     return SECTION_CONFIGS.reduce((accumulator, section) => {
-      accumulator[section.key] = complaints.filter(
-        (complaint) => complaint.sectionKey === section.key,
-      ).length;
+      accumulator[section.key] =
+        section.key === "all"
+          ? complaints.length
+          : complaints.filter(
+              (complaint) => complaint.sectionKey === section.key,
+            ).length;
       return accumulator;
     }, {});
   }, [complaints]);
@@ -464,7 +609,8 @@ export default function OfficialComplaintsView() {
     const end = endDate ? new Date(`${endDate}T23:59:59`) : null;
 
     return complaints.filter((complaint) => {
-      const sectionMatch = complaint.sectionKey === activeSection;
+      const sectionMatch =
+        activeSection === "all" || complaint.sectionKey === activeSection;
       const searchableColumns = [
         complaint.complaintType,
         complaint.incidentLocation,
@@ -538,13 +684,14 @@ export default function OfficialComplaintsView() {
         setErrorComplaints(
           result.message || "Failed to update complaint category",
         );
-        return;
+        return { success: false, message: result.message };
       }
 
       await fetchComplaints();
-      closeModal();
+      return { success: true };
     } catch (error) {
       setErrorComplaints("Error updating complaint category: " + error.message);
+      return { success: false, message: error.message };
     } finally {
       setIsUpdatingCategory(false);
     }
@@ -681,6 +828,7 @@ export default function OfficialComplaintsView() {
             <thead>
               <tr>
                 <th>Complaint Type</th>
+                <th>Category</th>
                 <th>Respondent(s)</th>
                 <th>Incident Date</th>
                 <th>Submitted</th>
@@ -691,7 +839,7 @@ export default function OfficialComplaintsView() {
             <tbody>
               {loadingComplaints ? (
                 <tr>
-                  <td colSpan="6">
+                  <td colSpan="7">
                     <div className="loading-wrap" style={{ padding: "1rem 0" }}>
                       <div className="loading-spinner" aria-hidden="true" />
                       <div className="loading-text">Loading complaints...</div>
@@ -701,7 +849,7 @@ export default function OfficialComplaintsView() {
               ) : errorComplaints ? (
                 <tr>
                   <td
-                    colSpan="6"
+                    colSpan="7"
                     style={{ color: "#ef4444", textAlign: "center" }}
                   >
                     {errorComplaints}
@@ -719,6 +867,11 @@ export default function OfficialComplaintsView() {
                           {highlightText(complaint.incidentLocation)}
                         </span>
                       </div>
+                    </td>
+                    <td>
+                      <span className="req-submitted">
+                        {highlightText(complaint.sectionLabel)}
+                      </span>
                     </td>
                     <td>
                       <span className="req-submitted complaint-table-respondents">
@@ -757,7 +910,7 @@ export default function OfficialComplaintsView() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="table-empty-cell">
+                  <td colSpan="7" className="table-empty-cell">
                     No complaints found in this section
                   </td>
                 </tr>

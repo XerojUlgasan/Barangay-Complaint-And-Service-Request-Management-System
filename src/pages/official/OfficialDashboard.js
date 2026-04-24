@@ -359,13 +359,15 @@ const OfficialDashboard = () => {
       (complaint) => normalizeValue(complaint.category) === "community concern",
     ).length,
     barangayComplaint: assignedComplaints.filter(
-      (complaint) => normalizeValue(complaint.category) === "barangay complaint",
+      (complaint) =>
+        normalizeValue(complaint.category) === "barangay complaint",
     ).length,
     communityDispute: assignedComplaints.filter(
       (complaint) => normalizeValue(complaint.category) === "community dispute",
     ).length,
     personalComplaint: assignedComplaints.filter(
-      (complaint) => normalizeValue(complaint.category) === "personal complaint",
+      (complaint) =>
+        normalizeValue(complaint.category) === "personal complaint",
     ).length,
   };
 

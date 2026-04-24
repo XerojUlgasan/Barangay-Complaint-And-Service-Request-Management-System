@@ -118,6 +118,10 @@ body.modal-active .sidebar-overlay {
   margin-bottom: 1.5rem;
 }
 
+.nav-section:has(.nav-subitem) .nav-items {
+  margin-top: 0.1rem;
+}
+
 .nav-section:last-child {
   margin-bottom: 0;
 }
@@ -126,9 +130,7 @@ body.modal-active .sidebar-overlay {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: #9ca3af;
-  text-transform: uppercase;
-  padding: 0 1rem;
+
   margin: 0 0 0.75rem 0;
 }
 
@@ -152,6 +154,19 @@ body.modal-active .sidebar-overlay {
   font-weight: 500;
   border-left: none;
   position: relative;
+}
+
+.nav-subitem {
+  margin-left: 1.1rem;
+  padding-left: 1.25rem;
+  font-size: 13px;
+  background: rgba(16, 185, 129, 0.03);
+}
+
+.nav-subitem svg {
+  width: 18px;
+  height: 18px;
+  padding: 3px;
 }
 
 .nav-item svg {
@@ -187,6 +202,11 @@ body.modal-active .sidebar-overlay {
   font-weight: 700;
   border-left: 3px solid #10b981;
   padding-left: calc(1rem - 3px);
+}
+
+.nav-subitem.active {
+  margin-left: 0.95rem;
+  padding-left: calc(1.25rem - 3px);
 }
 
 .nav-item.active:hover {
@@ -360,6 +380,11 @@ body.modal-active .sidebar-overlay {
     padding: 0.75rem 1rem;
     font-size: 14px;
     margin: 0.25rem 0.5rem;
+  }
+
+  .nav-subitem {
+    margin-left: 0.85rem;
+    padding-left: 1rem;
   }
 
   .mobile-menu-toggle {

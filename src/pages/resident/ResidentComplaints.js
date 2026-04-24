@@ -497,9 +497,8 @@ const MyComplaints = () => {
   const filtered = complaints
     .filter((c) => {
       const complaintSectionKey = getComplaintSectionKey(c.category);
-      const isActiveComplaint = activeComplaintSectionKeys.includes(
-        complaintSectionKey,
-      );
+      const isActiveComplaint =
+        activeComplaintSectionKeys.includes(complaintSectionKey);
       const sectionMatch =
         activeComplaintSection === "all"
           ? isActiveComplaint
@@ -550,15 +549,13 @@ const MyComplaints = () => {
         ),
       ).length;
     } else {
-      accumulator[section.key] = complaints.filter(
-        (complaint) => {
-          const complaintSectionKey = getComplaintSectionKey(complaint.category);
-          return (
-            activeComplaintSectionKeys.includes(complaintSectionKey) &&
-            complaintSectionKey === section.key
-          );
-        },
-      ).length;
+      accumulator[section.key] = complaints.filter((complaint) => {
+        const complaintSectionKey = getComplaintSectionKey(complaint.category);
+        return (
+          activeComplaintSectionKeys.includes(complaintSectionKey) &&
+          complaintSectionKey === section.key
+        );
+      }).length;
     }
     return accumulator;
   }, {});
@@ -935,7 +932,7 @@ const MyComplaints = () => {
                       })}
                     </div>
                   )}
-                  </div>
+                </div>
               </div>
             </div>
           </div>

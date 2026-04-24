@@ -456,7 +456,7 @@ export const updateComplaintCategory = async (complaintId, category) => {
     .from("complaint_tbl")
     .update({
       category: normalizedCategory,
-      status: complaintData.status,
+      status: "recorded",
       updated_by: userData.user.id,
       updated_at: new Date().toISOString(),
     })
@@ -467,7 +467,10 @@ export const updateComplaintCategory = async (complaintId, category) => {
     return { success: false, message: "Failed to update complaint category" };
   }
 
-  return { success: true, message: "Complaint category updated successfully" };
+  return {
+    success: true,
+    message: "Complaint category updated and status set to recorded",
+  };
 };
 
 export const getActiveOfficialsForAssignment = async () => {

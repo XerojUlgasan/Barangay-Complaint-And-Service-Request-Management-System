@@ -1,4 +1,9 @@
-import { BrowserRouter as Router, Routes, Route, useNavigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useNavigate,
+} from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 // TODO: Sanitize user inputs for security
@@ -15,6 +20,7 @@ import {
   Megaphone,
   Users,
   AlertCircle,
+  MessageSquare,
 } from "lucide-react";
 
 // --- Public / User-facing pages ---
@@ -32,6 +38,8 @@ import OfficialDashboard from "./pages/official/OfficialDashboard";
 import OfficialRequests from "./pages/official/OfficialRequests";
 import OfficialComplaints from "./pages/official/OfficialComplaints";
 import OfficialAnnouncements from "./pages/official/OfficialAnnouncements";
+import OfficialMediation from "./pages/official/OfficialMediation";
+import OfficialConciliation from "./pages/official/OfficialConciliation";
 
 // --- Admin pages ---
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -157,6 +165,18 @@ function AppRoutes() {
                 label: "Complaints",
                 icon: <Megaphone size={18} />,
               },
+              {
+                section: "Amicable Settlements",
+                path: "/BarangayOfficial/amicable-settlements/mediation",
+                label: "Mediation",
+                icon: <MessageSquare size={18} />,
+              },
+              {
+                section: "Amicable Settlements",
+                path: "/BarangayOfficial/amicable-settlements/conciliation",
+                label: "Conciliation",
+                icon: <MessageSquare size={18} />,
+              },
             ]}
             userName={userName}
             userPosition={userPosition}
@@ -170,6 +190,14 @@ function AppRoutes() {
         <Route path="announcements" element={<OfficialAnnouncements />} />
         <Route path="requests" element={<OfficialRequests />} />
         <Route path="complaints" element={<OfficialComplaints />} />
+        <Route
+          path="amicable-settlements/mediation"
+          element={<OfficialMediation />}
+        />
+        <Route
+          path="amicable-settlements/conciliation"
+          element={<OfficialConciliation />}
+        />
       </Route>
 
       {/* ADMIN PORTAL ROUTES */}

@@ -1963,7 +1963,8 @@ function CasesOverviewView({
                     style={{ background: "#10b981" }}
                   ></span>
                   <span className="legend-label">
-                    Community Concern ({complaintCategoryCounts.communityConcern})
+                    Community Concern (
+                    {complaintCategoryCounts.communityConcern})
                   </span>
                 </div>
                 <div className="legend-item">
@@ -1972,7 +1973,8 @@ function CasesOverviewView({
                     style={{ background: "#0ea5e9" }}
                   ></span>
                   <span className="legend-label">
-                    Barangay Complaint ({complaintCategoryCounts.barangayComplaint})
+                    Barangay Complaint (
+                    {complaintCategoryCounts.barangayComplaint})
                   </span>
                 </div>
                 <div className="legend-item">
@@ -1981,7 +1983,8 @@ function CasesOverviewView({
                     style={{ background: "#ef4444" }}
                   ></span>
                   <span className="legend-label">
-                    Community Dispute ({complaintCategoryCounts.communityDispute})
+                    Community Dispute (
+                    {complaintCategoryCounts.communityDispute})
                   </span>
                 </div>
                 <div className="legend-item">
@@ -1990,7 +1993,8 @@ function CasesOverviewView({
                     style={{ background: "#8b5cf6" }}
                   ></span>
                   <span className="legend-label">
-                    Personal Complaint ({complaintCategoryCounts.personalComplaint})
+                    Personal Complaint (
+                    {complaintCategoryCounts.personalComplaint})
                   </span>
                 </div>
               </div>
