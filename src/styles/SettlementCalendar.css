@@ -255,6 +255,44 @@
   line-height: 1.35;
 }
 
+.settlement-time-range {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.settlement-time-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.28rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  border: 1px solid transparent;
+}
+
+.settlement-time-chip.start {
+  background: #ecfdf5;
+  border-color: #86efac;
+  color: #047857;
+}
+
+.settlement-time-chip.end {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.settlement-time-separator {
+  color: #6b7280;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 .settlement-edit-form,
 .settlement-create-form {
   border-top: 1px solid #e5e7eb;

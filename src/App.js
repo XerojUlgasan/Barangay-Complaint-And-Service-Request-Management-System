@@ -32,6 +32,7 @@ import SubmitRequest from "./pages/resident/SubmitRequest";
 import MyRequest from "./pages/resident/ResidentRequests";
 import MyComplaints from "./pages/resident/ResidentComplaints";
 import Announcements from "./pages/resident/ResidentAnnouncements";
+import ResidentSettlements from "./pages/resident/ResidentSettlements";
 
 // --- Official pages ---
 import OfficialDashboard from "./pages/official/OfficialDashboard";
@@ -108,6 +109,14 @@ function AppRoutes() {
         element={
           <ResidentLayout>
             <Announcements />
+          </ResidentLayout>
+        }
+      />
+      <Route
+        path="/my-settlements"
+        element={
+          <ResidentLayout>
+            <ResidentSettlements />
           </ResidentLayout>
         }
       />

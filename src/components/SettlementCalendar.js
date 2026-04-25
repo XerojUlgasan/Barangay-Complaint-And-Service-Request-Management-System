@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   formatPhilippineDateOnly,
-  formatPhilippineDateTime,
   toPhilippineDateTimeLocalValue,
 } from "../utils/philippineTime";
 import "../styles/SettlementCalendar.css";
@@ -52,11 +51,18 @@ const getTodayKey = () => {
 
 const DEFAULT_START_TIME = "09:00";
 const DEFAULT_END_TIME = "10:00";
-const EDIT_STATUS_OPTIONS = ["rescheduled", "unresolved", "resolved", "rejected"];
+const EDIT_STATUS_OPTIONS = [
+  "rescheduled",
+  "unresolved",
+  "resolved",
+  "rejected",
+];
 
 const toMinutes = (timeValue) => {
   if (!timeValue || !timeValue.includes(":")) return 0;
-  const [hour, minute] = timeValue.split(":").map((value) => Number(value) || 0);
+  const [hour, minute] = timeValue
+    .split(":")
+    .map((value) => Number(value) || 0);
   return hour * 60 + minute;
 };
 
@@ -73,6 +79,20 @@ const getTimeOnly = (dateTimeValue, fallback = DEFAULT_START_TIME) => {
   const raw = String(dateTimeValue || "").trim();
   if (!raw.includes("T")) return fallback;
   return raw.slice(11, 16) || fallback;
+};
+
+const formatPhilippineTimeOnly = (value, fallback = "N/A") => {
+  if (!value) return fallback;
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return fallback;
+
+  return parsed.toLocaleTimeString("en-US", {
+    timeZone: "Asia/Manila",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
 };
 
 const composeDateTime = (dayKey, timeValue) => `${dayKey}T${timeValue}`;
@@ -167,7 +187,9 @@ export default function SettlementCalendar({
     setCreateForm((previous) => ({
       ...previous,
       startTime: previous.startTime || DEFAULT_START_TIME,
-      endTime: previous.endTime || addOneHour(previous.startTime || DEFAULT_START_TIME),
+      endTime:
+        previous.endTime ||
+        addOneHour(previous.startTime || DEFAULT_START_TIME),
     }));
     setEditingSettlement(null);
     setIsCreateModalOpen(false);
@@ -189,7 +211,9 @@ export default function SettlementCalendar({
     setCreateForm((previous) => ({
       ...previous,
       startTime: previous.startTime || DEFAULT_START_TIME,
-      endTime: previous.endTime || addOneHour(previous.startTime || DEFAULT_START_TIME),
+      endTime:
+        previous.endTime ||
+        addOneHour(previous.startTime || DEFAULT_START_TIME),
     }));
     setCreateMessage({ type: "", text: "" });
     setIsCreateModalOpen(true);
@@ -270,9 +294,19 @@ export default function SettlementCalendar({
     });
   }, [complaintOptions, complaintSearch]);
 
+  const selectedComplaintOption = useMemo(
+    () =>
+      (complaintOptions || []).find(
+        (option) => String(option.id) === String(createForm.complaintId),
+      ) || null,
+    [complaintOptions, createForm.complaintId],
+  );
+
   const shiftMonth = (offset) => {
     setMonthCursor((previous) => {
-      const date = new Date(Date.UTC(previous.year, previous.month + offset, 1));
+      const date = new Date(
+        Date.UTC(previous.year, previous.month + offset, 1),
+      );
       return {
         year: date.getUTCFullYear(),
         month: date.getUTCMonth(),
@@ -283,6 +317,14 @@ export default function SettlementCalendar({
   const handleCreateSettlement = async (event) => {
     event.preventDefault();
     if (!onCreateSettlement || submitting) return;
+
+    if (selectedComplaintOption?.lockedForNewSettlement) {
+      setCreateMessage({
+        type: "error",
+        text: "This complaint already has a linked settlement that is not rejected.",
+      });
+      return;
+    }
 
     if (isSelectedDayInPast) {
       setCreateMessage({
@@ -323,7 +365,10 @@ export default function SettlementCalendar({
       return;
     }
 
-    setCreateMessage({ type: "success", text: "Settlement scheduled successfully." });
+    setCreateMessage({
+      type: "success",
+      text: "Settlement scheduled successfully.",
+    });
     setCreateForm((previous) => ({
       ...previous,
       complaintId: "",
@@ -337,8 +382,14 @@ export default function SettlementCalendar({
 
   const handleStartEdit = (settlement) => {
     const recordedDateKey = getLocalDateKey(settlement.session_start);
-    const recordedStartTime = getTimeOnly(settlement.sessionStartLocal, DEFAULT_START_TIME);
-    const recordedEndTime = getTimeOnly(settlement.sessionEndLocal, DEFAULT_END_TIME);
+    const recordedStartTime = getTimeOnly(
+      settlement.sessionStartLocal,
+      DEFAULT_START_TIME,
+    );
+    const recordedEndTime = getTimeOnly(
+      settlement.sessionEndLocal,
+      DEFAULT_END_TIME,
+    );
     const normalizedStatus = normalizeValue(settlement.status);
     const initialStatus = EDIT_STATUS_OPTIONS.includes(normalizedStatus)
       ? normalizedStatus
@@ -364,9 +415,15 @@ export default function SettlementCalendar({
 
     const normalizedStatus = normalizeValue(editForm.status);
     const shouldLockOutcome = isOutcomeLockedStatus(normalizedStatus);
-    const dateKey = shouldLockOutcome ? editForm.recordedDateKey : editForm.dateKey;
-    const startTime = shouldLockOutcome ? editForm.recordedStartTime : editForm.startTime;
-    const endTime = shouldLockOutcome ? editForm.recordedEndTime : editForm.endTime;
+    const dateKey = shouldLockOutcome
+      ? editForm.recordedDateKey
+      : editForm.dateKey;
+    const startTime = shouldLockOutcome
+      ? editForm.recordedStartTime
+      : editForm.startTime;
+    const endTime = shouldLockOutcome
+      ? editForm.recordedEndTime
+      : editForm.endTime;
 
     if (normalizedStatus === "scheduled") {
       setEditMessage({
@@ -411,7 +468,10 @@ export default function SettlementCalendar({
       return;
     }
 
-    setEditMessage({ type: "success", text: "Settlement updated successfully." });
+    setEditMessage({
+      type: "success",
+      text: "Settlement updated successfully.",
+    });
     setEditingSettlement(null);
     setSubmitting(false);
   };
@@ -507,12 +567,17 @@ export default function SettlementCalendar({
                 <div className="settlement-item-top">
                   <div>
                     <strong>#{settlement.id}</strong>
-                    <span className="settlement-pill type">{titleCase(settlement.type)}</span>
+                    <span className="settlement-pill type">
+                      {titleCase(settlement.type)}
+                    </span>
                     <span className="settlement-pill status">
                       {titleCase(settlement.status || "scheduled")}
                     </span>
                   </div>
-                  <button type="button" onClick={() => handleStartEdit(settlement)}>
+                  <button
+                    type="button"
+                    onClick={() => handleStartEdit(settlement)}
+                  >
                     Edit
                   </button>
                 </div>
@@ -521,14 +586,26 @@ export default function SettlementCalendar({
                   <div>
                     <label>Complaint</label>
                     <p>
-                      #{settlement.complaint_id} - {settlement.complaint?.complaint_type || "Unknown"}
+                      #{settlement.complaint_id} -{" "}
+                      {settlement.complaint?.complaint_type || "Unknown"}
                     </p>
                   </div>
                   <div>
                     <label>Schedule</label>
-                    <p>
-                      {formatPhilippineDateTime(settlement.session_start, "N/A")} to{" "}
-                      {formatPhilippineDateTime(settlement.session_end, "N/A")}
+                    <p className="settlement-time-range">
+                      <span className="settlement-time-chip start">
+                        {formatPhilippineTimeOnly(
+                          settlement.session_start,
+                          "N/A",
+                        )}
+                      </span>
+                      <span className="settlement-time-separator">to</span>
+                      <span className="settlement-time-chip end">
+                        {formatPhilippineTimeOnly(
+                          settlement.session_end,
+                          "N/A",
+                        )}
+                      </span>
                     </p>
                   </div>
                   <div>
@@ -540,7 +617,6 @@ export default function SettlementCalendar({
                     </p>
                   </div>
                 </div>
-
               </div>
             ))
           )}
@@ -555,12 +631,19 @@ export default function SettlementCalendar({
           >
             <div className="settlement-modal-header">
               <h4>Add Settlement</h4>
-              <button type="button" onClick={closeCreateModal} disabled={submitting}>
+              <button
+                type="button"
+                onClick={closeCreateModal}
+                disabled={submitting}
+              >
                 Close
               </button>
             </div>
 
-            <form className="settlement-create-form" onSubmit={handleCreateSettlement}>
+            <form
+              className="settlement-create-form"
+              onSubmit={handleCreateSettlement}
+            >
               <div>
                 <label>Search Complaint</label>
                 <input
@@ -594,11 +677,13 @@ export default function SettlementCalendar({
                 </select>
                 {createForm.complaintId ? (
                   <p className="settlement-muted">
-                    {
-                      complaintOptions.find(
-                        (option) => String(option.id) === String(createForm.complaintId),
-                      )?.subtitle
-                    }
+                    {selectedComplaintOption?.subtitle}
+                  </p>
+                ) : null}
+                {selectedComplaintOption?.lockedForNewSettlement ? (
+                  <p className="settlement-form-message error">
+                    This complaint already has a linked settlement that is not
+                    rejected, so a new settlement cannot be created.
                   </p>
                 ) : null}
               </div>
@@ -684,7 +769,11 @@ export default function SettlementCalendar({
           >
             <div className="settlement-modal-header">
               <h4>Edit Settlement</h4>
-              <button type="button" onClick={closeEditModal} disabled={submitting}>
+              <button
+                type="button"
+                onClick={closeEditModal}
+                disabled={submitting}
+              >
                 Close
               </button>
             </div>
@@ -693,22 +782,32 @@ export default function SettlementCalendar({
               <div>
                 <span>Complaint</span>
                 <strong>
-                  #{editingSettlement.complaint_id} - {editingSettlement.complaint?.complaint_type || "Unknown"}
+                  #{editingSettlement.complaint_id} -{" "}
+                  {editingSettlement.complaint?.complaint_type || "Unknown"}
                 </strong>
               </div>
               <div>
                 <span>Parties</span>
                 <strong>
-                  {(editingSettlement.partyNames || []).map((party) => party.fullName).join(", ") || "N/A"}
+                  {(editingSettlement.partyNames || [])
+                    .map((party) => party.fullName)
+                    .join(", ") || "N/A"}
                 </strong>
               </div>
             </div>
 
-            <form className="settlement-create-form" onSubmit={handleUpdateSettlement}>
+            <form
+              className="settlement-create-form"
+              onSubmit={handleUpdateSettlement}
+            >
               <div className="settlement-create-grid">
                 <div>
                   <label>Type</label>
-                  <input value={titleCase(editingSettlement.type)} readOnly disabled />
+                  <input
+                    value={titleCase(editingSettlement.type)}
+                    readOnly
+                    disabled
+                  />
                 </div>
                 <div>
                   <label>Status</label>

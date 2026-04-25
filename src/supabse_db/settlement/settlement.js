@@ -13,13 +13,6 @@ export const SETTLEMENT_STATUS_OPTIONS = [
   "rejected",
 ];
 
-const SETTLEMENT_EDIT_STATUS_OPTIONS = [
-  "rescheduled",
-  "unresolved",
-  "resolved",
-  "rejected",
-];
-
 const normalizeValue = (value) =>
   String(value || "")
     .trim()
@@ -64,6 +57,16 @@ const ensureOfficial = async () => {
       success: false,
       message: "You do not have permission to access settlements",
     };
+  }
+
+  return { success: true, userId: userData.user.id };
+};
+
+const ensureAuthenticated = async () => {
+  const { data: userData, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !userData?.user) {
+    return { success: false, message: "Not authenticated" };
   }
 
   return { success: true, userId: userData.user.id };
@@ -150,7 +153,10 @@ const fetchResidentNameMap = async (authUids = []) => {
   }
 
   const mapped = Object.fromEntries(
-    (data || []).map((row) => [row.auth_uid, row.resident_fullname || "Unknown"]),
+    (data || []).map((row) => [
+      row.auth_uid,
+      row.resident_fullname || "Unknown",
+    ]),
   );
 
   return { success: true, data: mapped };
@@ -183,6 +189,7 @@ const fetchComplaintMap = async (complaintIds = []) => {
 export const getSettlementConflicts = async ({
   sessionStart,
   sessionEnd,
+  settlementType = null,
   excludeSettlementId = null,
 } = {}) => {
   const startIso = toUtcIso(sessionStart);
@@ -201,6 +208,20 @@ export const getSettlementConflicts = async ({
     .lt("session_start", endIso)
     .gt("session_end", startIso)
     .order("session_start", { ascending: true });
+
+  const normalizedType = settlementType
+    ? toCanonicalSettlementType(settlementType)
+    : "";
+  if (normalizedType) {
+    if (!SETTLEMENT_TYPE_OPTIONS.includes(normalizedType)) {
+      return {
+        success: false,
+        message: "Invalid settlement type.",
+      };
+    }
+
+    query = query.eq("type", normalizedType);
+  }
 
   if (excludeSettlementId) {
     query = query.neq("id", excludeSettlementId);
@@ -238,21 +259,30 @@ export const getSettlementComplaintOptions = async () => {
   ].filter(Boolean);
 
   const residentNamesResult = await fetchResidentNameMap(allPartyUids);
-  const residentNames = residentNamesResult.success ? residentNamesResult.data : {};
+  const residentNames = residentNamesResult.success
+    ? residentNamesResult.data
+    : {};
 
   const linkedSettlementIds = [
-    ...new Set((complaints || []).map((row) => row.settlement_id).filter(Boolean)),
+    ...new Set(
+      (complaints || []).map((row) => row.settlement_id).filter(Boolean),
+    ),
   ];
   let linkedSettlementStatusMap = {};
 
   if (linkedSettlementIds.length > 0) {
-    const { data: linkedSettlements, error: linkedSettlementError } = await supabase
-      .from("settlement_tbl")
-      .select("id, status, type")
-      .in("id", linkedSettlementIds);
+    const { data: linkedSettlements, error: linkedSettlementError } =
+      await supabase
+        .from("settlement_tbl")
+        .select("id, status, type")
+        .in("id", linkedSettlementIds);
 
     if (linkedSettlementError) {
-      return { success: false, message: linkedSettlementError.message, data: [] };
+      return {
+        success: false,
+        message: linkedSettlementError.message,
+        data: [],
+      };
     }
 
     linkedSettlementStatusMap = Object.fromEntries(
@@ -262,7 +292,9 @@ export const getSettlementComplaintOptions = async () => {
 
   const options = (complaints || []).map((row) => {
     const complainantName = residentNames[row.complainant_id] || "Unknown";
-    const respondentNames = (Array.isArray(row.respondent_id) ? row.respondent_id : [])
+    const respondentNames = (
+      Array.isArray(row.respondent_id) ? row.respondent_id : []
+    )
       .map((uid) => residentNames[uid] || uid)
       .join(", ");
 
@@ -271,7 +303,10 @@ export const getSettlementComplaintOptions = async () => {
       : null;
     const linkedStatus = normalizeValue(linkedSettlement?.status);
     const hasLinkedSettlement = Boolean(row.settlement_id);
-    const isLocked = hasLinkedSettlement && linkedStatus !== "rejected";
+    const isLocked =
+      hasLinkedSettlement &&
+      Boolean(linkedSettlement) &&
+      linkedStatus !== "rejected";
 
     return {
       id: row.id,
@@ -300,20 +335,24 @@ export const getSettlementComplaintOptions = async () => {
 const enrichSettlements = async (rows = []) => {
   const complaintIds = rows.map((row) => row.complaint_id);
   const complaintMapResult = await fetchComplaintMap(complaintIds);
-  const complaintMap = complaintMapResult.success ? complaintMapResult.data : {};
+  const complaintMap = complaintMapResult.success
+    ? complaintMapResult.data
+    : {};
 
   const allPartyUids = rows
     .flatMap((row) => (Array.isArray(row.parties_uid) ? row.parties_uid : []))
     .filter(Boolean);
 
   const residentNamesResult = await fetchResidentNameMap(allPartyUids);
-  const residentNames = residentNamesResult.success ? residentNamesResult.data : {};
+  const residentNames = residentNamesResult.success
+    ? residentNamesResult.data
+    : {};
 
   return rows.map((row) => {
     const complaint = complaintMap[String(row.complaint_id)] || null;
-    const partyNames = (Array.isArray(row.parties_uid) ? row.parties_uid : []).map(
-      (uid) => ({ uid, fullName: residentNames[uid] || uid }),
-    );
+    const partyNames = (
+      Array.isArray(row.parties_uid) ? row.parties_uid : []
+    ).map((uid) => ({ uid, fullName: residentNames[uid] || uid }));
 
     return {
       ...row,
@@ -351,6 +390,37 @@ export const getAllSettlements = async ({ type = "all" } = {}) => {
   return { success: true, data: enriched };
 };
 
+export const getResidentSettlements = async ({ userId = null } = {}) => {
+  let targetUserId = userId;
+
+  if (!targetUserId) {
+    const authResult = await ensureAuthenticated();
+    if (!authResult.success) {
+      return {
+        success: false,
+        message: authResult.message,
+        data: [],
+      };
+    }
+
+    targetUserId = authResult.userId;
+  }
+
+  const { data, error } = await supabase
+    .from("settlement_tbl")
+    .select("*")
+    .contains("parties_uid", [targetUserId])
+    .order("session_start", { ascending: true })
+    .order("id", { ascending: true });
+
+  if (error) {
+    return { success: false, message: error.message, data: [] };
+  }
+
+  const enriched = await enrichSettlements(data || []);
+  return { success: true, data: enriched };
+};
+
 export const createSettlement = async ({
   complaintId,
   type,
@@ -361,7 +431,10 @@ export const createSettlement = async ({
   const accessResult = await ensureOfficial();
   if (!accessResult.success) return accessResult;
 
-  const scheduleValidation = validateScheduleRules({ sessionStart, sessionEnd });
+  const scheduleValidation = validateScheduleRules({
+    sessionStart,
+    sessionEnd,
+  });
   if (!scheduleValidation.success) {
     return scheduleValidation;
   }
@@ -375,10 +448,10 @@ export const createSettlement = async ({
   }
 
   const normalizedStatus = normalizeValue(status);
-  if (!SETTLEMENT_EDIT_STATUS_OPTIONS.includes(normalizedStatus)) {
+  if (!SETTLEMENT_STATUS_OPTIONS.includes(normalizedStatus)) {
     return {
       success: false,
-      message: "Invalid settlement status for edits.",
+      message: "Invalid settlement status.",
     };
   }
 
@@ -392,7 +465,11 @@ export const createSettlement = async ({
     };
   }
 
-  const conflictsResult = await getSettlementConflicts({ sessionStart, sessionEnd });
+  const conflictsResult = await getSettlementConflicts({
+    sessionStart,
+    sessionEnd,
+    settlementType: normalizedType,
+  });
 
   if (!conflictsResult.success) {
     return conflictsResult;
@@ -420,11 +497,12 @@ export const createSettlement = async ({
   }
 
   if (complaint.settlement_id) {
-    const { data: linkedSettlement, error: linkedSettlementError } = await supabase
-      .from("settlement_tbl")
-      .select("id, status")
-      .eq("id", complaint.settlement_id)
-      .maybeSingle();
+    const { data: linkedSettlement, error: linkedSettlementError } =
+      await supabase
+        .from("settlement_tbl")
+        .select("id, status")
+        .eq("id", complaint.settlement_id)
+        .maybeSingle();
 
     if (linkedSettlementError) {
       return {
@@ -487,7 +565,10 @@ export const updateSettlementSchedule = async ({
   const accessResult = await ensureOfficial();
   if (!accessResult.success) return accessResult;
 
-  const scheduleValidation = validateScheduleRules({ sessionStart, sessionEnd });
+  const scheduleValidation = validateScheduleRules({
+    sessionStart,
+    sessionEnd,
+  });
   if (!scheduleValidation.success) {
     return scheduleValidation;
   }
@@ -508,7 +589,8 @@ export const updateSettlementSchedule = async ({
   ) {
     return {
       success: false,
-      message: "Session must stay on the same selected day and not be in the past.",
+      message:
+        "Session must stay on the same selected day and not be in the past.",
     };
   }
 
@@ -520,9 +602,24 @@ export const updateSettlementSchedule = async ({
     };
   }
 
+  const { data: existingSettlement, error: existingSettlementError } =
+    await supabase
+      .from("settlement_tbl")
+      .select("id, type")
+      .eq("id", settlementId)
+      .maybeSingle();
+
+  if (existingSettlementError || !existingSettlement) {
+    return {
+      success: false,
+      message: existingSettlementError?.message || "Settlement not found.",
+    };
+  }
+
   const conflictsResult = await getSettlementConflicts({
     sessionStart,
     sessionEnd,
+    settlementType: existingSettlement.type,
     excludeSettlementId: settlementId,
   });
 

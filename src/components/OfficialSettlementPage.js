@@ -113,17 +113,19 @@ export default function OfficialSettlementPage({ title, defaultType }) {
         </div>
 
         <p className="muted" style={{ padding: "0 24px 0.65rem", margin: 0 }}>
-          View all settlement schedules, inspect party names from residents,
-          and create conflict-free sessions.
+          View all settlement schedules, inspect party names from residents, and
+          create conflict-free sessions.
         </p>
 
         <p className="muted" style={{ padding: "0 24px 1rem", margin: 0 }}>
-          Showing {settlements.length} total settlement(s), {defaultTypeCount} in this
-          section type.
+          Showing {settlements.length} total settlement(s), {defaultTypeCount}{" "}
+          in this section type.
         </p>
 
         <div style={{ padding: "0 24px 24px" }}>
-          {error ? <p style={{ color: "#dc2626", marginTop: 0 }}>{error}</p> : null}
+          {error ? (
+            <p style={{ color: "#dc2626", marginTop: 0 }}>{error}</p>
+          ) : null}
 
           <SettlementCalendar
             settlements={settlements}
