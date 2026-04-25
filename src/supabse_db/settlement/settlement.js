@@ -390,6 +390,87 @@ export const getAllSettlements = async ({ type = "all" } = {}) => {
   return { success: true, data: enriched };
 };
 
+/**
+ * Admin-scoped: fetch all settlements (no official role check).
+ * Used by the superadmin mediations page.
+ */
+export const getAllSettlementsForAdmin = async ({ type = "all" } = {}) => {
+  const accessResult = await ensureAuthenticated();
+  if (!accessResult.success) return accessResult;
+
+  let query = supabase
+    .from("settlement_tbl")
+    .select("*")
+    .order("session_start", { ascending: true })
+    .order("id", { ascending: true });
+
+  const normalizedType = toCanonicalSettlementType(type);
+  if (normalizedType && normalizedType !== "all") {
+    query = query.eq("type", normalizedType);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    return { success: false, message: error.message, data: [] };
+  }
+
+  const enriched = await enrichSettlements(data || []);
+  return { success: true, data: enriched };
+};
+
+/**
+ * Fetch ALL settlements for a specific complaint_id.
+ * Used for the settlement timeline (history) in the detail view.
+ * Ordered by created_at DESC (latest first).
+ */
+export const getSettlementsByComplaintId = async (complaintId) => {
+  const accessResult = await ensureAuthenticated();
+  if (!accessResult.success) return accessResult;
+
+  if (!complaintId) {
+    return { success: false, message: "Complaint ID is required.", data: [] };
+  }
+
+  const { data, error } = await supabase
+    .from("settlement_tbl")
+    .select("*")
+    .eq("complaint_id", complaintId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    return { success: false, message: error.message, data: [] };
+  }
+
+  const enriched = await enrichSettlements(data || []);
+  return { success: true, data: enriched };
+};
+
+/**
+ * Fetch complaint info by ID (complaint_id, complaint_type, description).
+ * Used by the superadmin mediations detail view.
+ */
+export const getComplaintById = async (complaintId) => {
+  const accessResult = await ensureAuthenticated();
+  if (!accessResult.success) return accessResult;
+
+  const { data, error } = await supabase
+    .from("complaint_tbl")
+    .select("id, complaint_type, description")
+    .eq("id", complaintId)
+    .maybeSingle();
+
+  if (error) {
+    return { success: false, message: error.message, data: null };
+  }
+
+  if (!data) {
+    return { success: false, message: "Complaint not found.", data: null };
+  }
+
+  return { success: true, data };
+};
+
 export const getResidentSettlements = async ({ userId = null } = {}) => {
   let targetUserId = userId;
 

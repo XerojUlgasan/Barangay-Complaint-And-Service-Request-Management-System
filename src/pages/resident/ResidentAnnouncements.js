@@ -493,13 +493,30 @@ const Announcements = () => {
             </div>
 
             {/* Count Label */}
-            <div className="ann-count-label">
-              Showing {filteredAnnouncements.length} of {announcements.length}{" "}
-              announcements
-            </div>
+            {!loading && (
+              <div className="ann-count-label">
+                Showing {filteredAnnouncements.length} of{" "}
+                {announcements.length} announcements
+              </div>
+            )}
 
             {/* Cards Grid */}
-            {filteredAnnouncements.length === 0 ? (
+            {loading ? (
+              <div className="ann-cards-grid">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="ann-card-skeleton" style={{ animationDelay: `${i * 0.08}s` }}>
+                    <div className="ann-skeleton-img" />
+                    <div className="ann-skeleton-body">
+                      <div className="ann-skeleton-meta" />
+                      <div className="ann-skeleton-title" />
+                      <div className="ann-skeleton-desc" />
+                      <div className="ann-skeleton-desc short" />
+                      <div className="ann-skeleton-footer" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredAnnouncements.length === 0 ? (
               <div className="ann-empty-state">
                 <div className="ann-empty-icon">📭</div>
                 <p className="ann-empty-text">No announcements found</p>
@@ -514,6 +531,8 @@ const Announcements = () => {
                   const priorityConfig = getPriorityConfig(ann.priority);
                   const isEvent =
                     (ann.category || "").toLowerCase() === "event";
+                  const isAlert =
+                    (ann.category || "").toLowerCase() === "alert";
                   const isSignedUp = userSignups && userSignups[ann.id];
                   const participantCount =
                     (participantCounts && participantCounts[ann.id]) || 0;
@@ -530,12 +549,16 @@ const Announcements = () => {
                         ),
                       )
                     : 0;
+                  const eventStatus = getEventStatus(ann);
 
                   return (
                     <div
                       className="ann-card-new"
                       key={ann.id}
-                      style={{ animationDelay: `${idx * 0.05}s` }}
+                      style={{
+                        animationDelay: `${idx * 0.05}s`,
+                        borderLeftColor: catConfig.color,
+                      }}
                     >
                       {/* Image / Placeholder */}
                       <div className="ann-card-img-wrap">
@@ -548,7 +571,9 @@ const Announcements = () => {
                         ) : (
                           <div
                             className="ann-card-img-placeholder"
-                            style={{ background: catConfig.bg }}
+                            style={{
+                              background: `linear-gradient(145deg, ${catConfig.bg} 0%, ${catConfig.color}30 100%)`,
+                            }}
                           >
                             <span className="ann-card-img-emoji">
                               {catConfig.icon}
@@ -576,6 +601,22 @@ const Announcements = () => {
                             {priorityConfig.label}
                           </span>
                         )}
+
+                        {/* Event status badge (bottom-left) */}
+                        {isEvent && (
+                          <span
+                            className={`ann-card-event-status ann-card-event-status--${eventStatus
+                              .toLowerCase()
+                              .replace(/\s+/g, "-")}`}
+                          >
+                            {eventStatus}
+                          </span>
+                        )}
+
+                        {/* Signed-up badge (bottom-right) */}
+                        {isEvent && isSignedUp && (
+                          <span className="ann-card-signedup-badge">✓ Joined</span>
+                        )}
                       </div>
 
                       {/* Card Body */}
@@ -597,7 +638,26 @@ const Announcements = () => {
                           {highlightText(getAnnouncementDescription(ann))}
                         </p>
 
-                        {/* Event details */}
+                        {/* Alert attention banner */}
+                        {isAlert && (
+                          <div className="ann-card-alert-banner">
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              width="13"
+                              height="13"
+                            >
+                              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                              <line x1="12" y1="9" x2="12" y2="13" />
+                              <line x1="12" y1="17" x2="12.01" y2="17" />
+                            </svg>
+                            <span>Attention required — read the full details</span>
+                          </div>
+                        )}
+
+                        {/* Event date row */}
                         {isEvent && ann.event_start && (
                           <div className="ann-card-event-row">
                             <svg
@@ -865,6 +925,17 @@ const Announcements = () => {
                 </button>
               </div>
               <div className="history-modal-body resident-ann-details-body">
+                {/* Announcement image (if any) */}
+                {announcementImages[selectedAnnouncement.id] && (
+                  <div className="resident-ann-modal-img-wrap">
+                    <img
+                      src={announcementImages[selectedAnnouncement.id]}
+                      alt={getAnnouncementTitle(selectedAnnouncement)}
+                      className="resident-ann-modal-img"
+                    />
+                  </div>
+                )}
+
                 <div className="resident-ann-section">
                   <div className="resident-ann-section-title">Description</div>
                   <p className="resident-ann-desc">
@@ -878,6 +949,21 @@ const Announcements = () => {
                       Event Schedule
                     </div>
                     <div className="resident-ann-info-grid">
+                      <div className="resident-ann-info-item">
+                        <span>Status</span>
+                        <strong>
+                          <span
+                            className="resident-ann-event-status-inline"
+                            data-status={getEventStatus(
+                              selectedAnnouncement,
+                            )
+                              .toLowerCase()
+                              .replace(/\s+/g, "-")}
+                          >
+                            {getEventStatus(selectedAnnouncement)}
+                          </span>
+                        </strong>
+                      </div>
                       <div className="resident-ann-info-item">
                         <span>Start</span>
                         <strong>

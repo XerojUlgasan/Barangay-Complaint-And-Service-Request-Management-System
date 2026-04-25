@@ -225,7 +225,8 @@
     box-shadow 0.2s ease,
     border-color 0.2s ease;
   animation: annCardIn 0.35s ease both;
-  height: 200px;
+  height: auto;
+  min-height: 200px;
   border-left: 4px solid transparent;
 }
 .ann-card-new:hover {

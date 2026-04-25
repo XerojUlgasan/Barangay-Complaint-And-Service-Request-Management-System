@@ -149,6 +149,8 @@ export default function SettlementCalendar({
   loading = false,
   onCreateSettlement,
   onUpdateSettlement,
+  readOnly = false,
+  allowPastDates = false,
 }) {
   const todayKey = getTodayKey();
   const [monthCursor, setMonthCursor] = useState(() => {
@@ -519,9 +521,9 @@ export default function SettlementCalendar({
             <button
               key={cell.key}
               type="button"
-              className={`settlement-calendar-cell${cell.outsideMonth ? " outside" : ""}${isSelected ? " selected" : ""}${isToday ? " today" : ""}${isPast ? " past" : ""}`}
+              className={`settlement-calendar-cell${cell.outsideMonth ? " outside" : ""}${isSelected ? " selected" : ""}${isToday ? " today" : ""}${isPast && !allowPastDates ? " past" : ""}`}
               onClick={() => setSelectedDay(cell.key)}
-              disabled={isPast}
+              disabled={isPast && !allowPastDates}
             >
               <span className="day-number">{cell.day}</span>
               {total > 0 ? <span className="day-count">{total}</span> : null}
@@ -534,6 +536,7 @@ export default function SettlementCalendar({
         <div className="settlement-day-panel-header">
           <h4>{formatPhilippineDateOnly(selectedDay, "Selected Day")}</h4>
           <div className="settlement-day-panel-actions">
+            {!readOnly && (
             <button
               type="button"
               className="settlement-add-btn"
@@ -542,6 +545,7 @@ export default function SettlementCalendar({
             >
               Add Settlement
             </button>
+            )}
             <span>{selectedDaySettlements.length} scheduled settlement(s)</span>
           </div>
         </div>
@@ -574,12 +578,14 @@ export default function SettlementCalendar({
                       {titleCase(settlement.status || "scheduled")}
                     </span>
                   </div>
+                  {!readOnly && (
                   <button
                     type="button"
                     onClick={() => handleStartEdit(settlement)}
                   >
                     Edit
                   </button>
+                  )}
                 </div>
 
                 <div className="settlement-item-meta">

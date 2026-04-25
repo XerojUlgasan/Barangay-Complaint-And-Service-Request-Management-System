@@ -110,7 +110,7 @@ const normalizeMediationDateInput = (value) => {
 
 const getLatestMediationSession = async (complaintId) => {
   const { data, error } = await supabase
-    .from("mediations_tbl")
+    .from("settlement_tbl")
     .select("id, complaint_id, session_start, session_end, status, created_at")
     .eq("complaint_id", complaintId)
     .order("created_at", { ascending: false })
@@ -126,7 +126,7 @@ const getLatestMediationSession = async (complaintId) => {
 
 export const getActiveMediationSessions = async (excludeComplaintId = null) => {
   const { data, error } = await supabase
-    .from("mediations_tbl")
+    .from("settlement_tbl")
     .select("id, complaint_id, session_start, session_end, status, created_at")
     .in("status", MEDIATION_ACTIVE_STATUSES)
     .order("session_start", { ascending: true })
@@ -696,7 +696,7 @@ export const getComplaintMediationHistory = async (complaintId) => {
   }
 
   const { data, error } = await supabase
-    .from("mediations_tbl")
+    .from("settlement_tbl")
     .select("id, complaint_id, created_at, session_start, session_end, status")
     .eq("complaint_id", complaintId)
     .order("created_at", { ascending: true })
@@ -884,7 +884,7 @@ export const updateComplaintMediationStatus = async ({
 
   if (normalizedStatus === "rejected") {
     const { data, error } = await supabase
-      .from("mediations_tbl")
+      .from("settlement_tbl")
       .update({
         status: normalizedStatus,
       })
@@ -934,7 +934,7 @@ export const updateComplaintMediationStatus = async ({
 
   if (normalizedStatus === "resolved") {
     const { data, error } = await supabase
-      .from("mediations_tbl")
+      .from("settlement_tbl")
       .update({
         status: normalizedStatus,
       })
@@ -1025,7 +1025,7 @@ export const updateComplaintMediationStatus = async ({
   }
 
   const { data, error } = await supabase
-    .from("mediations_tbl")
+    .from("settlement_tbl")
     .update(updatePayload)
     .eq("id", latestSession.id)
     .eq("complaint_id", complaintId)

@@ -355,7 +355,7 @@ export const getComplaintTrends = async (monthsBack = 6) => {
 export const getAllMediations = async () => {
   try {
     const { data, error } = await supabase
-      .from("mediations_tbl")
+      .from("settlement_tbl")
       .select(
         `
         id,

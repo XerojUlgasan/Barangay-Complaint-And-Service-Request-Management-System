@@ -32,7 +32,7 @@ const normalizeComplaintValue = (value) =>
 
 const getLatestMediationStatusForComplaint = async (complaintId) => {
   const { data, error } = await supabase
-    .from("mediations_tbl")
+    .from("settlement_tbl")
     .select("status")
     .eq("complaint_id", complaintId)
     .order("created_at", { ascending: false })

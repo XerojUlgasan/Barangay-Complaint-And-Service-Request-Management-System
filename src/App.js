@@ -48,6 +48,7 @@ import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
 import AdminRequests from "./pages/admin/AdminRequests";
 import AdminComplaints from "./pages/admin/AdminComplaints";
 import AdminUsers from "./pages/admin/AdminUsers";
+import AdminMediations from "./pages/admin/AdminMediations";
 
 //test
 import Home from "./pages/home";
@@ -222,11 +223,6 @@ function AppRoutes() {
                 end: true,
               },
               {
-                path: "/BarangayAdmin/announcements",
-                label: "Announcements",
-                icon: <Megaphone size={18} />,
-              },
-              {
                 path: "/BarangayAdmin/requests",
                 label: "Requests",
                 icon: <FileText size={18} />,
@@ -237,9 +233,19 @@ function AppRoutes() {
                 icon: <AlertCircle size={18} />,
               },
               {
+                path: "/BarangayAdmin/mediations",
+                label: "Settlements",
+                icon: <MessageSquare size={18} />,
+              },
+              {
                 path: "/BarangayAdmin/users",
                 label: "Users",
                 icon: <Users size={18} />,
+              },
+              {
+                path: "/BarangayAdmin/announcements",
+                label: "Announcements",
+                icon: <Megaphone size={18} />,
               },
             ]}
             userName={userName}
@@ -255,6 +261,7 @@ function AppRoutes() {
         <Route path="requests" element={<AdminRequests />} />
         <Route path="complaints" element={<AdminComplaints />} />
         <Route path="users" element={<AdminUsers />} />
+        <Route path="mediations" element={<AdminMediations />} />
       </Route>
 
       {/* FALLBACK - Old Admin Portal */}
@@ -270,11 +277,6 @@ function AppRoutes() {
                 end: true,
               },
               {
-                path: "/BarangayAdmin/announcements",
-                label: "Announcements",
-                icon: <Megaphone size={18} />,
-              },
-              {
                 path: "/BarangayAdmin/requests",
                 label: "Requests",
                 icon: <FileText size={18} />,
@@ -285,9 +287,19 @@ function AppRoutes() {
                 icon: <AlertCircle size={18} />,
               },
               {
+                path: "/BarangayAdmin/mediations",
+                label: "Settlements",
+                icon: <MessageSquare size={18} />,
+              },
+              {
                 path: "/BarangayAdmin/users",
                 label: "Users",
                 icon: <Users size={18} />,
+              },
+              {
+                path: "/BarangayAdmin/announcements",
+                label: "Announcements",
+                icon: <Megaphone size={18} />,
               },
             ]}
             userName={userName}
@@ -302,6 +314,7 @@ function AppRoutes() {
         <Route path="requests" element={<AdminRequests />} />
         <Route path="complaints" element={<AdminComplaints />} />
         <Route path="users" element={<AdminUsers />} />
+        <Route path="mediations" element={<AdminMediations />} />
       </Route>
     </Routes>
   );

@@ -5785,3 +5785,255 @@
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   }
 }
+
+/* ================================================================
+   RESIDENT ANNOUNCEMENTS — ENHANCED UI
+   ================================================================ */
+
+/* ── Skeleton Loading ───────────────────────────────────────────── */
+@keyframes annSkeletonShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes annCardSkeletonIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.user-landing-page .ann-card-skeleton {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1.5px solid #e5e7eb;
+  border-left: 4px solid #e5e7eb;
+  overflow: hidden;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  height: 200px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+  animation: annCardSkeletonIn 0.3s ease both;
+}
+
+.user-landing-page .ann-skeleton-img {
+  width: 280px;
+  flex-shrink: 0;
+  background: linear-gradient(90deg, #f3f4f6 25%, #e9ebee 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: annSkeletonShimmer 1.5s ease infinite;
+}
+
+.user-landing-page .ann-skeleton-body {
+  flex: 1;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.user-landing-page .ann-skeleton-meta {
+  height: 10px;
+  width: 32%;
+  border-radius: 5px;
+  background: linear-gradient(90deg, #f3f4f6 25%, #e9ebee 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: annSkeletonShimmer 1.5s ease infinite;
+}
+
+.user-landing-page .ann-skeleton-title {
+  height: 16px;
+  width: 78%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f3f4f6 25%, #e9ebee 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: annSkeletonShimmer 1.5s ease infinite;
+}
+
+.user-landing-page .ann-skeleton-desc {
+  height: 11px;
+  width: 92%;
+  border-radius: 5px;
+  background: linear-gradient(90deg, #f3f4f6 25%, #e9ebee 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: annSkeletonShimmer 1.5s ease infinite;
+}
+
+.user-landing-page .ann-skeleton-desc.short {
+  width: 60%;
+}
+
+.user-landing-page .ann-skeleton-footer {
+  height: 34px;
+  width: 100%;
+  border-radius: 8px;
+  margin-top: auto;
+  background: linear-gradient(90deg, #f3f4f6 25%, #e9ebee 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: annSkeletonShimmer 1.5s ease infinite;
+}
+
+/* ── Event Status Badge (on card image, bottom-left) ─────────────── */
+.user-landing-page .ann-card-event-status {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.user-landing-page .ann-card-event-status--upcoming {
+  background: rgba(37, 99, 235, 0.88);
+  color: #ffffff;
+}
+
+.user-landing-page .ann-card-event-status--ongoing {
+  background: rgba(217, 119, 6, 0.9);
+  color: #ffffff;
+}
+
+.user-landing-page .ann-card-event-status--completed {
+  background: rgba(75, 85, 99, 0.82);
+  color: #ffffff;
+}
+
+.user-landing-page .ann-card-event-status--no-schedule {
+  background: rgba(156, 163, 175, 0.8);
+  color: #ffffff;
+}
+
+/* ── Signed-up Badge (on card image, bottom-right) ─────────────── */
+.user-landing-page .ann-card-signedup-badge {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  background: rgba(5, 150, 105, 0.9);
+  color: #ffffff;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* ── Alert Attention Banner (inside card body) ───────────────────── */
+.user-landing-page .ann-card-alert-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  font-size: 11.5px;
+  font-weight: 600;
+  width: fit-content;
+  flex-shrink: 0;
+}
+
+/* ── Details Modal — Announcement Image ──────────────────────────── */
+.user-landing-page .resident-ann-modal-img-wrap {
+  border-radius: 12px;
+  overflow: hidden;
+  height: 200px;
+  flex-shrink: 0;
+}
+
+.user-landing-page .resident-ann-modal-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ── Event Status Inline (inside details modal info grid) ─────────── */
+.user-landing-page .resident-ann-event-status-inline {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.user-landing-page .resident-ann-event-status-inline[data-status="upcoming"] {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.user-landing-page .resident-ann-event-status-inline[data-status="ongoing"] {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.user-landing-page .resident-ann-event-status-inline[data-status="completed"] {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.user-landing-page .resident-ann-event-status-inline[data-status="no-schedule"] {
+  background: #f3f4f6;
+  color: #9ca3af;
+}
+
+/* ── Mobile Responsive: Stack cards vertically ───────────────────── */
+@media (max-width: 640px) {
+  .user-landing-page .ann-card-new,
+  .user-landing-page .ann-card-skeleton {
+    flex-direction: column;
+    height: auto;
+    min-height: unset;
+  }
+
+  .user-landing-page .ann-card-img-wrap {
+    width: 100%;
+    height: 155px;
+    flex-shrink: 0;
+  }
+
+  .user-landing-page .ann-skeleton-img {
+    width: 100%;
+    height: 140px;
+    flex-shrink: 0;
+  }
+
+  .user-landing-page .ann-card-body {
+    padding: 14px 16px;
+  }
+
+  .user-landing-page .ann-card-footer {
+    flex-wrap: wrap;
+  }
+
+  .user-landing-page .ann-card-btn-primary,
+  .user-landing-page .ann-card-btn-outline,
+  .user-landing-page .ann-card-btn-cancel {
+    flex: unset;
+    width: 100%;
+  }
+
+  .user-landing-page .ann-page-header {
+    padding: 1.25rem 1rem 1rem;
+  }
+
+  .user-landing-page .ann-toolbar {
+    padding: 0 1rem 0.75rem;
+  }
+
+  .user-landing-page .ann-cards-grid {
+    padding: 0 1rem 2rem;
+  }
+
+  .user-landing-page .ann-count-label {
+    padding: 0 1rem 0.5rem;
+  }
+}

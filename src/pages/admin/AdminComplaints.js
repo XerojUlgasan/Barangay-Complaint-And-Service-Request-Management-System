@@ -94,6 +94,53 @@ const getComplaintCategoryColor = (category) =>
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+const titleCaseTimeline = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+
+const TIMELINE_TYPE_CONFIG = {
+  mediation: { color: "#7c3aed", bg: "#ede9fe" },
+  conciliation: { color: "#0891b2", bg: "#cffafe" },
+};
+
+const TIMELINE_STATUS_CONFIG = {
+  scheduled: { color: "#2563eb", bg: "#dbeafe" },
+  rescheduled: { color: "#d97706", bg: "#fef3c7" },
+  resolved: { color: "#059669", bg: "#d1fae5" },
+  unresolved: { color: "#dc2626", bg: "#fee2e2" },
+  rejected: { color: "#6b7280", bg: "#f3f4f6" },
+};
+
+const getTimelineStatusStyle = (status) => {
+  const norm = String(status || "").trim().toLowerCase().replace(/_/g, " ").replace(/\s+/g, " ");
+  return TIMELINE_STATUS_CONFIG[norm] || TIMELINE_STATUS_CONFIG.scheduled;
+};
+
+const getTimelineTypeStyle = (type) => {
+  const norm = String(type || "").trim().toLowerCase().replace(/_/g, " ").replace(/\s+/g, " ");
+  return TIMELINE_TYPE_CONFIG[norm] || TIMELINE_TYPE_CONFIG.mediation;
+};
+
+const formatPhilTimeOnlyExt = (isoValue, fallback = "N/A") => {
+  if (!isoValue) return fallback;
+  const date = new Date(isoValue);
+  if (isNaN(date.getTime())) return fallback;
+  return date.toLocaleTimeString("en-US", {
+    timeZone: "Asia/Manila",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
+
+const formatPhilDateTimeExt = (val, fb="N/A") => {
+   if (!val) return fb;
+   const d = new Date(val);
+   if(isNaN(d.getTime())) return fb;
+   return d.toLocaleString("en-US", { timeZone: "Asia/Manila", month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true });
+};
+
 export default function AdminComplaints() {
   const location = useLocation();
   const [selectedComplaintStatus, setSelectedComplaintStatus] =
@@ -1165,7 +1212,7 @@ export default function AdminComplaints() {
                   </p>
                 </div>
                 <div className="ar-metadata-item">
-                  <label className="ar-metadata-label">Mediation</label>
+                  <label className="ar-metadata-label">Settlement</label>
                   <p className="ar-metadata-value">
                     <span
                       className="ar-status-badge"
@@ -1352,62 +1399,91 @@ export default function AdminComplaints() {
                 )}
               </div>
 
-              <div className="history-section">
-                <div className="history-header">
-                  <h3>Mediation History</h3>
-                </div>
+              <div className="admin-mediations-detail-section" style={{ marginTop: '2rem' }}>
+                <h4 className="admin-mediations-detail-heading">
+                  Settlement Timeline
+                  <span className="admin-mediations-timeline-count">
+                    {mediationHistory ? mediationHistory.length : 0} record(s)
+                  </span>
+                </h4>
+
                 {mediationHistoryLoading ? (
                   <p className="history-loading">
-                    Loading mediation history...
+                    Loading settlement history...
                   </p>
                 ) : mediationHistory && mediationHistory.length > 0 ? (
-                  <ul className="history-list">
-                    {mediationHistory.map((session, idx) => {
-                      const startDate = session.session_start
-                        ? new Date(session.session_start)
-                        : session.created_at
-                          ? new Date(session.created_at)
-                          : null;
-                      const endDate = session.session_end
-                        ? new Date(session.session_end)
-                        : null;
+                  <div className="admin-mediations-timeline">
+                    {mediationHistory.map((entry, idx) => {
+                      const entryTypeStyle = getTimelineTypeStyle(entry.type);
+                      const entryStatusStyle = getTimelineStatusStyle(entry.status);
+                      const isActive = idx === mediationHistory.length - 1;
+
                       return (
-                        <li
-                          key={session.id || idx}
-                          className="history-item"
-                          style={{
-                            "--dot-color": session.status_color || "#6B7280",
-                          }}
+                        <div
+                          className={`admin-mediations-timeline-node${isActive ? " active" : ""}`}
+                          key={entry.id || idx}
                         >
-                          <div className="history-row">
-                            <div className="history-row-top">
+                          <div className="admin-mediations-timeline-dot" />
+                          {idx < mediationHistory.length - 1 && (
+                            <div className="admin-mediations-timeline-line" />
+                          )}
+                          <div className="admin-mediations-timeline-content">
+                            <div className="admin-mediations-timeline-top">
+                              <span className="admin-mediations-timeline-id">
+                                #{entry.id || "N/A"}
+                              </span>
                               <span
-                                className="history-status"
+                                className="admin-mediations-pill small"
                                 style={{
-                                  backgroundColor:
-                                    session.status_color || "#6B7280",
+                                  color: entryTypeStyle.color,
+                                  background: entryTypeStyle.bg,
                                 }}
                               >
-                                {session.status_label || "Unknown"}
+                                {titleCaseTimeline(entry.type || "mediation")}
                               </span>
-                              <span className="history-user">
-                                Mediation Session #{idx + 1}
+                              <span
+                                className="admin-mediations-pill small"
+                                style={{
+                                  color: entryStatusStyle.color,
+                                  background: entryStatusStyle.bg,
+                                }}
+                              >
+                                {titleCaseTimeline(entry.status || "scheduled")}
                               </span>
+                              {isActive && (
+                                <span className="admin-mediations-pill small current">
+                                  Current
+                                </span>
+                              )}
                             </div>
-                            <span className="history-date">
-                              {startDate
-                                ? startDate.toLocaleString()
-                                : "No start time"}
-                              {endDate ? ` - ${endDate.toLocaleString()}` : ""}
-                            </span>
+                            <div className="admin-mediations-timeline-meta">
+                              <div>
+                                <span className="admin-mediations-timeline-label">
+                                  Session
+                                </span>
+                                <span className="admin-mediations-timeline-val">
+                                  {formatPhilDateTimeExt(entry.session_start)}
+                                  {" "}→{" "}
+                                  {formatPhilTimeOnlyExt(entry.session_end)}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="admin-mediations-timeline-label">
+                                  Created
+                                </span>
+                                <span className="admin-mediations-timeline-val">
+                                  {formatPhilDateTimeExt(entry.created_at)}
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                        </li>
+                        </div>
                       );
                     })}
-                  </ul>
+                  </div>
                 ) : (
-                  <p className="no-history">
-                    No mediation history available for this complaint.
+                  <p className="admin-mediations-muted">
+                    No settlement timeline available for this complaint.
                   </p>
                 )}
               </div>

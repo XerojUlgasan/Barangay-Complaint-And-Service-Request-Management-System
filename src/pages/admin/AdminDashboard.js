@@ -1549,7 +1549,7 @@ function CasesOverviewView({
       );
     }
 
-    // 11. MEDIATION OUTCOME
+    // 11. SETTLEMENT OUTCOME
     if (mediationsInPeriod.length > 0) {
       const resolvedCount = mediationsInPeriod.filter(
         (m) => normalizeStatus(m.status) === "resolved",
@@ -1561,7 +1561,7 @@ function CasesOverviewView({
         (resolvedCount / mediationsInPeriod.length) * 100,
       );
       insightsList.push(
-        `Mediation Outcome: ${resolvedCount}/${mediationsInPeriod.length} resolved (${resolutionRate}%), ${unresolvedCount} unresolved.`,
+        `Settlement Outcome: ${resolvedCount}/${mediationsInPeriod.length} resolved (${resolutionRate}%), ${unresolvedCount} unresolved.`,
       );
     }
 
@@ -1676,10 +1676,10 @@ function CasesOverviewView({
             <span className="stat-icon">
               <Users size={18} />
             </span>
-            <div className="stat-label">Accepted Mediations</div>
+            <div className="stat-label">Accepted Settlements</div>
             <div className="stat-num">{mediationAcceptedComplaints}</div>
             <div className="stat-sub">
-              Residents accepted mediation requests
+              Residents accepted settlement requests
             </div>
           </div>
 
@@ -1687,7 +1687,7 @@ function CasesOverviewView({
             <span className="stat-icon">
               <Megaphone size={18} />
             </span>
-            <div className="stat-label">Mediation Sessions</div>
+            <div className="stat-label">Settlement Sessions</div>
             <div className="stat-num">{mediations.length}</div>
             <div className="stat-sub">
               {mediationStatusCounts.scheduled} scheduled
