@@ -1,4 +1,430 @@
 /* ================================================================
+   ADMIN DASHBOARD - Modern Minimalist Design
+   ================================================================ */
+
+.admin-page .admin-dashboard {
+  padding: 0;
+  max-width: 100%;
+  margin: 0;
+}
+
+.admin-dashboard .dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.admin-dashboard .dashboard-header h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.02em;
+}
+
+.admin-dashboard .time-filter {
+  display: flex;
+  gap: 8px;
+  background: #f8fafc;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.admin-dashboard .time-filter button {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-dashboard .time-filter button:hover {
+  color: #111827;
+  background: #ffffff;
+}
+
+.admin-dashboard .time-filter button.active {
+  background: #10b981;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+}
+
+.admin-dashboard .dashboard-section {
+  margin-bottom: 48px;
+}
+
+.admin-dashboard .dashboard-section h2 {
+  margin: 0 0 24px;
+  font-size: 22px;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.01em;
+}
+
+.admin-dashboard .stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.admin-dashboard .stat-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 20px;
+  transition: all 0.2s ease;
+}
+
+.admin-dashboard .stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  border-color: #10b981;
+}
+
+.admin-dashboard .stat-value {
+  font-size: 32px;
+  font-weight: 800;
+  color: #10b981;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.admin-dashboard .stat-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.admin-dashboard .charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 20px;
+}
+
+.admin-dashboard .charts-grid-2x2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.admin-dashboard .charts-grid-2x2 .chart-card {
+  min-height: 350px;
+}
+
+.admin-dashboard .charts-grid-2x2 .chart-container {
+  height: 260px;
+  overflow-y: auto;
+}
+
+.admin-dashboard .comparison-grid-settlement {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.admin-dashboard .comparison-grid-settlement-vertical {
+  display: flex;
+  gap: 0;
+  height: 100%;
+}
+
+.admin-dashboard .comparison-grid-settlement-vertical .comparison-item {
+  flex: 1;
+  padding: 18px;
+  background: #f8fafc;
+  border-radius: 0;
+  border: none;
+}
+
+.admin-dashboard .comparison-grid-settlement-vertical .comparison-item:first-child {
+  border-radius: 12px 0 0 12px;
+}
+
+.admin-dashboard .comparison-grid-settlement-vertical .comparison-item:last-child {
+  border-radius: 0 12px 12px 0;
+}
+
+.admin-dashboard .comparison-divider {
+  width: 2px;
+  background: linear-gradient(to bottom, #e5e7eb, #10b981, #e5e7eb);
+  flex-shrink: 0;
+}
+
+.admin-dashboard .chart-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 20px;
+  transition: all 0.2s ease;
+}
+
+.admin-dashboard .chart-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.admin-dashboard .chart-card h3 {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.admin-dashboard .chart-container {
+  height: 280px;
+  position: relative;
+}
+
+.admin-dashboard .insights-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.admin-dashboard .insights-card h3 {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.admin-dashboard .insights-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-dashboard .insight-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.admin-dashboard .insight-type {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.admin-dashboard .insight-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.admin-dashboard .insight-value {
+  font-size: 16px;
+  font-weight: 800;
+  color: #10b981;
+}
+
+.admin-dashboard .insight-detail {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.admin-dashboard .type-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.admin-dashboard .type-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s ease;
+}
+
+.admin-dashboard .type-item:hover {
+  background: #f0fdf4;
+  border-color: #10b981;
+}
+
+.admin-dashboard .type-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.admin-dashboard .type-count {
+  font-size: 13px;
+  font-weight: 800;
+  color: #10b981;
+  background: #d1fae5;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.admin-dashboard .pattern-insights {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.admin-dashboard .pattern-group h4 {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.admin-dashboard .pattern-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background: #f8fafc;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.admin-dashboard .pattern-count {
+  font-weight: 700;
+  color: #10b981;
+}
+
+.admin-dashboard .comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.admin-dashboard .comparison-item {
+  padding: 18px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.admin-dashboard .comparison-item h4 {
+  margin: 0 0 14px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.admin-dashboard .comparison-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.admin-dashboard .comparison-stat:last-child {
+  border-bottom: none;
+}
+
+.admin-dashboard .comparison-stat span:first-child {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.admin-dashboard .comparison-stat .stat-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: #10b981;
+  margin: 0;
+}
+
+.admin-dashboard .loading-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+@media (max-width: 1200px) {
+  .admin-dashboard .charts-grid-2x2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1024px) {
+  .admin-dashboard .charts-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .admin-dashboard .charts-grid-2x2 {
+    grid-template-columns: 1fr;
+  }
+  
+  .admin-dashboard .comparison-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-dashboard .dashboard-header h1 {
+    font-size: 22px;
+  }
+  
+  .admin-dashboard .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .admin-dashboard .charts-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .admin-dashboard .pattern-insights {
+    grid-template-columns: 1fr;
+  }
+  
+  .admin-dashboard .chart-container {
+    height: 250px;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-dashboard .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .admin-dashboard .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .admin-dashboard .time-filter {
+    width: 100%;
+  }
+  
+  .admin-dashboard .time-filter button {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+}
+
+/* ================================================================
    SHARED TABLE & FILTER UTILITIES
    Used by OfficialRequests and OfficialComplaints
    ================================================================ */

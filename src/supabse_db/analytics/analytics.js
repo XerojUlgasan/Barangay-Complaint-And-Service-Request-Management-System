@@ -388,6 +388,37 @@ export const getAllMediations = async () => {
   }
 };
 
+// Get all settlements with related complaint and parties information
+export const getAllSettlements = async () => {
+  try {
+    const { data, error } = await supabase
+      .from("settlement_tbl")
+      .select(
+        `
+        *,
+        complaint:complaint_tbl!mediations_tbl_complaint_id_fkey (
+          id,
+          complaint_type,
+          complainant_id,
+          status,
+          created_at
+        )
+      `,
+      )
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching settlements:", error);
+      return { success: false, message: error.message, data: [] };
+    }
+
+    return { success: true, data: data || [] };
+  } catch (err) {
+    console.error("Error in getAllSettlements:", err);
+    return { success: false, message: err.message, data: [] };
+  }
+};
+
 // Get resident statistics
 export const getResidentStats = async () => {
   try {
@@ -523,4 +554,132 @@ export const calculateAverageResolutionTime = (requests = []) => {
   }, 0);
 
   return (totalDays / completedRequests.length).toFixed(1);
+};
+
+// Calculate completion time by certificate type
+export const calculateCompletionTimeByType = (requests = []) => {
+  const typeStats = {};
+
+  requests.forEach((req) => {
+    if (!req.certificate_type || !req.created_at || !req.updated_at) return;
+    if (req.request_status !== "completed" && req.request_status !== "rejected") return;
+
+    const type = req.certificate_type;
+    const created = new Date(req.created_at);
+    const updated = new Date(req.updated_at);
+    const days = (updated - created) / (1000 * 60 * 60 * 24);
+
+    if (!typeStats[type]) {
+      typeStats[type] = { total: 0, count: 0, completed: 0, rejected: 0 };
+    }
+
+    typeStats[type].total += days;
+    typeStats[type].count += 1;
+    if (req.request_status === "completed") typeStats[type].completed += 1;
+    if (req.request_status === "rejected") typeStats[type].rejected += 1;
+  });
+
+  return Object.entries(typeStats).map(([type, stats]) => ({
+    type,
+    avgDays: (stats.total / stats.count).toFixed(1),
+    count: stats.count,
+    completed: stats.completed,
+    rejected: stats.rejected,
+  }));
+};
+
+// Analyze complaint incident patterns
+export const analyzeIncidentPatterns = (complaints = []) => {
+  const dayOfWeek = { Sun: 0, Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0 };
+  const timeOfDay = { Morning: 0, Afternoon: 0, Evening: 0, Night: 0 };
+
+  complaints.forEach((comp) => {
+    if (!comp.incident_date) return;
+
+    const date = new Date(comp.incident_date);
+    const day = date.toLocaleDateString("en-US", { weekday: "short" });
+    const hour = date.getHours();
+
+    dayOfWeek[day] = (dayOfWeek[day] || 0) + 1;
+
+    if (hour >= 6 && hour < 12) timeOfDay.Morning += 1;
+    else if (hour >= 12 && hour < 18) timeOfDay.Afternoon += 1;
+    else if (hour >= 18 && hour < 22) timeOfDay.Evening += 1;
+    else timeOfDay.Night += 1;
+  });
+
+  return { dayOfWeek, timeOfDay };
+};
+
+// Analyze settlement speed by complaint type
+export const analyzeSettlementSpeed = (settlements = []) => {
+  const typeStats = {};
+
+  settlements.forEach((settlement) => {
+    if (!settlement.complaint?.complaint_type || !settlement.created_at || settlement.status !== "resolved") return;
+
+    const type = settlement.complaint.complaint_type;
+    const created = new Date(settlement.created_at);
+    const sessionStart = new Date(settlement.session_start);
+    const days = (sessionStart - created) / (1000 * 60 * 60 * 24);
+
+    if (!typeStats[type]) {
+      typeStats[type] = { total: 0, count: 0 };
+    }
+
+    typeStats[type].total += days;
+    typeStats[type].count += 1;
+  });
+
+  return Object.entries(typeStats).map(([type, stats]) => ({
+    type,
+    avgDays: (stats.total / stats.count).toFixed(1),
+    count: stats.count,
+  })).sort((a, b) => parseFloat(a.avgDays) - parseFloat(b.avgDays));
+};
+
+// Analyze settlement day preferences
+export const analyzeSettlementDays = (settlements = []) => {
+  const dayOfWeek = { Sun: 0, Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0 };
+
+  settlements.forEach((settlement) => {
+    if (!settlement.session_start) return;
+
+    const date = new Date(settlement.session_start);
+    const day = date.toLocaleDateString("en-US", { weekday: "short" });
+    dayOfWeek[day] = (dayOfWeek[day] || 0) + 1;
+  });
+
+  return dayOfWeek;
+};
+
+// Compare conciliation vs mediation success rates
+export const compareSettlementTypes = (settlements = []) => {
+  const stats = {
+    conciliation: { total: 0, resolved: 0, avgDays: 0, totalDays: 0 },
+    mediation: { total: 0, resolved: 0, avgDays: 0, totalDays: 0 },
+  };
+
+  settlements.forEach((settlement) => {
+    const type = settlement.type;
+    if (!type || !stats[type]) return;
+
+    stats[type].total += 1;
+    if (settlement.status === "resolved") stats[type].resolved += 1;
+
+    if (settlement.created_at && settlement.status === "resolved") {
+      const created = new Date(settlement.created_at);
+      const sessionStart = new Date(settlement.session_start);
+      const days = (sessionStart - created) / (1000 * 60 * 60 * 24);
+      stats[type].totalDays += days;
+    }
+  });
+
+  Object.keys(stats).forEach((type) => {
+    const s = stats[type];
+    s.successRate = s.total > 0 ? ((s.resolved / s.total) * 100).toFixed(1) : 0;
+    s.avgDays = s.resolved > 0 ? (s.totalDays / s.resolved).toFixed(1) : 0;
+  });
+
+  return stats;
 };
