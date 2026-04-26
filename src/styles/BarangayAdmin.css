@@ -4851,3 +4851,32 @@
 }
 
 
+
+.admin-dashboard .insight-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-dashboard .insight-box {
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-radius: 10px;
+  border-left: 5px solid #3b82f6;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #1e293b;
+  transition: all 0.3s ease;
+}
+
+.admin-dashboard .insight-box:hover {
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.admin-dashboard .insight-box strong {
+  color: #1e40af;
+  display: block;
+  margin-bottom: 6px;
+  font-size: 15px;
+}
