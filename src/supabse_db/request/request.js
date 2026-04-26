@@ -573,3 +573,123 @@ export const transferRequestAssignment = async (requestId, newOfficialUid) => {
     assignedOfficialName: `${officialData.first_name} ${officialData.last_name}`,
   };
 };
+
+export const claimRequest = async (requestId) => {
+  const { data: userData, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !userData || !userData.user) {
+    return { success: false, message: "Not authenticated" };
+  }
+
+  const { isOfficial } = await checkUserRole(userData.user.id);
+
+  if (!isOfficial) {
+    return {
+      success: false,
+      message: "Only officials can claim requests",
+    };
+  }
+
+  const { data: requestData } = await supabase
+    .from("request_tbl")
+    .select("id, assigned_official_id")
+    .eq("id", requestId)
+    .maybeSingle();
+
+  if (!requestData) {
+    return { success: false, message: "Request not found" };
+  }
+
+  if (requestData.assigned_official_id) {
+    return {
+      success: false,
+      message: "Request is already assigned to an official",
+    };
+  }
+
+  const { data: officialData, error: officialError } = await supabase
+    .from("barangay_officials")
+    .select("uid, first_name, last_name, status")
+    .eq("uid", userData.user.id)
+    .eq("status", "ACTIVE")
+    .maybeSingle();
+
+  if (officialError || !officialData) {
+    return { success: false, message: "You are not an active official" };
+  }
+
+  const { error } = await supabase
+    .from("request_tbl")
+    .update({
+      assigned_official_id: userData.user.id,
+      updated_at: new Date().toISOString(),
+      updated_by: userData.user.id,
+    })
+    .eq("id", requestId)
+    .is("assigned_official_id", null);
+
+  if (error) {
+    console.error("Error claiming request:", error);
+    return { success: false, message: "Failed to claim request" };
+  }
+
+  return {
+    success: true,
+    message: "Request claimed successfully",
+    assignedOfficialName: `${officialData.first_name} ${officialData.last_name}`,
+  };
+};
+
+export const unclaimRequest = async (requestId) => {
+  const { data: userData, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !userData || !userData.user) {
+    return { success: false, message: "Not authenticated" };
+  }
+
+  const { isOfficial } = await checkUserRole(userData.user.id);
+
+  if (!isOfficial) {
+    return {
+      success: false,
+      message: "Only officials can unclaim requests",
+    };
+  }
+
+  const { data: requestData } = await supabase
+    .from("request_tbl")
+    .select("id, assigned_official_id")
+    .eq("id", requestId)
+    .maybeSingle();
+
+  if (!requestData) {
+    return { success: false, message: "Request not found" };
+  }
+
+  if (requestData.assigned_official_id !== userData.user.id) {
+    return {
+      success: false,
+      message: "You can only unclaim requests assigned to you",
+    };
+  }
+
+  const { error } = await supabase
+    .from("request_tbl")
+    .update({
+      assigned_official_id: null,
+      updated_at: new Date().toISOString(),
+      updated_by: userData.user.id,
+    })
+    .eq("id", requestId)
+    .eq("assigned_official_id", userData.user.id);
+
+  if (error) {
+    console.error("Error unclaiming request:", error);
+    return { success: false, message: "Failed to unclaim request" };
+  }
+
+  return {
+    success: true,
+    message: "Request unclaimed successfully",
+  };
+};

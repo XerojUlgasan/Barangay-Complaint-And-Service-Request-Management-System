@@ -1149,3 +1149,123 @@ export const transferComplaintAssignment = async (
     assignedOfficialName: `${officialData.first_name} ${officialData.last_name}`,
   };
 };
+
+export const claimComplaint = async (complaintId) => {
+  const { data: userData, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !userData || !userData.user) {
+    return { success: false, message: "Not authenticated" };
+  }
+
+  const { isOfficial } = await checkUserRole(userData.user.id);
+
+  if (!isOfficial) {
+    return {
+      success: false,
+      message: "Only officials can claim complaints",
+    };
+  }
+
+  const { data: complaintData } = await supabase
+    .from("complaint_tbl")
+    .select("id, assigned_official_id")
+    .eq("id", complaintId)
+    .maybeSingle();
+
+  if (!complaintData) {
+    return { success: false, message: "Complaint not found" };
+  }
+
+  if (complaintData.assigned_official_id) {
+    return {
+      success: false,
+      message: "Complaint is already assigned to an official",
+    };
+  }
+
+  const { data: officialData, error: officialError } = await supabase
+    .from("barangay_officials")
+    .select("uid, first_name, last_name, status")
+    .eq("uid", userData.user.id)
+    .eq("status", "ACTIVE")
+    .maybeSingle();
+
+  if (officialError || !officialData) {
+    return { success: false, message: "You are not an active official" };
+  }
+
+  const { error } = await supabase
+    .from("complaint_tbl")
+    .update({
+      assigned_official_id: userData.user.id,
+      updated_at: new Date().toISOString(),
+      updated_by: userData.user.id,
+    })
+    .eq("id", complaintId)
+    .is("assigned_official_id", null);
+
+  if (error) {
+    console.error("Error claiming complaint:", error);
+    return { success: false, message: "Failed to claim complaint" };
+  }
+
+  return {
+    success: true,
+    message: "Complaint claimed successfully",
+    assignedOfficialName: `${officialData.first_name} ${officialData.last_name}`,
+  };
+};
+
+export const unclaimComplaint = async (complaintId) => {
+  const { data: userData, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !userData || !userData.user) {
+    return { success: false, message: "Not authenticated" };
+  }
+
+  const { isOfficial } = await checkUserRole(userData.user.id);
+
+  if (!isOfficial) {
+    return {
+      success: false,
+      message: "Only officials can unclaim complaints",
+    };
+  }
+
+  const { data: complaintData } = await supabase
+    .from("complaint_tbl")
+    .select("id, assigned_official_id")
+    .eq("id", complaintId)
+    .maybeSingle();
+
+  if (!complaintData) {
+    return { success: false, message: "Complaint not found" };
+  }
+
+  if (complaintData.assigned_official_id !== userData.user.id) {
+    return {
+      success: false,
+      message: "You can only unclaim complaints assigned to you",
+    };
+  }
+
+  const { error } = await supabase
+    .from("complaint_tbl")
+    .update({
+      assigned_official_id: null,
+      updated_at: new Date().toISOString(),
+      updated_by: userData.user.id,
+    })
+    .eq("id", complaintId)
+    .eq("assigned_official_id", userData.user.id);
+
+  if (error) {
+    console.error("Error unclaiming complaint:", error);
+    return { success: false, message: "Failed to unclaim complaint" };
+  }
+
+  return {
+    success: true,
+    message: "Complaint unclaimed successfully",
+  };
+};

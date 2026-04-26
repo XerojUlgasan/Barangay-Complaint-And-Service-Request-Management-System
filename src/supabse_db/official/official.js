@@ -60,7 +60,6 @@ export const getAssignedComplaints = async () => {
 
   const { isOfficial } = await checkUserRole(userData.user.id);
 
-  // Only officials can view assigned complaints
   if (!isOfficial) {
     console.log("Complaint does not exist or you don't have access to it");
     return {
@@ -81,7 +80,6 @@ export const getAssignedComplaints = async () => {
       )
     `,
     )
-    .eq("assigned_official_id", userData.user.id)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -165,7 +163,6 @@ export const getAssignedRequests = async () => {
 
   const { isOfficial } = await checkUserRole(userData.user.id);
 
-  // Only officials can view assigned requests
   if (!isOfficial) {
     console.log("Request does not exist or you don't have access to it");
     return {
@@ -186,7 +183,6 @@ export const getAssignedRequests = async () => {
       )
     `,
     )
-    .eq("assigned_official_id", userData.user.id)
     .order("created_at", { ascending: false });
 
   if (error) {

@@ -6,6 +6,8 @@ import {
   getAssignedRequests,
   updateRequestStatus,
 } from "../../supabse_db/official/official";
+import { claimRequest, unclaimRequest } from "../../supabse_db/request/request";
+import supabase from "../../supabse_db/supabase_client";
 import "../../styles/BarangayAdmin.css";
 import "../../styles/RequestDetail.css";
 
@@ -57,6 +59,8 @@ export default function OfficialRequests() {
   const [searchQuery, setSearchQuery] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [claimFilter, setClaimFilter] = useState("all");
 
   const searchTerms = Array.from(
     new Set(searchQuery.toLowerCase().trim().split(/\s+/).filter(Boolean)),
@@ -90,6 +94,13 @@ export default function OfficialRequests() {
     });
   };
 
+  const getCurrentUser = async () => {
+    const { data: userData } = await supabase.auth.getUser();
+    if (userData?.user) {
+      setCurrentUserId(userData.user.id);
+    }
+  };
+
   const fetchAssignedRequests = async () => {
     try {
       setLoadingRequests(true);
@@ -119,6 +130,8 @@ export default function OfficialRequests() {
                 : "N/A",
             description: req.description || "No description provided",
             internalNotes: req.remarks || "",
+            assigned_official_id: req.assigned_official_id || null,
+            assigned_official_name: req.assigned_official_name || null,
           };
         });
         setRequests(formattedRequests);
@@ -136,6 +149,7 @@ export default function OfficialRequests() {
 
   useEffect(() => {
     fetchAssignedRequests();
+    getCurrentUser();
   }, []);
 
   useEffect(() => {
@@ -206,7 +220,17 @@ export default function OfficialRequests() {
     const end = endDate ? new Date(endDate) : null;
     const dateMatch =
       (!start || requestDate >= start) && (!end || requestDate <= end);
-    return statusMatch && searchMatch && dateMatch;
+    
+    let claimMatch = true;
+    if (claimFilter === "mine") {
+      claimMatch = request.assigned_official_id === currentUserId;
+    } else if (claimFilter === "others") {
+      claimMatch = request.assigned_official_id && request.assigned_official_id !== currentUserId;
+    } else if (claimFilter === "unclaimed") {
+      claimMatch = !request.assigned_official_id;
+    }
+    
+    return statusMatch && searchMatch && dateMatch && claimMatch;
   });
 
   const openModal = (request) => {
@@ -244,6 +268,22 @@ export default function OfficialRequests() {
       }
     } catch (error) {
       console.error("Error saving request update:", error);
+    }
+  };
+
+  const handleClaimRequest = async (requestId) => {
+    const result = await claimRequest(requestId);
+    if (result.success) {
+      await fetchAssignedRequests();
+      handleCloseModal();
+    }
+  };
+
+  const handleUnclaimRequest = async (requestId) => {
+    const result = await unclaimRequest(requestId);
+    if (result.success) {
+      await fetchAssignedRequests();
+      handleCloseModal();
     }
   };
 
@@ -321,6 +361,66 @@ export default function OfficialRequests() {
                 </button>
               )}
             </div>
+          </div>
+
+          {/* ── Claim Filter Buttons ── */}
+          <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+            <button
+              onClick={() => setClaimFilter("all")}
+              style={{
+                padding: "0.5rem 1rem",
+                border: "1px solid #d1d5db",
+                borderRadius: "0.375rem",
+                backgroundColor: claimFilter === "all" ? "#3b82f6" : "#fff",
+                color: claimFilter === "all" ? "#fff" : "#374151",
+                fontWeight: "500",
+                cursor: "pointer",
+              }}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setClaimFilter("mine")}
+              style={{
+                padding: "0.5rem 1rem",
+                border: "1px solid #d1d5db",
+                borderRadius: "0.375rem",
+                backgroundColor: claimFilter === "mine" ? "#10b981" : "#fff",
+                color: claimFilter === "mine" ? "#fff" : "#374151",
+                fontWeight: "500",
+                cursor: "pointer",
+              }}
+            >
+              My Claims
+            </button>
+            <button
+              onClick={() => setClaimFilter("others")}
+              style={{
+                padding: "0.5rem 1rem",
+                border: "1px solid #d1d5db",
+                borderRadius: "0.375rem",
+                backgroundColor: claimFilter === "others" ? "#f59e0b" : "#fff",
+                color: claimFilter === "others" ? "#fff" : "#374151",
+                fontWeight: "500",
+                cursor: "pointer",
+              }}
+            >
+              Claimed by Others
+            </button>
+            <button
+              onClick={() => setClaimFilter("unclaimed")}
+              style={{
+                padding: "0.5rem 1rem",
+                border: "1px solid #d1d5db",
+                borderRadius: "0.375rem",
+                backgroundColor: claimFilter === "unclaimed" ? "#ef4444" : "#fff",
+                color: claimFilter === "unclaimed" ? "#fff" : "#374151",
+                fontWeight: "500",
+                cursor: "pointer",
+              }}
+            >
+              Unclaimed
+            </button>
           </div>
 
           {/* ── Status Dropdown ── */}
@@ -461,6 +561,9 @@ export default function OfficialRequests() {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         onSave={handleSaveRequest}
+        onClaim={handleClaimRequest}
+        onUnclaim={handleUnclaimRequest}
+        currentUserId={currentUserId}
       />
     </div>
   );

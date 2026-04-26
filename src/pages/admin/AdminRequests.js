@@ -7,7 +7,6 @@ import "../../styles/RequestDetail.css";
 import {
   getRequests,
   getRequestHistory,
-  assignAllUnassignedRequests,
   transferRequestAssignment,
 } from "../../supabse_db/request/request";
 import { getActiveOfficialsForAssignment } from "../../supabse_db/official/official";
@@ -82,7 +81,7 @@ export default function AdminRequests() {
 
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [assigningRequests, setAssigningRequests] = useState(false);
+
   const [assignPopup, setAssignPopup] = useState({
     open: false,
     title: "",
@@ -251,10 +250,7 @@ export default function AdminRequests() {
     return statusMatch && searchMatch && dateMatch;
   });
 
-  const unassignedRequests = requests.filter((request) => {
-    const assignedOfficial = (request.assignedOfficial || "").trim();
-    return !assignedOfficial || assignedOfficial.toLowerCase() === "unassigned";
-  });
+
 
   // Close modal on escape key
   useEffect(() => {
@@ -401,44 +397,7 @@ export default function AdminRequests() {
     setHistoryLoading(false);
   };
 
-  const handleAssignAllUnassigned = async () => {
-    if (assigningRequests) return;
 
-    setAssigningRequests(true);
-    setAssignPopup({ open: false, title: "", message: "" });
-
-    try {
-      const result = await assignAllUnassignedRequests();
-
-      if (!result.success) {
-        if (result.reason === "no_active_official") {
-          setAssignPopup({
-            open: true,
-            title: "No Active Official Available",
-            message:
-              "No present ACTIVE barangay official is available today for assignment.",
-          });
-        } else {
-          setAssignPopup({
-            open: true,
-            title: "Assignment Failed",
-            message: result.message || "Unable to assign unassigned requests.",
-          });
-        }
-        await fetchRequests();
-        return;
-      }
-
-      setAssignPopup({
-        open: true,
-        title: "Assignment Complete",
-        message: `Assigned ${result.assignedCount || 0} request(s).${result.skippedCount ? ` Skipped ${result.skippedCount} request(s).` : ""}`,
-      });
-      await fetchRequests();
-    } finally {
-      setAssigningRequests(false);
-    }
-  };
 
   const filteredOfficials = activeOfficials.filter((official) => {
     if (official.uid === selectedRequest?.assignedOfficialUid) {
@@ -849,126 +808,6 @@ export default function AdminRequests() {
                 <div className="loading-spinner" aria-hidden="true"></div>
                 <div className="loading-text">Loading requests...</div>
               </div>
-            </div>
-          )}
-
-          {unassignedRequests.length > 0 ? (
-            <div
-              style={{
-                marginBottom: "1.5rem",
-                padding: "1.75rem",
-                border: "2px solid #f59e0b",
-                borderRadius: "0.75rem",
-                background: "#fffbeb",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: "1.5rem",
-                  alignItems: "center",
-                  marginBottom: "1.25rem",
-                  flexWrap: "wrap",
-                }}
-              >
-                <div style={{ flex: 1 }}>
-                  <h4
-                    style={{
-                      margin: 0,
-                      color: "#92400e",
-                      fontSize: "1.25rem",
-                      fontWeight: 700,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.5rem",
-                    }}
-                  >
-                    <span style={{ fontSize: "1.75rem" }}>⚠️</span>
-                    Unassigned Requests
-                  </h4>
-                  <p
-                    style={{
-                      margin: "0.625rem 0 0",
-                      color: "#b45309",
-                      fontSize: "1rem",
-                      lineHeight: "1.6",
-                    }}
-                  >
-                    There {unassignedRequests.length === 1 ? "is" : "are"}{" "}
-                    <strong style={{ fontSize: "1.25rem" }}>
-                      {unassignedRequests.length}
-                    </strong>{" "}
-                    request{unassignedRequests.length === 1 ? "" : "s"} that
-                    still need{unassignedRequests.length === 1 ? "s" : ""} an
-                    official assignment.
-                  </p>
-                </div>
-                <span
-                  style={{
-                    padding: "0.875rem 1.5rem",
-                    borderRadius: "999px",
-                    background: "#fef3c7",
-                    color: "#92400e",
-                    fontWeight: 700,
-                    fontSize: "1.75rem",
-                    minWidth: "70px",
-                    textAlign: "center",
-                  }}
-                >
-                  {unassignedRequests.length}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={handleAssignAllUnassigned}
-                disabled={assigningRequests || loadingRequests}
-                style={{
-                  padding: "0.875rem 1.5rem",
-                  borderRadius: "0.5rem",
-                  border: "1px solid #cbd5e1",
-                  background: assigningRequests ? "#e2e8f0" : "#0f172a",
-                  color: assigningRequests ? "#475569" : "#f8fafc",
-                  fontSize: "1rem",
-                  fontWeight: 600,
-                  cursor:
-                    assigningRequests || loadingRequests
-                      ? "not-allowed"
-                      : "pointer",
-                  width: "100%",
-                }}
-              >
-                {assigningRequests
-                  ? "Assigning..."
-                  : "Assign All Unassigned Requests"}
-              </button>
-            </div>
-          ) : (
-            <div
-              style={{
-                marginBottom: "1.5rem",
-                padding: "1.5rem",
-                border: "2px solid #10b981",
-                borderRadius: "0.75rem",
-                background: "#ecfdf5",
-                textAlign: "center",
-              }}
-            >
-              <p
-                style={{
-                  margin: 0,
-                  color: "#065f46",
-                  fontSize: "1rem",
-                  fontWeight: 600,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "0.5rem",
-                }}
-              >
-                <span style={{ fontSize: "1.25rem" }}>✓</span>
-                No unassigned requests right now.
-              </p>
             </div>
           )}
 

@@ -13,6 +13,9 @@ const RequestDetail = ({
   isOpen,
   onClose,
   onSave,
+  onClaim,
+  onUnclaim,
+  currentUserId,
 }) => {
   const [formData, setFormData] = useState({
     status: "IN_PROGRESS",
@@ -25,6 +28,12 @@ const RequestDetail = ({
 
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [claimingInProgress, setClaimingInProgress] = useState(false);
+
+  const isAssignedToMe = request?.assigned_official_id === currentUserId;
+  const isUnassigned = !request?.assigned_official_id;
+  const isAssignedToOther = request?.assigned_official_id && request?.assigned_official_id !== currentUserId;
+  const canEdit = isAssignedToMe;
 
   useEffect(() => {
     if (request) {
@@ -112,6 +121,26 @@ const RequestDetail = ({
     onClose();
   };
 
+  const handleClaim = async () => {
+    if (!onClaim || claimingInProgress) return;
+    setClaimingInProgress(true);
+    try {
+      await onClaim(request.id);
+    } finally {
+      setClaimingInProgress(false);
+    }
+  };
+
+  const handleUnclaim = async () => {
+    if (!onUnclaim || claimingInProgress) return;
+    setClaimingInProgress(true);
+    try {
+      await onUnclaim(request.id);
+    } finally {
+      setClaimingInProgress(false);
+    }
+  };
+
   const handleOverlayClick = (e) => {
     if (e.target === e.currentTarget) onClose();
   };
@@ -184,6 +213,19 @@ const RequestDetail = ({
               </div>
             </div>
 
+            <div className="detail-section">
+              <label className="detail-label">ASSIGNED OFFICIAL</label>
+              <div className="detail-value">
+                <span className="avatar-icon">👮</span>
+                <span style={{ 
+                  color: isUnassigned ? "#ef4444" : isAssignedToMe ? "#10b981" : "#f59e0b",
+                  fontWeight: "600"
+                }}>
+                  {isUnassigned ? "Unassigned" : request.assigned_official_name || "Unknown Official"}
+                </span>
+              </div>
+            </div>
+
             {/* ── Certificate Type (requests only) ── */}
             {itemType === "request" && request.type && (
               <div className="detail-section">
@@ -231,6 +273,24 @@ const RequestDetail = ({
             <p className="description-text">"{request.description}"</p>
           </div>
 
+          {isAssignedToOther && (
+            <div style={{
+              padding: "1rem",
+              backgroundColor: "#fef3c7",
+              border: "1px solid #f59e0b",
+              borderRadius: "0.5rem",
+              marginBottom: "1rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}>
+              <span style={{ fontSize: "1.25rem" }}>⚠️</span>
+              <span style={{ color: "#92400e", fontWeight: "500" }}>
+                This request is assigned to another official. You cannot edit it.
+              </span>
+            </div>
+          )}
+
           {/* Images */}
           <div className="images-section">
             <div className="images-header">
@@ -273,6 +333,11 @@ const RequestDetail = ({
                 value={formData.status}
                 onChange={handleInputChange}
                 className="form-select"
+                disabled={!canEdit}
+                style={{
+                  cursor: !canEdit ? "not-allowed" : "pointer",
+                  opacity: !canEdit ? 0.6 : 1,
+                }}
               >
                 {statusOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -290,8 +355,13 @@ const RequestDetail = ({
                 value={formData.internalNotes}
                 onChange={handleInputChange}
                 className="form-textarea"
-                placeholder="Add your notes or response here..."
+                placeholder={canEdit ? "Add your notes or response here..." : "You cannot edit this request"}
                 rows="5"
+                disabled={!canEdit}
+                style={{
+                  cursor: !canEdit ? "not-allowed" : "text",
+                  opacity: !canEdit ? 0.6 : 1,
+                }}
               ></textarea>
             </div>
           </div>
@@ -360,9 +430,40 @@ const RequestDetail = ({
           <button className="btn-close" onClick={onClose}>
             Close
           </button>
-          <button className="btn-save" onClick={handleSave}>
-            ✓ Save & Update Status
-          </button>
+          {isUnassigned && onClaim && (
+            <button
+              className="btn-save"
+              onClick={handleClaim}
+              disabled={claimingInProgress}
+              style={{
+                backgroundColor: claimingInProgress ? "#94a3b8" : "#10b981",
+                cursor: claimingInProgress ? "not-allowed" : "pointer",
+              }}
+            >
+              {claimingInProgress ? "Claiming..." : "✓ Claim This Item"}
+            </button>
+          )}
+          {isAssignedToMe && (
+            <>
+              {onUnclaim && (
+                <button
+                  className="btn-close"
+                  onClick={handleUnclaim}
+                  disabled={claimingInProgress}
+                  style={{
+                    backgroundColor: claimingInProgress ? "#94a3b8" : "#ef4444",
+                    color: "#fff",
+                    cursor: claimingInProgress ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {claimingInProgress ? "Unclaiming..." : "Unclaim"}
+                </button>
+              )}
+              <button className="btn-save" onClick={handleSave}>
+                ✓ Save & Update Status
+              </button>
+            </>
+          )}
         </div>
       </div>
 
