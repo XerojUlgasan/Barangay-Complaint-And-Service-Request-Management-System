@@ -8,40 +8,19 @@ import {
 } from "../../supabse_db/official/official";
 import { claimRequest, unclaimRequest } from "../../supabse_db/request/request";
 import supabase from "../../supabse_db/supabase_client";
+import {
+  REQUEST_STATUS_OPTIONS,
+  formatRequestStatus,
+  getRequestStatusColor,
+  requestStatusCodeToValue,
+  requestStatusValueToCode,
+} from "../../utils/requestStatuses";
 import "../../styles/BarangayAdmin.css";
 import "../../styles/RequestDetail.css";
 
-const STATUS_COLORS = {
-  Pending: "#fbbf24",
-  "In Progress": "#3b82f6",
-  Completed: "#10b981",
-  Rejected: "#ef4444",
-  "Resident Complied": "#14b8a6",
-  "For Compliance": "#8b5cf6",
-  "Non Compliant": "#ec4899",
-  "For Validation": "#06b6d4",
-};
-
-const STATUS_LABELS = {
-  pending: "Pending",
-  in_progress: "In Progress",
-  completed: "Completed",
-  rejected: "Rejected",
-  resident_complied: "Resident Complied",
-  for_compliance: "For Compliance",
-  non_compliant: "Non Compliant",
-  for_validation: "For Validation",
-};
-
-const normalizeStatus = (status) => {
-  if (!status) return "Pending";
-  const normalized = typeof status === "string" ? status.toLowerCase() : status;
-  return STATUS_LABELS[normalized] || status;
-};
-
 const toStatusCode = (status) => {
   if (!status) return "PENDING";
-  return String(status).toUpperCase().replace(/ /g, "_");
+  return requestStatusValueToCode(status);
 };
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -115,7 +94,7 @@ export default function OfficialRequests() {
             title: req.subject || "Untitled Request",
             type: req.certificate_type || "Request",
             status: toStatusCode(rawStatus),
-            statusDisplay: normalizeStatus(rawStatus),
+            statusDisplay: formatRequestStatus(rawStatus),
             submittedBy: req.requester_name || "Unknown",
             date: req.created_at
               ? new Date(req.created_at).toISOString().split("T")[0]
@@ -186,14 +165,7 @@ export default function OfficialRequests() {
 
   const filterOptions = [
     "All Status",
-    "Pending",
-    "In Progress",
-    "Completed",
-    "Rejected",
-    "Resident Complied",
-    "For Compliance",
-    "Non Compliant",
-    "For Validation",
+    ...REQUEST_STATUS_OPTIONS.map((status) => status.label),
   ];
 
   const filteredRequests = requests.filter((request) => {
@@ -220,16 +192,18 @@ export default function OfficialRequests() {
     const end = endDate ? new Date(endDate) : null;
     const dateMatch =
       (!start || requestDate >= start) && (!end || requestDate <= end);
-    
+
     let claimMatch = true;
     if (claimFilter === "mine") {
       claimMatch = request.assigned_official_id === currentUserId;
     } else if (claimFilter === "others") {
-      claimMatch = request.assigned_official_id && request.assigned_official_id !== currentUserId;
+      claimMatch =
+        request.assigned_official_id &&
+        request.assigned_official_id !== currentUserId;
     } else if (claimFilter === "unclaimed") {
       claimMatch = !request.assigned_official_id;
     }
-    
+
     return statusMatch && searchMatch && dateMatch && claimMatch;
   });
 
@@ -244,23 +218,20 @@ export default function OfficialRequests() {
 
   const handleSaveRequest = async (updatedData) => {
     try {
-      const statusMap = {
-        PENDING: "pending",
-        IN_PROGRESS: "in_progress",
-        COMPLETED: "completed",
-        REJECTED: "rejected",
-        FOR_COMPLIANCE: "for_compliance",
-        NON_COMPLIANT: "non_compliant",
-        FOR_VALIDATION: "for_validation",
-      };
-      const dbStatus =
-        statusMap[updatedData.status] || updatedData.status.toLowerCase();
+      const dbStatus = requestStatusCodeToValue(updatedData.status);
       const result = await updateRequestStatus(
         updatedData.requestId,
         dbStatus,
         updatedData.internalNotes,
       );
       if (result.success) {
+        // If shouldUnclaim is true, unclaim the request
+        if (updatedData.shouldUnclaim) {
+          const unclaimResult = await unclaimRequest(updatedData.requestId);
+          if (!unclaimResult.success) {
+            console.error("Failed to unclaim request:", unclaimResult.message);
+          }
+        }
         await fetchAssignedRequests();
         handleCloseModal();
       } else {
@@ -413,7 +384,8 @@ export default function OfficialRequests() {
                 padding: "0.5rem 1rem",
                 border: "1px solid #d1d5db",
                 borderRadius: "0.375rem",
-                backgroundColor: claimFilter === "unclaimed" ? "#ef4444" : "#fff",
+                backgroundColor:
+                  claimFilter === "unclaimed" ? "#ef4444" : "#fff",
                 color: claimFilter === "unclaimed" ? "#fff" : "#374151",
                 fontWeight: "500",
                 cursor: "pointer",
@@ -500,7 +472,7 @@ export default function OfficialRequests() {
                   </tr>
                 ) : filteredRequests.length > 0 ? (
                   filteredRequests.map((r) => {
-                    const color = STATUS_COLORS[r.statusDisplay] || "#9ca3af";
+                    const color = getRequestStatusColor(r.statusDisplay);
                     return (
                       <tr key={r.id}>
                         <td>

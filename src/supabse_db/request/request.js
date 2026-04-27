@@ -301,7 +301,7 @@ export const markRequestResidentComplied = async (requestId) => {
 
   const { data: requestData } = await supabase
     .from("request_tbl")
-    .select("id, requester_id")
+    .select("id, requester_id, request_status")
     .eq("id", requestId)
     .maybeSingle();
 
@@ -312,13 +312,49 @@ export const markRequestResidentComplied = async (requestId) => {
     };
   }
 
-  const { error } = await supabase.rpc("set_request_compliant", {
+  const normalizedCurrentStatus = String(requestData.request_status || "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ");
+
+  if (normalizedCurrentStatus !== "for compliance") {
+    return {
+      success: false,
+      message: "Only requests with for compliance status can submit compliance",
+    };
+  }
+
+  const { error: rpcError } = await supabase.rpc("set_request_compliant", {
     request_id: requestId,
   });
 
-  if (error) {
-    console.error("Error updating request compliance status:", error);
-    return { success: false, message: "Failed to update request status" };
+  if (rpcError) {
+    console.warn(
+      "set_request_compliant RPC failed, continuing with direct pending update:",
+      rpcError,
+    );
+  }
+
+  const { error: updateError } = await supabase
+    .from("request_tbl")
+    .update({
+      request_status: "pending",
+      updated_at: new Date().toISOString(),
+      updated_by: null,
+    })
+    .eq("id", requestId)
+    .eq("requester_id", userData.user.id);
+
+  if (updateError) {
+    console.error(
+      "Error forcing pending status after compliance upload:",
+      updateError,
+    );
+    return {
+      success: false,
+      message: "Failed to set request status to pending",
+    };
   }
 
   const { data: updatedRequest, error: fetchError } = await supabase
@@ -337,10 +373,10 @@ export const markRequestResidentComplied = async (requestId) => {
 
   const updatedStatus = updatedRequest?.request_status;
   const normalizedStatus = String(updatedStatus || "")
-    .toLowerCase()
-    .replace(/[\s_-]/g, "");
+    .trim()
+    .toLowerCase();
 
-  if (!["residentcomplied", "complied"].includes(normalizedStatus)) {
+  if (normalizedStatus !== "pending") {
     return {
       success: false,
       message: "Compliance was submitted but request status was not updated",
@@ -349,7 +385,7 @@ export const markRequestResidentComplied = async (requestId) => {
 
   return {
     success: true,
-    message: "Request marked as resident complied",
+    message: "Compliance submitted and request status set to pending",
     status: updatedStatus,
   };
 };

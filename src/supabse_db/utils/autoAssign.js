@@ -2,10 +2,10 @@ import supabase from "../supabase_client";
 
 export const UNFINISHED_STATUSES = [
   "pending",
-  "in_progress",
-  "for_compliance",
-  "for_validation",
-  "resident_complied",
+  "for compliance",
+  "approved",
+  "processing",
+  "ready for pickup",
 ];
 
 const getTodayDateString = () => {

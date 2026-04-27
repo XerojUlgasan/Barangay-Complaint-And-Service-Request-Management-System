@@ -257,13 +257,12 @@ export const updateRequestStatus = async (
   // Validate status against allowed enum values
   const validStatuses = [
     "pending",
-    "in_progress",
+    "for compliance",
+    "approved",
+    "processing",
+    "ready for pickup",
     "completed",
     "rejected",
-    "resident_complied",
-    "for_compliance",
-    "non_compliant",
-    "for_validation",
   ];
   if (!validStatuses.includes(status)) {
     console.error(

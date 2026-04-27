@@ -26,11 +26,7 @@ const COMPLAINT_SECTIONS = [
   { key: "personal complaint", label: "Personal Complaint" },
 ];
 
-const REQUEST_FINISHED_STATUSES = new Set([
-  "completed",
-  "rejected",
-  "non compliant",
-]);
+const REQUEST_FINISHED_STATUSES = new Set(["completed", "rejected"]);
 
 const COMPLAINT_FINISHED_STATUSES = new Set([
   "recorded",

@@ -5,6 +5,14 @@ import {
   getResidentsByAuthUids,
 } from "../resident/resident";
 
+const REQUEST_INFLIGHT_STATUSES = new Set([
+  "pending",
+  "for compliance",
+  "approved",
+  "processing",
+  "ready for pickup",
+]);
+
 /**
  * Analytics helper functions for the Barangay Admin Dashboard
  * Provides aggregated data for requests, complaints, officials, and residents
@@ -157,8 +165,10 @@ export const getOfficialsWithStats = async () => {
       ).length;
       const completedCases = completedRequests + completedComplaints;
 
-      const pendingRequests = requests.filter(
-        (r) => r.request_status === "pending",
+      const pendingRequests = requests.filter((r) =>
+        REQUEST_INFLIGHT_STATUSES.has(
+          String(r.request_status || "").toLowerCase(),
+        ),
       ).length;
       const pendingComplaints = complaints.filter(
         (c) => c.status === "pending",
@@ -562,7 +572,8 @@ export const calculateCompletionTimeByType = (requests = []) => {
 
   requests.forEach((req) => {
     if (!req.certificate_type || !req.created_at || !req.updated_at) return;
-    if (req.request_status !== "completed" && req.request_status !== "rejected") return;
+    if (req.request_status !== "completed" && req.request_status !== "rejected")
+      return;
 
     const type = req.certificate_type;
     const created = new Date(req.created_at);
@@ -616,7 +627,12 @@ export const analyzeSettlementSpeed = (settlements = []) => {
   const typeStats = {};
 
   settlements.forEach((settlement) => {
-    if (!settlement.complaint?.complaint_type || !settlement.created_at || settlement.status !== "resolved") return;
+    if (
+      !settlement.complaint?.complaint_type ||
+      !settlement.created_at ||
+      settlement.status !== "resolved"
+    )
+      return;
 
     const type = settlement.complaint.complaint_type;
     const created = new Date(settlement.created_at);
@@ -631,11 +647,13 @@ export const analyzeSettlementSpeed = (settlements = []) => {
     typeStats[type].count += 1;
   });
 
-  return Object.entries(typeStats).map(([type, stats]) => ({
-    type,
-    avgDays: (stats.total / stats.count).toFixed(1),
-    count: stats.count,
-  })).sort((a, b) => parseFloat(a.avgDays) - parseFloat(b.avgDays));
+  return Object.entries(typeStats)
+    .map(([type, stats]) => ({
+      type,
+      avgDays: (stats.total / stats.count).toFixed(1),
+      count: stats.count,
+    }))
+    .sort((a, b) => parseFloat(a.avgDays) - parseFloat(b.avgDays));
 };
 
 // Analyze settlement day preferences

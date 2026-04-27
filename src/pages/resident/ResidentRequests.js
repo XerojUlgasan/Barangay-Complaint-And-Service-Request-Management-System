@@ -11,6 +11,12 @@ import { useAuth } from "../../context/AuthContext";
 import ResidentSidebar from "../../components/ResidentSidebar";
 import ResidentSettings from "../../components/ResidentSettings";
 import ResidentProfile from "../../components/ResidentProfile";
+import {
+  REQUEST_STATUS_OPTIONS,
+  formatRequestStatus,
+  getRequestStatusColor,
+  isForComplianceStage,
+} from "../../utils/requestStatuses";
 import "../../styles/UserPages.css";
 
 const MyRequests = () => {
@@ -166,7 +172,7 @@ const MyRequests = () => {
           return;
         }
 
-        const nextStatus = statusResult.status || "resident_complied";
+        const nextStatus = statusResult.status || "pending";
         const nowIso = new Date().toISOString();
         setRequests((prev) =>
           prev.map((request) =>
@@ -232,32 +238,18 @@ const MyRequests = () => {
   const getBadgeClass = (status) => {
     const n = normalize(status);
     if (n === "completed") return "badge completed";
-    if (n === "inprogress") return "badge progress";
+    if (n === "processing") return "badge processing";
     if (n === "pending") return "badge pending";
     if (n === "rejected") return "badge rejected";
     if (n === "forcompliance") return "badge forcompliance";
-    if (n === "forvalidation") return "badge forvalidation";
-    if (n === "residentcomplied") return "badge complied";
-    if (n === "complied") return "badge complied";
-    return "badge";
+    if (n === "approved") return "badge approved";
+    if (n === "readyforpickup") return "badge readyforpickup";
+    return "badge deprecated";
   };
 
-  const formatStatus = (status) => {
-    if (!status) return "";
-    return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-  };
+  const formatStatus = (status) => formatRequestStatus(status);
 
-  const getTimelineDot = (status) => {
-    const n = normalize(status);
-    if (n === "completed") return "#059669";
-    if (n === "inprogress") return "#2563eb";
-    if (n === "rejected") return "#dc2626";
-    if (n === "forcompliance") return "#f59e0b";
-    if (n === "forvalidation") return "#0369a1";
-    if (n === "residentcomplied") return "#1e40af";
-    if (n === "complied") return "#1e40af";
-    return "#f59e0b";
-  };
+  const getTimelineDot = (status) => getRequestStatusColor(status);
 
   const getAssignedOfficialName = (request) => {
     const official = Array.isArray(request?.official)
@@ -829,14 +821,9 @@ const MyRequests = () => {
                   onChange={(e) => setFilter(e.target.value)}
                 >
                   <option>All Status</option>
-                  <option>Pending</option>
-                  <option>In Progress</option>
-                  <option>For Compliance</option>
-                  <option>For Validation</option>
-                  <option>Resident Complied</option>
-                  <option>Complied</option>
-                  <option>Completed</option>
-                  <option>Rejected</option>
+                  {REQUEST_STATUS_OPTIONS.map((option) => (
+                    <option key={option.value}>{option.label}</option>
+                  ))}
                 </select>
                 <span className="mr-count">
                   {filtered.length} request{filtered.length !== 1 ? "s" : ""}
@@ -959,7 +946,7 @@ const MyRequests = () => {
                       View History
                     </button>
 
-                    {normalize(req.request_status) === "forcompliance" && (
+                    {isForComplianceStage(req.request_status) && (
                       <button
                         className="compliance-btn"
                         onClick={() => handleOpenComplianceModal(req)}

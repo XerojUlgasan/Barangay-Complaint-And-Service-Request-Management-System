@@ -577,7 +577,7 @@
 /* ── Footer ────────────────────────────────── */
 .modal-footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   padding: 1.125rem 1.5rem;
   border-top: 1px solid #e5e7eb;

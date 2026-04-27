@@ -2457,9 +2457,9 @@
   background: #fef3c7;
   color: #d97706;
 }
-.user-landing-page .badge.progress {
-  background: #dbeafe;
-  color: #2563eb;
+.user-landing-page .badge.processing {
+  background: #e0f2fe;
+  color: #0c4a6e;
 }
 .user-landing-page .badge.completed {
   background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
@@ -2472,18 +2472,24 @@
   color: #dc2626;
 }
 .user-landing-page .badge.forcompliance {
-  background: #fef3c7;
-  color: #d97706;
-  border: 1px solid #fde68a;
+  background: #f3e8ff;
+  color: #6b21a8;
+  border: 1px solid #e9d5ff;
 }
-.user-landing-page .badge.forvalidation {
-  background: #e0f2fe;
-  color: #0369a1;
-}
-.user-landing-page .badge.complied {
+.user-landing-page .badge.approved {
   background: #dbeafe;
-  color: #1e40af;
+  color: #1d4ed8;
   border: 1px solid #bfdbfe;
+}
+.user-landing-page .badge.readyforpickup {
+  background: #ccfbf1;
+  color: #0f766e;
+  border: 1px solid #99f6e4;
+}
+.user-landing-page .badge.deprecated {
+  background: #f3f4f6;
+  color: #4b5563;
+  border: 1px solid #e5e7eb;
 }
 
 /* ── SUBMIT REQUEST FORM ── */
@@ -5412,9 +5418,19 @@
   color: #d97706;
 }
 
-.compliance-status-badge.inprogress {
+.compliance-status-badge.processing {
+  background: #e0f2fe;
+  color: #0c4a6e;
+}
+
+.compliance-status-badge.approved {
   background: #dbeafe;
-  color: #2563eb;
+  color: #1d4ed8;
+}
+
+.compliance-status-badge.readyforpickup {
+  background: #ccfbf1;
+  color: #0f766e;
 }
 
 .compliance-status-badge.completed {
@@ -5425,6 +5441,11 @@
 .compliance-status-badge.rejected {
   background: #fee2e2;
   color: #dc2626;
+}
+
+.compliance-status-badge.deprecated {
+  background: #f3f4f6;
+  color: #4b5563;
 }
 
 .compliance-remarks {
@@ -5792,13 +5813,23 @@
 
 /* ── Skeleton Loading ───────────────────────────────────────────── */
 @keyframes annSkeletonShimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 @keyframes annCardSkeletonIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .user-landing-page .ann-card-skeleton {
@@ -5980,7 +6011,8 @@
   color: #4b5563;
 }
 
-.user-landing-page .resident-ann-event-status-inline[data-status="no-schedule"] {
+.user-landing-page
+  .resident-ann-event-status-inline[data-status="no-schedule"] {
   background: #f3f4f6;
   color: #9ca3af;
 }

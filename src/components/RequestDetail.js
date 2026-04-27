@@ -5,6 +5,13 @@ import ImageLightbox from "./ImageLightbox";
 import { fetchImagesForItem } from "../supabse_db/uploadImages";
 import { getRequestHistory } from "../supabse_db/request/request";
 import { getComplaintHistory } from "../supabse_db/complaint/complaint";
+import {
+  REQUEST_STATUS_OPTIONS,
+  formatRequestStatus,
+  getRequestStatusColor,
+  requestStatusCodeToValue,
+  requestStatusValueToCode,
+} from "../utils/requestStatuses";
 import "../styles/RequestDetail.css";
 
 const RequestDetail = ({
@@ -18,7 +25,7 @@ const RequestDetail = ({
   currentUserId,
 }) => {
   const [formData, setFormData] = useState({
-    status: "IN_PROGRESS",
+    status: "PENDING",
     internalNotes: "",
   });
 
@@ -32,13 +39,17 @@ const RequestDetail = ({
 
   const isAssignedToMe = request?.assigned_official_id === currentUserId;
   const isUnassigned = !request?.assigned_official_id;
-  const isAssignedToOther = request?.assigned_official_id && request?.assigned_official_id !== currentUserId;
+  const isAssignedToOther =
+    request?.assigned_official_id &&
+    request?.assigned_official_id !== currentUserId;
   const canEdit = isAssignedToMe;
 
   useEffect(() => {
     if (request) {
       setFormData({
-        status: request.status || "IN_PROGRESS",
+        status:
+          request.status ||
+          requestStatusValueToCode(request.request_status || "pending"),
         internalNotes: request.internalNotes || "",
       });
       fetchImages();
@@ -88,37 +99,20 @@ const RequestDetail = ({
     }
   };
 
-  const statusOptions = [
-    { value: "PENDING", label: "Pending" },
-    { value: "IN_PROGRESS", label: "In Progress" },
-    { value: "COMPLETED", label: "Completed" },
-    { value: "REJECTED", label: "Rejected" },
-    { value: "FOR_COMPLIANCE", label: "For Compliance" },
-    { value: "NON_COMPLIANT", label: "Non Compliant" },
-    { value: "FOR_VALIDATION", label: "For Validation" },
-  ];
-
-  const statusColorMap = {
-    PENDING: "#F59E0B",
-    IN_PROGRESS: "#0EA5E9",
-    COMPLETED: "#10B981",
-    REJECTED: "#EF4444",
-    FOR_COMPLIANCE: "#8B5CF6",
-    NON_COMPLIANT: "#EC4899",
-    FOR_VALIDATION: "#06B6D4",
-    RESIDENT_COMPLIED: "#14B8A6",
-  };
+  const statusOptions = REQUEST_STATUS_OPTIONS.map((option) => ({
+    value: requestStatusValueToCode(option.value),
+    label: option.label,
+  }));
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = () => {
+  const handleSave = (shouldUnclaim = false) => {
     if (onSave) {
-      onSave({ requestId: request.id, ...formData });
+      onSave({ requestId: request.id, ...formData, shouldUnclaim });
     }
-    onClose();
   };
 
   const handleClaim = async () => {
@@ -148,18 +142,13 @@ const RequestDetail = ({
   if (!isOpen || !request) return null;
 
   const getStatusBadge = () => {
-    const statusMap = {
-      PENDING: { color: "#F59E0B", label: "PENDING" },
-      IN_PROGRESS: { color: "#0EA5E9", label: "IN PROGRESS" },
-      COMPLETED: { color: "#10B981", label: "COMPLETED" },
-      REJECTED: { color: "#EF4444", label: "REJECTED" },
-      FOR_COMPLIANCE: { color: "#8B5CF6", label: "FOR COMPLIANCE" },
-      NON_COMPLIANT: { color: "#EC4899", label: "NON COMPLIANT" },
-      FOR_VALIDATION: { color: "#06B6D4", label: "FOR VALIDATION" },
+    const statusValue = requestStatusCodeToValue(formData.status);
+    const label = formatRequestStatus(statusValue).toUpperCase();
+
+    return {
+      color: getRequestStatusColor(statusValue),
+      label: label || String(formData.status || "UPDATED"),
     };
-    return (
-      statusMap[formData.status] || { color: "#6B7280", label: formData.status }
-    );
   };
 
   const statusBadge = getStatusBadge();
@@ -217,11 +206,19 @@ const RequestDetail = ({
               <label className="detail-label">ASSIGNED OFFICIAL</label>
               <div className="detail-value">
                 <span className="avatar-icon">👮</span>
-                <span style={{ 
-                  color: isUnassigned ? "#ef4444" : isAssignedToMe ? "#10b981" : "#f59e0b",
-                  fontWeight: "600"
-                }}>
-                  {isUnassigned ? "Unassigned" : request.assigned_official_name || "Unknown Official"}
+                <span
+                  style={{
+                    color: isUnassigned
+                      ? "#ef4444"
+                      : isAssignedToMe
+                        ? "#10b981"
+                        : "#f59e0b",
+                    fontWeight: "600",
+                  }}
+                >
+                  {isUnassigned
+                    ? "Unassigned"
+                    : request.assigned_official_name || "Unknown Official"}
                 </span>
               </div>
             </div>
@@ -274,19 +271,22 @@ const RequestDetail = ({
           </div>
 
           {isAssignedToOther && (
-            <div style={{
-              padding: "1rem",
-              backgroundColor: "#fef3c7",
-              border: "1px solid #f59e0b",
-              borderRadius: "0.5rem",
-              marginBottom: "1rem",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-            }}>
+            <div
+              style={{
+                padding: "1rem",
+                backgroundColor: "#fef3c7",
+                border: "1px solid #f59e0b",
+                borderRadius: "0.5rem",
+                marginBottom: "1rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+              }}
+            >
               <span style={{ fontSize: "1.25rem" }}>⚠️</span>
               <span style={{ color: "#92400e", fontWeight: "500" }}>
-                This request is assigned to another official. You cannot edit it.
+                This request is assigned to another official. You cannot edit
+                it.
               </span>
             </div>
           )}
@@ -355,7 +355,11 @@ const RequestDetail = ({
                 value={formData.internalNotes}
                 onChange={handleInputChange}
                 className="form-textarea"
-                placeholder={canEdit ? "Add your notes or response here..." : "You cannot edit this request"}
+                placeholder={
+                  canEdit
+                    ? "Add your notes or response here..."
+                    : "You cannot edit this request"
+                }
                 rows="5"
                 disabled={!canEdit}
                 style={{
@@ -379,13 +383,10 @@ const RequestDetail = ({
                   const date = new Date(h.updated_at || h.created_at);
                   const statusValue =
                     h.status || h.complaint_status || h.request_status || "";
-                  const rawStatus = String(statusValue)
-                    .toUpperCase()
-                    .replace(/ /g, "_");
-                  const statusLabel = statusValue
-                    ? String(statusValue).replace(/_/g, " ").toUpperCase()
+                  const statusLabel = formatRequestStatus(statusValue)
+                    ? formatRequestStatus(statusValue).toUpperCase()
                     : "UPDATED";
-                  const dotColor = statusColorMap[rawStatus] || "#6B7280";
+                  const dotColor = getRequestStatusColor(statusValue);
 
                   return (
                     <li
@@ -426,43 +427,97 @@ const RequestDetail = ({
         </div>
 
         {/* Footer */}
-        <div className="modal-footer">
-          <button className="btn-close" onClick={onClose}>
-            Close
-          </button>
+        <div className="modal-footer" style={{ display: "flex", flexDirection: "row", gap: "0.75rem" }}>
           {isUnassigned && onClaim && (
-            <button
-              className="btn-save"
-              onClick={handleClaim}
-              disabled={claimingInProgress}
-              style={{
-                backgroundColor: claimingInProgress ? "#94a3b8" : "#10b981",
-                cursor: claimingInProgress ? "not-allowed" : "pointer",
-              }}
-            >
-              {claimingInProgress ? "Claiming..." : "✓ Claim This Item"}
-            </button>
+            <>
+              <button className="btn-close" onClick={onClose} style={{ flex: "1" }}>
+                Close
+              </button>
+              <button
+                className="btn-save"
+                onClick={handleClaim}
+                disabled={claimingInProgress}
+                style={{
+                  flex: "1",
+                  backgroundColor: claimingInProgress ? "#94a3b8" : "#10b981",
+                  cursor: claimingInProgress ? "not-allowed" : "pointer",
+                }}
+              >
+                {claimingInProgress ? "Claiming..." : "✓ Claim This Item"}
+              </button>
+            </>
           )}
           {isAssignedToMe && (
             <>
-              {onUnclaim && (
-                <button
-                  className="btn-close"
-                  onClick={handleUnclaim}
-                  disabled={claimingInProgress}
-                  style={{
-                    backgroundColor: claimingInProgress ? "#94a3b8" : "#ef4444",
-                    color: "#fff",
-                    cursor: claimingInProgress ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {claimingInProgress ? "Unclaiming..." : "Unclaim"}
-                </button>
-              )}
-              <button className="btn-save" onClick={handleSave}>
-                ✓ Save & Update Status
+              <button 
+                className="btn-close" 
+                onClick={onClose}
+                style={{ flex: "1" }}
+              >
+                Close
+              </button>
+              <button
+                onClick={() => handleSave(true)}
+                disabled={claimingInProgress}
+                style={{
+                  flex: "1",
+                  padding: "0.75rem 1rem",
+                  backgroundColor: claimingInProgress ? "#94a3b8" : "#ef4444",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "0.5rem",
+                  fontSize: "0.95rem",
+                  fontWeight: "600",
+                  cursor: claimingInProgress ? "not-allowed" : "pointer",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  if (!claimingInProgress) {
+                    e.currentTarget.style.backgroundColor = "#dc2626";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!claimingInProgress) {
+                    e.currentTarget.style.backgroundColor = "#ef4444";
+                  }
+                }}
+              >
+                {claimingInProgress ? "Saving..." : "Save & Unclaim"}
+              </button>
+              <button
+                onClick={() => handleSave(false)}
+                disabled={claimingInProgress}
+                style={{
+                  flex: "1",
+                  padding: "0.75rem 1rem",
+                  backgroundColor: claimingInProgress ? "#94a3b8" : "#10b981",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "0.5rem",
+                  fontSize: "0.95rem",
+                  fontWeight: "600",
+                  cursor: claimingInProgress ? "not-allowed" : "pointer",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  if (!claimingInProgress) {
+                    e.currentTarget.style.backgroundColor = "#059669";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!claimingInProgress) {
+                    e.currentTarget.style.backgroundColor = "#10b981";
+                  }
+                }}
+              >
+                {claimingInProgress ? "Saving..." : "✓ Save & Keep Claim"}
               </button>
             </>
+          )}
+          {!isAssignedToMe && !isUnassigned && (
+            <button className="btn-close" onClick={onClose}>
+              Close
+            </button>
           )}
         </div>
       </div>

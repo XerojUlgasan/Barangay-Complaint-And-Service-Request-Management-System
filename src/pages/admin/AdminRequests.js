@@ -15,56 +15,16 @@ import {
   insertCertificate,
   updateCertificate,
 } from "../../supabse_db/certificate/certificate";
+import {
+  REQUEST_STATUS_OPTIONS,
+  formatRequestStatus,
+  getRequestStatusColor,
+  getRequestStatusTextColor,
+} from "../../utils/requestStatuses";
 
-const STATUS_COLORS = {
-  Pending: "#fbbf24",
-  "In Progress": "#3b82f6",
-  Completed: "#10b981",
-  Rejected: "#ef4444",
-  "For Compliance": "#8b5cf6",
-  "Non Compliant": "#ec4899",
-  "For Validation": "#06b6d4",
-};
-
-const STATUS_TEXT_COLORS = {
-  Pending: "#92400e",
-  "In Progress": "#1e3a8a",
-  Completed: "#065f46",
-  Rejected: "#7f1d1d",
-  "For Compliance": "#4c1d95",
-  "Non Compliant": "#831843",
-  "For Validation": "#0f766e",
-};
-
-const STATUS_LABELS = {
-  pending: "Pending",
-  in_progress: "In Progress",
-  completed: "Completed",
-  rejected: "Rejected",
-  for_compliance: "For Compliance",
-  non_compliant: "Non Compliant",
-  for_validation: "For Validation",
-};
-
-const STATUS_COLOR_MAP = {
-  PENDING: "#F59E0B",
-  IN_PROGRESS: "#0EA5E9",
-  COMPLETED: "#10B981",
-  REJECTED: "#EF4444",
-  FOR_COMPLIANCE: "#8B5CF6",
-  NON_COMPLIANT: "#EC4899",
-  FOR_VALIDATION: "#06B6D4",
-};
-
-const normalizeStatus = (status) => {
-  if (!status) return "Pending";
-  const normalized = typeof status === "string" ? status.toLowerCase() : status;
-  return STATUS_LABELS[normalized] || status;
-};
-
-const getStatusColor = (statusLabel) => STATUS_COLORS[statusLabel] || "#9ca3af";
-const getStatusTextColor = (statusLabel) =>
-  STATUS_TEXT_COLORS[statusLabel] || "#1f2937";
+const getStatusColor = (statusValue) => getRequestStatusColor(statusValue);
+const getStatusTextColor = (statusValue) =>
+  getRequestStatusTextColor(statusValue);
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -161,7 +121,7 @@ export default function AdminRequests() {
       id: dbRequest.id,
       title: dbRequest.subject || "Untitled Request",
       subtitle: dbRequest.certificate_type || "Service Request",
-      status: normalizeStatus(dbRequest.request_status || dbRequest.status),
+      status: formatRequestStatus(dbRequest.request_status || dbRequest.status),
       submittedBy: dbRequest.requester_name || "Unknown",
       date: dbRequest.created_at
         ? new Date(dbRequest.created_at).toISOString().split("T")[0]
@@ -249,8 +209,6 @@ export default function AdminRequests() {
 
     return statusMatch && searchMatch && dateMatch;
   });
-
-
 
   // Close modal on escape key
   useEffect(() => {
@@ -396,8 +354,6 @@ export default function AdminRequests() {
     }
     setHistoryLoading(false);
   };
-
-
 
   const filteredOfficials = activeOfficials.filter((official) => {
     if (official.uid === selectedRequest?.assignedOfficialUid) {
@@ -560,13 +516,7 @@ export default function AdminRequests() {
 
   const statusOptions = [
     "All Status",
-    "Pending",
-    "In Progress",
-    "Completed",
-    "Rejected",
-    "For Compliance",
-    "Non Compliant",
-    "For Validation",
+    ...REQUEST_STATUS_OPTIONS.map((status) => status.label),
   ];
 
   return (
@@ -1408,13 +1358,10 @@ export default function AdminRequests() {
                   <ul className="history-list">
                     {history.map((h, idx) => {
                       const date = new Date(h.updated_at || h.created_at);
-                      const rawStatus = (h.request_status || "")
-                        .toUpperCase()
-                        .replace(/ /g, "_");
-                      const statusLabel = h.request_status
-                        ? h.request_status.replace(/_/g, " ").toUpperCase()
-                        : "";
-                      const dotColor = STATUS_COLOR_MAP[rawStatus] || "#6B7280";
+                      const statusLabel = formatRequestStatus(
+                        h.request_status,
+                      ).toUpperCase();
+                      const dotColor = getRequestStatusColor(h.request_status);
                       return (
                         <li
                           key={idx}

@@ -37,7 +37,7 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
 );
 
 const AdminDashboard = () => {
@@ -109,10 +109,23 @@ const AdminDashboard = () => {
   // REQUEST METRICS
   const requestStats = {
     total: filteredRequests.length,
-    pending: filteredRequests.filter((r) => r.request_status === "pending").length,
-    inProgress: filteredRequests.filter((r) => r.request_status === "in_progress").length,
-    completed: filteredRequests.filter((r) => r.request_status === "completed").length,
-    rejected: filteredRequests.filter((r) => r.request_status === "rejected").length,
+    pending: filteredRequests.filter((r) => r.request_status === "pending")
+      .length,
+    forCompliance: filteredRequests.filter(
+      (r) => r.request_status === "for compliance",
+    ).length,
+    approved: filteredRequests.filter((r) => r.request_status === "approved")
+      .length,
+    processing: filteredRequests.filter(
+      (r) => r.request_status === "processing",
+    ).length,
+    readyForPickup: filteredRequests.filter(
+      (r) => r.request_status === "ready for pickup",
+    ).length,
+    completed: filteredRequests.filter((r) => r.request_status === "completed")
+      .length,
+    rejected: filteredRequests.filter((r) => r.request_status === "rejected")
+      .length,
   };
 
   const completionTimeByType = calculateCompletionTimeByType(filteredRequests);
@@ -125,13 +138,23 @@ const AdminDashboard = () => {
       const date = new Date(req.created_at);
       let key;
       if (timeFilter === "week") {
-        key = date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+        key = date.toLocaleDateString("en-US", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        });
       } else if (timeFilter === "month") {
-        key = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        key = date.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        });
       } else if (timeFilter === "year") {
         key = date.toLocaleDateString("en-US", { month: "short" });
       } else {
-        key = date.toLocaleDateString("en-US", { year: "numeric", month: "short" });
+        key = date.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+        });
       }
       grouped[key] = (grouped[key] || 0) + 1;
     });
@@ -144,7 +167,9 @@ const AdminDashboard = () => {
   const requestsByDayOfWeek = () => {
     const days = { Sun: 0, Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0 };
     filteredRequests.forEach((req) => {
-      const day = new Date(req.created_at).toLocaleDateString("en-US", { weekday: "short" });
+      const day = new Date(req.created_at).toLocaleDateString("en-US", {
+        weekday: "short",
+      });
       days[day] = (days[day] || 0) + 1;
     });
     return days;
@@ -155,7 +180,8 @@ const AdminDashboard = () => {
   // COMPLAINT METRICS
   const complaintStats = {
     total: filteredComplaints.length,
-    forReview: filteredComplaints.filter((c) => c.status === "for review").length,
+    forReview: filteredComplaints.filter((c) => c.status === "for review")
+      .length,
     pending: filteredComplaints.filter((c) => c.status === "pending").length,
     resolved: filteredComplaints.filter((c) => c.status === "resolved").length,
     rejected: filteredComplaints.filter((c) => c.status === "rejected").length,
@@ -171,13 +197,23 @@ const AdminDashboard = () => {
       const date = new Date(comp.created_at);
       let key;
       if (timeFilter === "week") {
-        key = date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+        key = date.toLocaleDateString("en-US", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        });
       } else if (timeFilter === "month") {
-        key = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        key = date.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        });
       } else if (timeFilter === "year") {
         key = date.toLocaleDateString("en-US", { month: "short" });
       } else {
-        key = date.toLocaleDateString("en-US", { year: "numeric", month: "short" });
+        key = date.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+        });
       }
       grouped[key] = (grouped[key] || 0) + 1;
     });
@@ -216,10 +252,14 @@ const AdminDashboard = () => {
   const settlementStats = {
     total: filteredSettlements.length,
     resolved: filteredSettlements.filter((s) => s.status === "resolved").length,
-    unresolved: filteredSettlements.filter((s) => s.status === "unresolved").length,
-    scheduled: filteredSettlements.filter((s) => s.status === "scheduled").length,
-    rescheduled: filteredSettlements.filter((s) => s.status === "rescheduled").length,
-    conciliation: filteredSettlements.filter((s) => s.type === "conciliation").length,
+    unresolved: filteredSettlements.filter((s) => s.status === "unresolved")
+      .length,
+    scheduled: filteredSettlements.filter((s) => s.status === "scheduled")
+      .length,
+    rescheduled: filteredSettlements.filter((s) => s.status === "rescheduled")
+      .length,
+    conciliation: filteredSettlements.filter((s) => s.type === "conciliation")
+      .length,
     mediation: filteredSettlements.filter((s) => s.type === "mediation").length,
   };
 
@@ -380,408 +420,506 @@ const AdminDashboard = () => {
         <div className="dashboard-header">
           <h1>Admin Dashboard</h1>
           <div className="time-filter">
-          <button
-            className={timeFilter === "week" ? "active" : ""}
-            onClick={() => setTimeFilter("week")}
-          >
-            Week
-          </button>
-          <button
-            className={timeFilter === "month" ? "active" : ""}
-            onClick={() => setTimeFilter("month")}
-          >
-            Month
-          </button>
-          <button
-            className={timeFilter === "year" ? "active" : ""}
-            onClick={() => setTimeFilter("year")}
-          >
-            Year
-          </button>
-          <button
-            className={timeFilter === "all" ? "active" : ""}
-            onClick={() => setTimeFilter("all")}
-          >
-            All Time
-          </button>
-        </div>
-      </div>
-
-      {/* REQUEST SECTION */}
-      <section className="dashboard-section">
-        <h2>Service Requests</h2>
-        
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-value">{requestStats.total}</div>
-            <div className="stat-label">Total Requests</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{requestStats.pending}</div>
-            <div className="stat-label">Pending</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{requestStats.inProgress}</div>
-            <div className="stat-label">In Progress</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{requestStats.completed}</div>
-            <div className="stat-label">Completed</div>
+            <button
+              className={timeFilter === "week" ? "active" : ""}
+              onClick={() => setTimeFilter("week")}
+            >
+              Week
+            </button>
+            <button
+              className={timeFilter === "month" ? "active" : ""}
+              onClick={() => setTimeFilter("month")}
+            >
+              Month
+            </button>
+            <button
+              className={timeFilter === "year" ? "active" : ""}
+              onClick={() => setTimeFilter("year")}
+            >
+              Year
+            </button>
+            <button
+              className={timeFilter === "all" ? "active" : ""}
+              onClick={() => setTimeFilter("all")}
+            >
+              All Time
+            </button>
           </div>
         </div>
 
-        <div className="charts-grid">
-          <div className="chart-card">
-            <h3>Request Trends</h3>
-            <div className="chart-container">
-              <Line data={requestTrendChart} options={chartOptions} />
+        {/* REQUEST SECTION */}
+        <section className="dashboard-section">
+          <h2>Service Requests</h2>
+
+          <div className="stats-grid">
+            <div className="stat-card">
+              <div className="stat-value">{requestStats.total}</div>
+              <div className="stat-label">Total Requests</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{requestStats.pending}</div>
+              <div className="stat-label">Pending</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{requestStats.forCompliance}</div>
+              <div className="stat-label">For Compliance</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{requestStats.approved}</div>
+              <div className="stat-label">Approved</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{requestStats.processing}</div>
+              <div className="stat-label">Processing</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{requestStats.readyForPickup}</div>
+              <div className="stat-label">Ready for Pickup</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{requestStats.completed}</div>
+              <div className="stat-label">Completed</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{requestStats.rejected}</div>
+              <div className="stat-label">Rejected</div>
             </div>
           </div>
 
-          <div className="chart-card">
-            <h3>Most Requested Certificates</h3>
-            <div className="chart-container">
-              <Bar data={requestTypeChart} options={chartOptions} />
-            </div>
-          </div>
-
-          <div className="chart-card">
-            <h3>Requests by Day of Week</h3>
-            <div className="chart-container">
-              <Bar data={dayOfWeekChart} options={chartOptions} />
-            </div>
-          </div>
-
-          <div className="chart-card">
-            <h3>Average Completion Time by Type</h3>
-            <div className="chart-container">
-              <Bar data={completionTimeChart} options={chartOptions} />
-            </div>
-          </div>
-        </div>
-
-        <div className="insights-card">
-          <h3>Completion Time Insights</h3>
-          <div className="insights-grid">
-            {completionTimeByType.map((item) => (
-              <div key={item.type} className="insight-item">
-                <div className="insight-type">{item.type}</div>
-                <div className="insight-stats">
-                  <span className="insight-value">{item.avgDays} days</span>
-                  <span className="insight-detail">
-                    {item.completed} completed, {item.rejected} rejected
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="insights-card">
-          <h3>📊 Request Analysis & Recommendations</h3>
-          <div className="insight-list">
-            {(() => {
-              const peakDay = Object.entries(dayOfWeekData).sort((a, b) => b[1] - a[1])[0];
-              const slowestType = completionTimeByType.sort((a, b) => parseFloat(b.avgDays) - parseFloat(a.avgDays))[0];
-              const rejectionRate = ((requestStats.rejected / requestStats.total) * 100).toFixed(1);
-              const completionRate = ((requestStats.completed / requestStats.total) * 100).toFixed(1);
-              
-              return (
-                <>
-                  <div className="insight-box">
-                    <strong>🔥 Peak Request Day:</strong> {peakDay?.[0]} receives the most requests ({peakDay?.[1]} requests). 
-                    Consider assigning additional staff on this day to handle the workload efficiently.
-                  </div>
-                  <div className="insight-box">
-                    <strong>⏱️ Processing Bottleneck:</strong> {slowestType?.type} takes the longest to process ({slowestType?.avgDays} days average). 
-                    Review the workflow for this certificate type to identify delays and streamline the approval process.
-                  </div>
-                  <div className="insight-box">
-                    <strong>✅ Completion Rate:</strong> {completionRate}% of requests are successfully completed. 
-                    {parseFloat(completionRate) < 70 ? "This is below optimal. Investigate common reasons for incomplete requests." : "Maintain this performance by ensuring consistent service quality."}
-                  </div>
-                  <div className="insight-box">
-                    <strong>❌ Rejection Rate:</strong> {rejectionRate}% of requests are rejected. 
-                    {parseFloat(rejectionRate) > 15 ? "This is high. Provide clearer requirements to residents to reduce rejections and resubmissions." : "This is within acceptable range. Continue monitoring for any upward trends."}
-                  </div>
-                </>
-              );
-            })()}
-          </div>
-        </div>
-      </section>
-
-      {/* COMPLAINT SECTION */}
-      <section className="dashboard-section">
-        <h2>Complaints</h2>
-        
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-value">{complaintStats.total}</div>
-            <div className="stat-label">Total Complaints</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{complaintStats.forReview}</div>
-            <div className="stat-label">For Review</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{complaintStats.pending}</div>
-            <div className="stat-label">Pending</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{complaintStats.resolved}</div>
-            <div className="stat-label">Resolved</div>
-          </div>
-        </div>
-
-        <div className="charts-grid">
-          <div className="chart-card">
-            <h3>Complaint Trends by Creation Date</h3>
-            <div className="chart-container">
-              <Line data={complaintTrendChart} options={chartOptions} />
-            </div>
-          </div>
-
-          <div className="chart-card">
-            <h3>Incidents by Day of Week</h3>
-            <div className="chart-container">
-              <Bar data={incidentDayChart} options={chartOptions} />
-            </div>
-          </div>
-
-          <div className="chart-card">
-            <h3>Incidents by Time of Day</h3>
-            <div className="chart-container">
-              <Bar data={incidentTimeChart} options={chartOptions} />
-            </div>
-          </div>
-
-          <div className="chart-card">
-            <h3>Complaint Categories</h3>
-            <div className="chart-container">
-              <Pie data={complaintCategoryChart} options={chartOptions} />
-            </div>
-          </div>
-
-          <div className="chart-card">
-            <h3>Complaint Types</h3>
-            <div className="chart-container">
-              <div className="type-list">
-                {complaintsByType.slice(0, 10).map((item, idx) => (
-                  <div key={idx} className="type-item">
-                    <span className="type-name">{item.type}</span>
-                    <span className="type-count">{item.count}</span>
-                  </div>
-                ))}
+          <div className="charts-grid">
+            <div className="chart-card">
+              <h3>Request Trends</h3>
+              <div className="chart-container">
+                <Line data={requestTrendChart} options={chartOptions} />
               </div>
             </div>
-          </div>
-        </div>
 
-        <div className="insights-card">
-          <h3>🚨 Complaint Insights & Action Items</h3>
-          <div className="insight-list">
-            {(() => {
-              const peakIncidentDay = Object.entries(incidentPatterns.dayOfWeek).sort((a, b) => b[1] - a[1])[0];
-              const peakIncidentTime = Object.entries(incidentPatterns.timeOfDay).sort((a, b) => b[1] - a[1])[0];
-              const topCategory = Object.entries(categoryData).sort((a, b) => b[1] - a[1])[0];
-              const resolutionRate = ((complaintStats.resolved / complaintStats.total) * 100).toFixed(1);
-              const pendingBacklog = complaintStats.pending + complaintStats.forReview;
-              
-              return (
-                <>
-                  <div className="insight-box">
-                    <strong>📅 Incident Pattern:</strong> Most incidents occur on {peakIncidentDay?.[0]} during {peakIncidentTime?.[0]} ({peakIncidentTime?.[1]} incidents). 
-                    Increase barangay patrol presence during these high-risk periods to prevent incidents.
-                  </div>
-                  <div className="insight-box">
-                    <strong>🎯 Top Complaint Category:</strong> {topCategory?.[0]} accounts for {topCategory?.[1]} complaints. 
-                    Develop targeted intervention programs to address the root causes of this category.
-                  </div>
-                  <div className="insight-box">
-                    <strong>⚖️ Resolution Rate:</strong> {resolutionRate}% of complaints are resolved. 
-                    {parseFloat(resolutionRate) < 60 ? "This needs improvement. Expedite case reviews and assign more officials to complaint handling." : "Good performance. Ensure timely follow-ups to maintain this rate."}
-                  </div>
-                  <div className="insight-box">
-                    <strong>📋 Pending Backlog:</strong> {pendingBacklog} complaints awaiting action. 
-                    {pendingBacklog > 20 ? "High backlog detected. Prioritize urgent cases and allocate resources to clear pending items." : "Backlog is manageable. Continue processing complaints promptly."}
-                  </div>
-                  <div className="insight-box">
-                    <strong>📈 Trend Alert:</strong> {filteredComplaints.length > 0 && (() => {
-                      const recent = filteredComplaints.filter(c => {
-                        const days = (new Date() - new Date(c.created_at)) / (1000 * 60 * 60 * 24);
-                        return days <= 7;
-                      }).length;
-                      const older = filteredComplaints.filter(c => {
-                        const days = (new Date() - new Date(c.created_at)) / (1000 * 60 * 60 * 24);
-                        return days > 7 && days <= 14;
-                      }).length;
-                      const change = older > 0 ? (((recent - older) / older) * 100).toFixed(0) : 0;
-                      return change > 20 ? `Complaints increased by ${change}% this week. Investigate emerging issues in the community.` : 
-                             change < -20 ? `Complaints decreased by ${Math.abs(change)}% this week. Current interventions are working effectively.` :
-                             "Complaint volume is stable. Continue monitoring for any sudden changes.";
-                    })()}
-                  </div>
-                </>
-              );
-            })()}
-          </div>
-        </div>
-      </section>
-
-      {/* SETTLEMENT SECTION */}
-      <section className="dashboard-section">
-        <h2>Settlements</h2>
-        
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-value">{settlementStats.total}</div>
-            <div className="stat-label">Total Settlements</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{settlementStats.resolved}</div>
-            <div className="stat-label">Resolved</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{settlementStats.conciliation}</div>
-            <div className="stat-label">Conciliation</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{settlementStats.mediation}</div>
-            <div className="stat-label">Mediation</div>
-          </div>
-        </div>
-
-        <div className="charts-grid-2x2">
-          <div className="chart-card">
-            <h3>Preferred Settlement Days</h3>
-            <div className="chart-container">
-              <Bar data={settlementDayChart} options={chartOptions} />
+            <div className="chart-card">
+              <h3>Most Requested Certificates</h3>
+              <div className="chart-container">
+                <Bar data={requestTypeChart} options={chartOptions} />
+              </div>
             </div>
-          </div>
 
-          <div className="chart-card">
-            <h3>Success Rate Comparison</h3>
-            <div className="chart-container">
-              <Bar data={settlementTypeChart} options={chartOptions} />
+            <div className="chart-card">
+              <h3>Requests by Day of Week</h3>
+              <div className="chart-container">
+                <Bar data={dayOfWeekChart} options={chartOptions} />
+              </div>
             </div>
-          </div>
 
-          <div className="chart-card">
-            <h3>Settlement Speed by Complaint Type</h3>
-            <div className="chart-container">
-              <div className="type-list">
-                {settlementSpeed.map((item, idx) => (
-                  <div key={idx} className="type-item">
-                    <span className="type-name">{item.type}</span>
-                    <span className="type-count">{item.avgDays} days</span>
-                  </div>
-                ))}
+            <div className="chart-card">
+              <h3>Average Completion Time by Type</h3>
+              <div className="chart-container">
+                <Bar data={completionTimeChart} options={chartOptions} />
               </div>
             </div>
           </div>
 
-          <div className="chart-card">
-            <h3>Type Comparison Details</h3>
-            <div className="chart-container">
-              <div className="comparison-grid-settlement-vertical">
-                <div className="comparison-item">
-                  <h4>Conciliation</h4>
-                  <div className="comparison-stat">
-                    <span>Success Rate</span>
-                    <span className="stat-value">
-                      {settlementTypeComparison.conciliation.successRate}%
-                    </span>
-                  </div>
-                  <div className="comparison-stat">
-                    <span>Avg Resolution Time</span>
-                    <span className="stat-value">
-                      {settlementTypeComparison.conciliation.avgDays} days
-                    </span>
-                  </div>
-                  <div className="comparison-stat">
-                    <span>Total Cases</span>
-                    <span className="stat-value">
-                      {settlementTypeComparison.conciliation.total}
+          <div className="insights-card">
+            <h3>Completion Time Insights</h3>
+            <div className="insights-grid">
+              {completionTimeByType.map((item) => (
+                <div key={item.type} className="insight-item">
+                  <div className="insight-type">{item.type}</div>
+                  <div className="insight-stats">
+                    <span className="insight-value">{item.avgDays} days</span>
+                    <span className="insight-detail">
+                      {item.completed} completed, {item.rejected} rejected
                     </span>
                   </div>
                 </div>
-                <div className="comparison-divider"></div>
-                <div className="comparison-item">
-                  <h4>Mediation</h4>
-                  <div className="comparison-stat">
-                    <span>Success Rate</span>
-                    <span className="stat-value">
-                      {settlementTypeComparison.mediation.successRate}%
-                    </span>
-                  </div>
-                  <div className="comparison-stat">
-                    <span>Avg Resolution Time</span>
-                    <span className="stat-value">
-                      {settlementTypeComparison.mediation.avgDays} days
-                    </span>
-                  </div>
-                  <div className="comparison-stat">
-                    <span>Total Cases</span>
-                    <span className="stat-value">
-                      {settlementTypeComparison.mediation.total}
-                    </span>
-                  </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="insights-card">
+            <h3>📊 Request Analysis & Recommendations</h3>
+            <div className="insight-list">
+              {(() => {
+                const peakDay = Object.entries(dayOfWeekData).sort(
+                  (a, b) => b[1] - a[1],
+                )[0];
+                const slowestType = completionTimeByType.sort(
+                  (a, b) => parseFloat(b.avgDays) - parseFloat(a.avgDays),
+                )[0];
+                const rejectionRate = (
+                  (requestStats.rejected / requestStats.total) *
+                  100
+                ).toFixed(1);
+                const completionRate = (
+                  (requestStats.completed / requestStats.total) *
+                  100
+                ).toFixed(1);
+
+                return (
+                  <>
+                    <div className="insight-box">
+                      <strong>🔥 Peak Request Day:</strong> {peakDay?.[0]}{" "}
+                      receives the most requests ({peakDay?.[1]} requests).
+                      Consider assigning additional staff on this day to handle
+                      the workload efficiently.
+                    </div>
+                    <div className="insight-box">
+                      <strong>⏱️ Processing Bottleneck:</strong>{" "}
+                      {slowestType?.type} takes the longest to process (
+                      {slowestType?.avgDays} days average). Review the workflow
+                      for this certificate type to identify delays and
+                      streamline the approval process.
+                    </div>
+                    <div className="insight-box">
+                      <strong>✅ Completion Rate:</strong> {completionRate}% of
+                      requests are successfully completed.
+                      {parseFloat(completionRate) < 70
+                        ? "This is below optimal. Investigate common reasons for incomplete requests."
+                        : "Maintain this performance by ensuring consistent service quality."}
+                    </div>
+                    <div className="insight-box">
+                      <strong>❌ Rejection Rate:</strong> {rejectionRate}% of
+                      requests are rejected.
+                      {parseFloat(rejectionRate) > 15
+                        ? "This is high. Provide clearer requirements to residents to reduce rejections and resubmissions."
+                        : "This is within acceptable range. Continue monitoring for any upward trends."}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </section>
+
+        {/* COMPLAINT SECTION */}
+        <section className="dashboard-section">
+          <h2>Complaints</h2>
+
+          <div className="stats-grid">
+            <div className="stat-card">
+              <div className="stat-value">{complaintStats.total}</div>
+              <div className="stat-label">Total Complaints</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{complaintStats.forReview}</div>
+              <div className="stat-label">For Review</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{complaintStats.pending}</div>
+              <div className="stat-label">Pending</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{complaintStats.resolved}</div>
+              <div className="stat-label">Resolved</div>
+            </div>
+          </div>
+
+          <div className="charts-grid">
+            <div className="chart-card">
+              <h3>Complaint Trends by Creation Date</h3>
+              <div className="chart-container">
+                <Line data={complaintTrendChart} options={chartOptions} />
+              </div>
+            </div>
+
+            <div className="chart-card">
+              <h3>Incidents by Day of Week</h3>
+              <div className="chart-container">
+                <Bar data={incidentDayChart} options={chartOptions} />
+              </div>
+            </div>
+
+            <div className="chart-card">
+              <h3>Incidents by Time of Day</h3>
+              <div className="chart-container">
+                <Bar data={incidentTimeChart} options={chartOptions} />
+              </div>
+            </div>
+
+            <div className="chart-card">
+              <h3>Complaint Categories</h3>
+              <div className="chart-container">
+                <Pie data={complaintCategoryChart} options={chartOptions} />
+              </div>
+            </div>
+
+            <div className="chart-card">
+              <h3>Complaint Types</h3>
+              <div className="chart-container">
+                <div className="type-list">
+                  {complaintsByType.slice(0, 10).map((item, idx) => (
+                    <div key={idx} className="type-item">
+                      <span className="type-name">{item.type}</span>
+                      <span className="type-count">{item.count}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="insights-card">
-          <h3>⚖️ Settlement Performance & Optimization</h3>
-          <div className="insight-list">
-            {(() => {
-              const preferredDay = Object.entries(settlementDays).sort((a, b) => b[1] - a[1])[0];
-              const conciliationSuccess = parseFloat(settlementTypeComparison.conciliation.successRate);
-              const mediationSuccess = parseFloat(settlementTypeComparison.mediation.successRate);
-              const avgConciliationTime = parseFloat(settlementTypeComparison.conciliation.avgDays);
-              const avgMediationTime = parseFloat(settlementTypeComparison.mediation.avgDays);
-              const totalResolved = settlementStats.resolved;
-              const totalUnresolved = settlementStats.unresolved;
-              const successRate = ((totalResolved / (totalResolved + totalUnresolved)) * 100).toFixed(1);
-              
-              return (
-                <>
-                  <div className="insight-box">
-                    <strong>📆 Optimal Scheduling:</strong> {preferredDay?.[0]} is the most preferred settlement day ({preferredDay?.[1]} sessions). 
-                    Schedule complex cases on this day when parties are most available to maximize attendance and resolution rates.
-                  </div>
-                  <div className="insight-box">
-                    <strong>🤝 Method Effectiveness:</strong> {conciliationSuccess > mediationSuccess ? 
-                      `Conciliation has a ${conciliationSuccess}% success rate vs Mediation's ${mediationSuccess}%. Prioritize conciliation for minor disputes to achieve faster resolutions.` :
-                      `Mediation has a ${mediationSuccess}% success rate vs Conciliation's ${conciliationSuccess}%. Use mediation for complex cases requiring structured negotiation.`}
-                  </div>
-                  <div className="insight-box">
-                    <strong>⏰ Resolution Speed:</strong> {avgConciliationTime < avgMediationTime ? 
-                      `Conciliation resolves cases ${(avgMediationTime - avgConciliationTime).toFixed(1)} days faster than mediation. Use conciliation for time-sensitive disputes.` :
-                      `Mediation resolves cases ${(avgConciliationTime - avgMediationTime).toFixed(1)} days faster. Consider mediation for cases requiring quick resolution.`}
-                  </div>
-                  <div className="insight-box">
-                    <strong>✅ Overall Success Rate:</strong> {successRate}% of settlements result in resolution. 
-                    {parseFloat(successRate) < 70 ? "This needs improvement. Provide mediation training to officials and ensure proper case preparation." : "Excellent performance. Document successful strategies for training purposes."}
-                  </div>
-                  <div className="insight-box">
-                    <strong>🎯 Resource Allocation:</strong> {settlementSpeed.length > 0 && (() => {
-                      const slowest = settlementSpeed[settlementSpeed.length - 1];
-                      return `${slowest?.type} complaints take the longest to settle (${slowest?.avgDays} days). Assign experienced mediators to these cases and develop specialized resolution protocols.`;
-                    })()}
-                  </div>
-                  <div className="insight-box">
-                    <strong>📊 Capacity Planning:</strong> {settlementStats.scheduled + settlementStats.rescheduled} sessions are scheduled/rescheduled. 
-                    {settlementStats.rescheduled > settlementStats.scheduled * 0.3 ? "High rescheduling rate detected. Confirm party availability before scheduling to reduce delays." : "Scheduling efficiency is good. Maintain current confirmation procedures."}
-                  </div>
-                </>
-              );
-            })()}
+          <div className="insights-card">
+            <h3>🚨 Complaint Insights & Action Items</h3>
+            <div className="insight-list">
+              {(() => {
+                const peakIncidentDay = Object.entries(
+                  incidentPatterns.dayOfWeek,
+                ).sort((a, b) => b[1] - a[1])[0];
+                const peakIncidentTime = Object.entries(
+                  incidentPatterns.timeOfDay,
+                ).sort((a, b) => b[1] - a[1])[0];
+                const topCategory = Object.entries(categoryData).sort(
+                  (a, b) => b[1] - a[1],
+                )[0];
+                const resolutionRate = (
+                  (complaintStats.resolved / complaintStats.total) *
+                  100
+                ).toFixed(1);
+                const pendingBacklog =
+                  complaintStats.pending + complaintStats.forReview;
+
+                return (
+                  <>
+                    <div className="insight-box">
+                      <strong>📅 Incident Pattern:</strong> Most incidents occur
+                      on {peakIncidentDay?.[0]} during {peakIncidentTime?.[0]} (
+                      {peakIncidentTime?.[1]} incidents). Increase barangay
+                      patrol presence during these high-risk periods to prevent
+                      incidents.
+                    </div>
+                    <div className="insight-box">
+                      <strong>🎯 Top Complaint Category:</strong>{" "}
+                      {topCategory?.[0]} accounts for {topCategory?.[1]}{" "}
+                      complaints. Develop targeted intervention programs to
+                      address the root causes of this category.
+                    </div>
+                    <div className="insight-box">
+                      <strong>⚖️ Resolution Rate:</strong> {resolutionRate}% of
+                      complaints are resolved.
+                      {parseFloat(resolutionRate) < 60
+                        ? "This needs improvement. Expedite case reviews and assign more officials to complaint handling."
+                        : "Good performance. Ensure timely follow-ups to maintain this rate."}
+                    </div>
+                    <div className="insight-box">
+                      <strong>📋 Pending Backlog:</strong> {pendingBacklog}{" "}
+                      complaints awaiting action.
+                      {pendingBacklog > 20
+                        ? "High backlog detected. Prioritize urgent cases and allocate resources to clear pending items."
+                        : "Backlog is manageable. Continue processing complaints promptly."}
+                    </div>
+                    <div className="insight-box">
+                      <strong>📈 Trend Alert:</strong>{" "}
+                      {filteredComplaints.length > 0 &&
+                        (() => {
+                          const recent = filteredComplaints.filter((c) => {
+                            const days =
+                              (new Date() - new Date(c.created_at)) /
+                              (1000 * 60 * 60 * 24);
+                            return days <= 7;
+                          }).length;
+                          const older = filteredComplaints.filter((c) => {
+                            const days =
+                              (new Date() - new Date(c.created_at)) /
+                              (1000 * 60 * 60 * 24);
+                            return days > 7 && days <= 14;
+                          }).length;
+                          const change =
+                            older > 0
+                              ? (((recent - older) / older) * 100).toFixed(0)
+                              : 0;
+                          return change > 20
+                            ? `Complaints increased by ${change}% this week. Investigate emerging issues in the community.`
+                            : change < -20
+                              ? `Complaints decreased by ${Math.abs(change)}% this week. Current interventions are working effectively.`
+                              : "Complaint volume is stable. Continue monitoring for any sudden changes.";
+                        })()}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+
+        {/* SETTLEMENT SECTION */}
+        <section className="dashboard-section">
+          <h2>Settlements</h2>
+
+          <div className="stats-grid">
+            <div className="stat-card">
+              <div className="stat-value">{settlementStats.total}</div>
+              <div className="stat-label">Total Settlements</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{settlementStats.resolved}</div>
+              <div className="stat-label">Resolved</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{settlementStats.conciliation}</div>
+              <div className="stat-label">Conciliation</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{settlementStats.mediation}</div>
+              <div className="stat-label">Mediation</div>
+            </div>
+          </div>
+
+          <div className="charts-grid-2x2">
+            <div className="chart-card">
+              <h3>Preferred Settlement Days</h3>
+              <div className="chart-container">
+                <Bar data={settlementDayChart} options={chartOptions} />
+              </div>
+            </div>
+
+            <div className="chart-card">
+              <h3>Success Rate Comparison</h3>
+              <div className="chart-container">
+                <Bar data={settlementTypeChart} options={chartOptions} />
+              </div>
+            </div>
+
+            <div className="chart-card">
+              <h3>Settlement Speed by Complaint Type</h3>
+              <div className="chart-container">
+                <div className="type-list">
+                  {settlementSpeed.map((item, idx) => (
+                    <div key={idx} className="type-item">
+                      <span className="type-name">{item.type}</span>
+                      <span className="type-count">{item.avgDays} days</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="chart-card">
+              <h3>Type Comparison Details</h3>
+              <div className="chart-container">
+                <div className="comparison-grid-settlement-vertical">
+                  <div className="comparison-item">
+                    <h4>Conciliation</h4>
+                    <div className="comparison-stat">
+                      <span>Success Rate</span>
+                      <span className="stat-value">
+                        {settlementTypeComparison.conciliation.successRate}%
+                      </span>
+                    </div>
+                    <div className="comparison-stat">
+                      <span>Avg Resolution Time</span>
+                      <span className="stat-value">
+                        {settlementTypeComparison.conciliation.avgDays} days
+                      </span>
+                    </div>
+                    <div className="comparison-stat">
+                      <span>Total Cases</span>
+                      <span className="stat-value">
+                        {settlementTypeComparison.conciliation.total}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="comparison-divider"></div>
+                  <div className="comparison-item">
+                    <h4>Mediation</h4>
+                    <div className="comparison-stat">
+                      <span>Success Rate</span>
+                      <span className="stat-value">
+                        {settlementTypeComparison.mediation.successRate}%
+                      </span>
+                    </div>
+                    <div className="comparison-stat">
+                      <span>Avg Resolution Time</span>
+                      <span className="stat-value">
+                        {settlementTypeComparison.mediation.avgDays} days
+                      </span>
+                    </div>
+                    <div className="comparison-stat">
+                      <span>Total Cases</span>
+                      <span className="stat-value">
+                        {settlementTypeComparison.mediation.total}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="insights-card">
+            <h3>⚖️ Settlement Performance & Optimization</h3>
+            <div className="insight-list">
+              {(() => {
+                const preferredDay = Object.entries(settlementDays).sort(
+                  (a, b) => b[1] - a[1],
+                )[0];
+                const conciliationSuccess = parseFloat(
+                  settlementTypeComparison.conciliation.successRate,
+                );
+                const mediationSuccess = parseFloat(
+                  settlementTypeComparison.mediation.successRate,
+                );
+                const avgConciliationTime = parseFloat(
+                  settlementTypeComparison.conciliation.avgDays,
+                );
+                const avgMediationTime = parseFloat(
+                  settlementTypeComparison.mediation.avgDays,
+                );
+                const totalResolved = settlementStats.resolved;
+                const totalUnresolved = settlementStats.unresolved;
+                const successRate = (
+                  (totalResolved / (totalResolved + totalUnresolved)) *
+                  100
+                ).toFixed(1);
+
+                return (
+                  <>
+                    <div className="insight-box">
+                      <strong>📆 Optimal Scheduling:</strong>{" "}
+                      {preferredDay?.[0]} is the most preferred settlement day (
+                      {preferredDay?.[1]} sessions). Schedule complex cases on
+                      this day when parties are most available to maximize
+                      attendance and resolution rates.
+                    </div>
+                    <div className="insight-box">
+                      <strong>🤝 Method Effectiveness:</strong>{" "}
+                      {conciliationSuccess > mediationSuccess
+                        ? `Conciliation has a ${conciliationSuccess}% success rate vs Mediation's ${mediationSuccess}%. Prioritize conciliation for minor disputes to achieve faster resolutions.`
+                        : `Mediation has a ${mediationSuccess}% success rate vs Conciliation's ${conciliationSuccess}%. Use mediation for complex cases requiring structured negotiation.`}
+                    </div>
+                    <div className="insight-box">
+                      <strong>⏰ Resolution Speed:</strong>{" "}
+                      {avgConciliationTime < avgMediationTime
+                        ? `Conciliation resolves cases ${(avgMediationTime - avgConciliationTime).toFixed(1)} days faster than mediation. Use conciliation for time-sensitive disputes.`
+                        : `Mediation resolves cases ${(avgConciliationTime - avgMediationTime).toFixed(1)} days faster. Consider mediation for cases requiring quick resolution.`}
+                    </div>
+                    <div className="insight-box">
+                      <strong>✅ Overall Success Rate:</strong> {successRate}%
+                      of settlements result in resolution.
+                      {parseFloat(successRate) < 70
+                        ? "This needs improvement. Provide mediation training to officials and ensure proper case preparation."
+                        : "Excellent performance. Document successful strategies for training purposes."}
+                    </div>
+                    <div className="insight-box">
+                      <strong>🎯 Resource Allocation:</strong>{" "}
+                      {settlementSpeed.length > 0 &&
+                        (() => {
+                          const slowest =
+                            settlementSpeed[settlementSpeed.length - 1];
+                          return `${slowest?.type} complaints take the longest to settle (${slowest?.avgDays} days). Assign experienced mediators to these cases and develop specialized resolution protocols.`;
+                        })()}
+                    </div>
+                    <div className="insight-box">
+                      <strong>📊 Capacity Planning:</strong>{" "}
+                      {settlementStats.scheduled + settlementStats.rescheduled}{" "}
+                      sessions are scheduled/rescheduled.
+                      {settlementStats.rescheduled >
+                      settlementStats.scheduled * 0.3
+                        ? "High rescheduling rate detected. Confirm party availability before scheduling to reduce delays."
+                        : "Scheduling efficiency is good. Maintain current confirmation procedures."}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );
