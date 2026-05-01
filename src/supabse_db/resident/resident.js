@@ -87,10 +87,20 @@ const buildResidentResult = (residentData, registrationData) => {
     return { success: true, data: null };
   }
 
+  const normalizedPurokName =
+    residentData.purok_name ||
+    residentData.purok?.name ||
+    residentData.purok ||
+    null;
+  const normalizedCivilStatus = residentData.civil_status || "single";
+
   return {
     success: true,
     data: {
       ...residentData,
+      purok_name: normalizedPurokName,
+      purok: normalizedPurokName,
+      civil_status: normalizedCivilStatus,
       auth_uid: registrationData?.auth_uid || null,
       registered_email: registrationData?.email || null,
       is_activated: registrationData?.is_activated,
@@ -167,7 +177,7 @@ export const getResidentByAuthUid = async (authUid, options = {}) => {
     const { data: residentData, error: residentError } = await supabase
       .schema("barangaylink")
       .from("residents")
-      .select("*")
+      .select("*, purok:puroks(name)")
       .eq("id", registrationData.id)
       .maybeSingle();
 
@@ -315,7 +325,7 @@ export const getResidentsByIds = async (residentIds = [], options = {}) => {
   const { data: residents, error: residentError } = await supabase
     .schema("barangaylink")
     .from("residents")
-    .select("*")
+    .select("*, purok:puroks(name)")
     .in("id", missingResidentIds);
 
   if (residentError) {
@@ -323,8 +333,19 @@ export const getResidentsByIds = async (residentIds = [], options = {}) => {
   }
 
   (residents || []).forEach((resident) => {
-    mapped[resident.id] = resident;
-    residentByIdCache.set(resident.id, { ...resident });
+    const normalizedPurokName =
+      resident.purok_name || resident.purok?.name || resident.purok || null;
+    const normalizedCivilStatus = resident.civil_status || "single";
+
+    const normalizedResident = {
+      ...resident,
+      purok_name: normalizedPurokName,
+      purok: normalizedPurokName,
+      civil_status: normalizedCivilStatus,
+    };
+
+    mapped[resident.id] = normalizedResident;
+    residentByIdCache.set(resident.id, { ...normalizedResident });
   });
 
   return { success: true, data: mapped };

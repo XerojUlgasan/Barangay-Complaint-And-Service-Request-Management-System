@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { useAuth } from "../context/AuthContext";
+import { getResidentByAuthUid } from "../supabse_db/resident/resident";
 import supabase from "../supabse_db/supabase_client";
 
 const formatValue = (value) => {
@@ -63,6 +65,7 @@ const ResidentProfile = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [resident, setResident] = useState(null);
+  const { authUser, userLoading } = useAuth();
 
   const fullName = useMemo(() => {
     if (!resident) {
@@ -147,34 +150,30 @@ const ResidentProfile = () => {
     setError("");
 
     try {
-      const { data: userData, error: authError } =
-        await supabase.auth.getUser();
-      if (authError || !userData?.user?.id) {
+      const authUid = authUser?.id;
+      if (userLoading || !authUid) {
         setResident(null);
         setError("Unable to identify the current resident.");
         return;
       }
 
-      const { data, error: residentError } = await supabase
-        .schema("barangaylink")
-        .from("residents")
-        .select("*")
-        .limit(1)
-        .maybeSingle();
+      const result = await getResidentByAuthUid(authUid, {
+        forceRefresh: true,
+      });
 
-      if (residentError) {
+      if (!result.success) {
         setResident(null);
-        setError(residentError.message || "Unable to load resident profile.");
+        setError(result.message || "Unable to load resident profile.");
         return;
       }
 
-      if (!data) {
+      if (!result.data) {
         setResident(null);
         setError("Resident profile not found.");
         return;
       }
 
-      setResident(data);
+      setResident(result.data);
     } catch (err) {
       console.error("Error loading resident profile:", err);
       setResident(null);
@@ -182,7 +181,7 @@ const ResidentProfile = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authUser?.id, userLoading]);
 
   const openProfile = useCallback(() => {
     setResident(null);
@@ -228,7 +227,9 @@ const ResidentProfile = () => {
               <div className="profile-modal-header">
                 <div className="profile-modal-title-block">
                   <p className="profile-modal-kicker">👤 RESIDENT PROFILE</p>
-                  <p className="profile-modal-subtitle">Personal Information & Details</p>
+                  <p className="profile-modal-subtitle">
+                    Personal Information & Details
+                  </p>
                 </div>
 
                 <button

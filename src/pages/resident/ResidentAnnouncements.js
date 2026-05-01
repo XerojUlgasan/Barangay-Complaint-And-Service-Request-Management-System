@@ -6,6 +6,7 @@ import {
   cancelSignup,
 } from "../../supabse_db/announcement/announcement";
 import { logout } from "../../supabse_db/auth/auth";
+import { getResidentByAuthUid } from "../../supabse_db/resident/resident";
 import supabase from "../../supabse_db/supabase_client";
 import { useAuth } from "../../context/AuthContext";
 import { useAnnouncementsForRole } from "../../hooks/useAnnouncementsForRole";
@@ -42,6 +43,7 @@ const Announcements = () => {
   const [activeFilter, setActiveFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [userProfile, setUserProfile] = useState(null);
+  const [userProfileLoading, setUserProfileLoading] = useState(false);
 
   const searchTerms = Array.from(
     new Set(searchQuery.toLowerCase().trim().split(/\s+/).filter(Boolean)),
@@ -75,6 +77,36 @@ const Announcements = () => {
       );
     });
   };
+
+  // Load user profile for eligibility checks
+  useEffect(() => {
+    if (userLoading || !authUser) {
+      setUserProfile(null);
+      return;
+    }
+
+    const loadUserProfile = async () => {
+      setUserProfileLoading(true);
+      try {
+        const result = await getResidentByAuthUid(authUser.id, {
+          forceRefresh: true,
+        });
+        if (result.success && result.data) {
+          setUserProfile(result.data);
+        } else {
+          console.error("Failed to load user profile:", result.message);
+          setUserProfile(null);
+        }
+      } catch (err) {
+        console.error("Error loading user profile:", err);
+        setUserProfile(null);
+      } finally {
+        setUserProfileLoading(false);
+      }
+    };
+
+    loadUserProfile();
+  }, [authUser, userLoading]);
 
   // Load user signups for events
   useEffect(() => {
@@ -495,8 +527,8 @@ const Announcements = () => {
             {/* Count Label */}
             {!loading && (
               <div className="ann-count-label">
-                Showing {filteredAnnouncements.length} of{" "}
-                {announcements.length} announcements
+                Showing {filteredAnnouncements.length} of {announcements.length}{" "}
+                announcements
               </div>
             )}
 
@@ -504,7 +536,11 @@ const Announcements = () => {
             {loading ? (
               <div className="ann-cards-grid">
                 {[...Array(4)].map((_, i) => (
-                  <div key={i} className="ann-card-skeleton" style={{ animationDelay: `${i * 0.08}s` }}>
+                  <div
+                    key={i}
+                    className="ann-card-skeleton"
+                    style={{ animationDelay: `${i * 0.08}s` }}
+                  >
                     <div className="ann-skeleton-img" />
                     <div className="ann-skeleton-body">
                       <div className="ann-skeleton-meta" />
@@ -615,7 +651,9 @@ const Announcements = () => {
 
                         {/* Signed-up badge (bottom-right) */}
                         {isEvent && isSignedUp && (
-                          <span className="ann-card-signedup-badge">✓ Joined</span>
+                          <span className="ann-card-signedup-badge">
+                            ✓ Joined
+                          </span>
                         )}
                       </div>
 
@@ -653,7 +691,9 @@ const Announcements = () => {
                               <line x1="12" y1="9" x2="12" y2="13" />
                               <line x1="12" y1="17" x2="12.01" y2="17" />
                             </svg>
-                            <span>Attention required — read the full details</span>
+                            <span>
+                              Attention required — read the full details
+                            </span>
                           </div>
                         )}
 
@@ -799,9 +839,23 @@ const Announcements = () => {
                 <b>{getAnnouncementTitle(selectedAnnouncement)}</b>?
               </p>
               {signupMessage && (
-                <p style={{ color: signupMessage.success ? "green" : "red" }}>
+                <div
+                  style={{
+                    padding: "12px",
+                    marginBottom: "12px",
+                    backgroundColor: signupMessage.success
+                      ? "#f0fdf4"
+                      : "#fef2f2",
+                    color: signupMessage.success ? "#166534" : "#991b1b",
+                    borderRadius: "4px",
+                    fontSize: "14px",
+                    whiteSpace: "pre-wrap",
+                    wordWrap: "break-word",
+                    lineHeight: "1.5",
+                  }}
+                >
                   {signupMessage.message}
-                </p>
+                </div>
               )}
               <div className="logout-modal-actions">
                 <button
@@ -820,6 +874,7 @@ const Announcements = () => {
                       if (signupAction === "signup") {
                         const res = await signupForEvent(
                           selectedAnnouncement.id,
+                          userProfile,
                         );
                         if (res && res.success) {
                           setUserSignups((s) => ({
@@ -954,9 +1009,7 @@ const Announcements = () => {
                         <strong>
                           <span
                             className="resident-ann-event-status-inline"
-                            data-status={getEventStatus(
-                              selectedAnnouncement,
-                            )
+                            data-status={getEventStatus(selectedAnnouncement)
                               .toLowerCase()
                               .replace(/\s+/g, "-")}
                           >

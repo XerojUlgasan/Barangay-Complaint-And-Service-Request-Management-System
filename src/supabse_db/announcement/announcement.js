@@ -21,7 +21,9 @@ const hasAdvancedFilters = (announcement) => {
     announcement.occupation ||
     announcement.religion ||
     announcement.civil_status ||
-    announcement.sex,
+    announcement.sex ||
+    announcement.minimum_year_of_stay !== null ||
+    announcement.maximum_year_of_stay !== null,
   );
 };
 
@@ -52,9 +54,64 @@ const getUserAge = (userProfile = {}) => {
   return age >= 0 ? age : null;
 };
 
+// Helper to check if user meets employment status requirements
+// occupation requirement can be: "unemployed", "employed", or "retired"
+const userMatchesEmploymentStatus = (userProfile, occupationRequirement) => {
+  if (!occupationRequirement) return true;
+
+  const userOccupation = userProfile?.occupation;
+  const userAge = getUserAge(userProfile);
+
+  // Normalize the requirement to lowercase for comparison
+  const normalizedRequirement = (occupationRequirement || "")
+    .toLowerCase()
+    .trim();
+
+  // Unemployed: occupation IS NULL OR occupation = 'student' (case-insensitive) AND age <= 18
+  if (normalizedRequirement === "unemployed") {
+    if (userAge !== null && userAge > 18) return false;
+    return !userOccupation || userOccupation.toLowerCase().trim() === "student";
+  }
+
+  // Employed: occupation NOT NULL AND occupation != 'student' (case-insensitive) AND age < 65
+  if (normalizedRequirement === "employed") {
+    if (userAge !== null && userAge >= 65) return false;
+    return userOccupation && userOccupation.toLowerCase().trim() !== "student";
+  }
+
+  // Retired: age >= 65
+  if (normalizedRequirement === "retired") {
+    return userAge !== null && userAge >= 65;
+  }
+
+  return true;
+};
+
+// Helper to get years of stay (treat null as 0)
+const getUserYearsOfStay = (userProfile = {}) => {
+  const yearsOfStay = userProfile.years_of_stay;
+  if (yearsOfStay === null || yearsOfStay === undefined || yearsOfStay === "") {
+    return 0;
+  }
+  const parsed = Number.parseInt(yearsOfStay, 10);
+  return Number.isNaN(parsed) || parsed < 0 ? 0 : parsed;
+};
+
+// Helper to check if user meets years of stay requirements
+const userMatchesYearsOfStay = (userProfile, minYears, maxYears) => {
+  const userYears = getUserYearsOfStay(userProfile);
+  if (minYears !== null && minYears !== undefined && userYears < minYears)
+    return false;
+  if (maxYears !== null && maxYears !== undefined && userYears > maxYears)
+    return false;
+  return true;
+};
+
 // Helper to check if user matches advanced filters
 const userMatchesFilters = (userProfile, announcement) => {
   if (!hasAdvancedFilters(announcement)) return true; // No filters = everyone allowed
+
+  const userPurok = userProfile.purok || userProfile.purok_name || null;
 
   const filters = {
     purok: announcement.purok,
@@ -65,10 +122,16 @@ const userMatchesFilters = (userProfile, announcement) => {
     religion: announcement.religion,
     civil_status: announcement.civil_status,
     sex: announcement.sex,
+    minimum_year_of_stay: parseOptionalNonNegativeInteger(
+      announcement.minimum_year_of_stay,
+    ),
+    maximum_year_of_stay: parseOptionalNonNegativeInteger(
+      announcement.maximum_year_of_stay,
+    ),
   };
 
   // Check if user matches all applicable filters
-  if (filters.purok && !filters.purok.includes(userProfile.purok)) return false;
+  if (filters.purok && !filters.purok.includes(userPurok)) return false;
   if (filters.min_age !== null || filters.max_age !== null) {
     const userAge = getUserAge(userProfile);
     if (userAge === null) return false;
@@ -80,11 +143,28 @@ const userMatchesFilters = (userProfile, announcement) => {
     !filters.voter_status.includes(userProfile.voter_status)
   )
     return false;
-  if (
-    filters.occupation &&
-    !filters.occupation.includes(userProfile.occupation)
-  )
-    return false;
+
+  // Check occupation with employment status rules
+  if (filters.occupation && filters.occupation.length > 0) {
+    // If occupation array contains employment status keywords, use special validation
+    const hasEmploymentKeywords = filters.occupation.some((occ) =>
+      ["unemployed", "employed", "retired"].includes(
+        (occ || "").toLowerCase().trim(),
+      ),
+    );
+
+    if (hasEmploymentKeywords) {
+      // Check each employment status in the array
+      const matchesAny = filters.occupation.some((occ) =>
+        userMatchesEmploymentStatus(userProfile, occ),
+      );
+      if (!matchesAny) return false;
+    } else {
+      // Standard occupation matching (for regular job titles)
+      if (!filters.occupation.includes(userProfile.occupation)) return false;
+    }
+  }
+
   if (filters.religion && !filters.religion.includes(userProfile.religion))
     return false;
   if (
@@ -93,6 +173,16 @@ const userMatchesFilters = (userProfile, announcement) => {
   )
     return false;
   if (filters.sex && filters.sex !== userProfile.sex) return false;
+
+  // Check years of stay requirements
+  if (
+    !userMatchesYearsOfStay(
+      userProfile,
+      filters.minimum_year_of_stay,
+      filters.maximum_year_of_stay,
+    )
+  )
+    return false;
 
   return true;
 };
@@ -106,6 +196,7 @@ const normalizeSexForDb = (value) => {
 ///////////////////////////////////////////////////////// THIS, CHANGE THIS!
 export const getPurokChoices = async () => {
   const { data, error } = await supabase
+    .schema("barangaylink")
     .from("puroks")
     .select("name")
     .order("name", { ascending: true });
@@ -373,11 +464,26 @@ export const updateAnnouncement = async (
   // Fetch BEFORE state for comparison
   const { data: beforeUpdate, error: beforeError } = await supabase
     .from("announcement_tbl")
-    .select("category, priority, title, content")
+    .select("category, priority, title, content, audience")
     .eq("id", id)
     .maybeSingle();
 
   console.log("BEFORE UPDATE:", beforeUpdate);
+
+  // Server-side safeguard: disallow changing category, priority, and audience on edits.
+  // Override any attempted changes with the existing values from the DB.
+  if (beforeUpdate) {
+    if (Object.prototype.hasOwnProperty.call(beforeUpdate, "category")) {
+      updatePayload.category = beforeUpdate.category;
+    }
+    if (Object.prototype.hasOwnProperty.call(beforeUpdate, "priority")) {
+      updatePayload.priority = beforeUpdate.priority;
+    }
+    if (Object.prototype.hasOwnProperty.call(beforeUpdate, "audience")) {
+      // only preserve existing audience; ignore any new audience value
+      updatePayload.audience = beforeUpdate.audience ?? null;
+    }
+  }
 
   // Perform the update without trying to return the row (avoiding the 406 issue)
   const { error: updateError } = await supabase
@@ -499,7 +605,7 @@ export const signupForEvent = async (announcementId, userProfile = null) => {
   const { data: announcement, error: announcementError } = await supabase
     .from("announcement_tbl")
     .select(
-      "id, audience, max_participants, purok, min_age, max_age, voter_status, occupation, religion, civil_status, sex",
+      "id, audience, max_participants, purok, min_age, max_age, voter_status, occupation, religion, civil_status, sex, minimum_year_of_stay, maximum_year_of_stay",
     )
     .eq("id", announcementId)
     .maybeSingle();
@@ -567,14 +673,18 @@ export const signupForEvent = async (announcementId, userProfile = null) => {
       );
     } else if (!userMatchesFilters(userProfile, announcement)) {
       const missingFilters = [];
+
       if (
         announcement.purok &&
-        !announcement.purok.includes(userProfile.purok)
+        !announcement.purok.includes(
+          userProfile.purok || userProfile.purok_name,
+        )
       ) {
         missingFilters.push(
-          `Purok: ${userProfile.purok || "Unknown"} (Required: ${announcement.purok.join(", ")})`,
+          `Purok: ${userProfile.purok || userProfile.purok_name || "Unknown"} (Required: ${announcement.purok.join(", ")})`,
         );
       }
+
       if (
         (announcement.min_age !== null || announcement.max_age !== null) &&
         (() => {
@@ -596,6 +706,7 @@ export const signupForEvent = async (announcementId, userProfile = null) => {
           `Age: ${userAge ?? "Unknown"} (Required: ${minAgeLabel}-${maxAgeLabel})`,
         );
       }
+
       if (
         announcement.voter_status &&
         !announcement.voter_status.includes(userProfile.voter_status)
@@ -604,34 +715,90 @@ export const signupForEvent = async (announcementId, userProfile = null) => {
           `Voter status: ${userProfile.voter_status} (Required: ${announcement.voter_status.join(", ")})`,
         );
       }
-      if (
-        announcement.occupation &&
-        !announcement.occupation.includes(userProfile.occupation)
-      ) {
-        missingFilters.push(
-          `Occupation: ${userProfile.occupation} (Required: ${announcement.occupation.join(", ")})`,
+
+      // Enhanced occupation validation with employment status support
+      if (announcement.occupation && announcement.occupation.length > 0) {
+        const hasEmploymentKeywords = announcement.occupation.some((occ) =>
+          ["unemployed", "employed", "retired"].includes(
+            (occ || "").toLowerCase().trim(),
+          ),
         );
+
+        if (hasEmploymentKeywords) {
+          // Check if user matches any employment status
+          const matchesAny = announcement.occupation.some((occ) =>
+            userMatchesEmploymentStatus(userProfile, occ),
+          );
+
+          if (!matchesAny) {
+            const userAge = getUserAge(userProfile);
+            const userOccupation = userProfile.occupation || "None";
+            missingFilters.push(
+              `Employment Status: ${userOccupation} (Age: ${userAge ?? "Unknown"}) (Required: ${announcement.occupation.join(", ")})`,
+            );
+          }
+        } else if (!announcement.occupation.includes(userProfile.occupation)) {
+          // Standard occupation matching
+          missingFilters.push(
+            `Occupation: ${userProfile.occupation || "None"} (Required: ${announcement.occupation.join(", ")})`,
+          );
+        }
       }
+
       if (
         announcement.religion &&
         !announcement.religion.includes(userProfile.religion)
       ) {
         missingFilters.push(
-          `Religion: ${userProfile.religion} (Required: ${announcement.religion.join(", ")})`,
+          `Religion: ${userProfile.religion || "None"} (Required: ${announcement.religion.join(", ")})`,
         );
       }
+
       if (
         announcement.civil_status &&
         !announcement.civil_status.includes(userProfile.civil_status)
       ) {
         missingFilters.push(
-          `Civil status: ${userProfile.civil_status} (Required: ${announcement.civil_status.join(", ")})`,
+          `Civil status: ${userProfile.civil_status || "None"} (Required: ${announcement.civil_status.join(", ")})`,
         );
       }
+
       if (announcement.sex && announcement.sex !== userProfile.sex) {
         missingFilters.push(
-          `Sex: ${userProfile.sex} (Required: ${announcement.sex})`,
+          `Sex: ${userProfile.sex || "Unknown"} (Required: ${announcement.sex})`,
         );
+      }
+
+      // Check years of stay requirements
+      if (
+        announcement.minimum_year_of_stay !== null ||
+        announcement.maximum_year_of_stay !== null
+      ) {
+        const userYears = getUserYearsOfStay(userProfile);
+        const minYearsLabel =
+          announcement.minimum_year_of_stay !== null
+            ? announcement.minimum_year_of_stay
+            : "Any";
+        const maxYearsLabel =
+          announcement.maximum_year_of_stay !== null
+            ? announcement.maximum_year_of_stay
+            : "Any";
+
+        if (
+          announcement.minimum_year_of_stay !== null &&
+          userYears < announcement.minimum_year_of_stay
+        ) {
+          missingFilters.push(
+            `Years of Stay: ${userYears} (Required: ${minYearsLabel}-${maxYearsLabel})`,
+          );
+        } else if (
+          announcement.maximum_year_of_stay !== null &&
+          userYears > announcement.maximum_year_of_stay
+        ) {
+          missingFilters.push(
+            `Years of Stay: ${userYears} (Required: ${minYearsLabel}-${maxYearsLabel})`,
+          );
+        }
       }
 
       return {

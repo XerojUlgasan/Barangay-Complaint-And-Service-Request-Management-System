@@ -73,6 +73,14 @@ export default function AdminAnnouncements() {
   const [civilStatusDropdown, setCivilStatusDropdown] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [lockedEditFilters, setLockedEditFilters] = useState({
+    purok: [],
+    voter_status: [],
+    occupation: [],
+    religion: [],
+    civil_status: [],
+    sex: "",
+  });
   const [toast, setToast] = useState({
     show: false,
     type: "success",
@@ -301,9 +309,19 @@ export default function AdminAnnouncements() {
     : minStartDateTime;
 
   const shouldShowAdvancedFiltering =
-    !isEditMode &&
+    formData.category === "event" && formData.audience === "residents";
+
+  const isResidentEventEditMode =
+    isEditMode &&
     formData.category === "event" &&
     formData.audience === "residents";
+
+  const isLockedExistingFilterValue = (field, value) => {
+    if (!isResidentEventEditMode) return false;
+    return toArray(lockedEditFilters[field]).includes(value);
+  };
+
+  const isSexLocked = isResidentEventEditMode && Boolean(lockedEditFilters.sex);
 
   // Filtered announcements for search and filter
   const filteredAnnouncements = announcements.filter((ann) => {
@@ -488,6 +506,15 @@ export default function AdminAnnouncements() {
     setShowModal(false);
     setIsEditMode(false);
     setEditingAnnouncement(null);
+    setShowAdvanced(false);
+    setLockedEditFilters({
+      purok: [],
+      voter_status: [],
+      occupation: [],
+      religion: [],
+      civil_status: [],
+      sex: "",
+    });
     setDateErrors({ start: "", end: "" });
     clearFormFeedback();
   };
@@ -497,6 +524,18 @@ export default function AdminAnnouncements() {
     clearFormFeedback();
     setEditingAnnouncement(ann);
     setIsEditMode(true);
+    const editableAsResidentEvent =
+      (ann.category || "").toLowerCase() === "event" &&
+      (ann.audience || "").toLowerCase() === "residents";
+    setShowAdvanced(editableAsResidentEvent);
+    setLockedEditFilters({
+      purok: Array.isArray(ann.purok) ? ann.purok : [],
+      voter_status: Array.isArray(ann.voter_status) ? ann.voter_status : [],
+      occupation: Array.isArray(ann.occupation) ? ann.occupation : [],
+      religion: Array.isArray(ann.religion) ? ann.religion : [],
+      civil_status: Array.isArray(ann.civil_status) ? ann.civil_status : [],
+      sex: mapSexToUi(ann.sex),
+    });
     setFormData({
       category: ann.category || "general",
       priority: ann.priority || "normal",
@@ -524,6 +563,15 @@ export default function AdminAnnouncements() {
     setShowModal(false);
     setIsEditMode(false);
     setEditingAnnouncement(null);
+    setShowAdvanced(false);
+    setLockedEditFilters({
+      purok: [],
+      voter_status: [],
+      occupation: [],
+      religion: [],
+      civil_status: [],
+      sex: "",
+    });
     clearFormFeedback();
     setFormData({
       category: "general",
@@ -1544,6 +1592,7 @@ export default function AdminAnnouncements() {
                     </label>
                     <select
                       value={formData.category}
+                      disabled={isEditMode}
                       onChange={(e) => {
                         const nextCategory = e.target.value;
                         setFormData({
@@ -1614,6 +1663,7 @@ export default function AdminAnnouncements() {
                       onChange={(e) =>
                         setFormData({ ...formData, priority: e.target.value })
                       }
+                      disabled={isEditMode}
                       style={{
                         width: "100%",
                         padding: "10px",
@@ -1889,6 +1939,7 @@ export default function AdminAnnouncements() {
                               setShowAdvanced(false);
                             }
                           }}
+                          disabled={isEditMode}
                           style={{
                             width: "100%",
                             padding: "10px",
@@ -1952,6 +2003,23 @@ export default function AdminAnnouncements() {
 
                 {shouldShowAdvancedFiltering && (
                   <div style={{ marginTop: "16px" }}>
+                    {isResidentEventEditMode && (
+                      <div
+                        style={{
+                          marginBottom: "12px",
+                          border: "1px solid #bfdbfe",
+                          backgroundColor: "#eff6ff",
+                          color: "#1e3a8a",
+                          borderRadius: "8px",
+                          padding: "10px 12px",
+                          fontSize: "13px",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Existing filters are locked. You can add new filters,
+                        but you cannot remove the current ones.
+                      </div>
+                    )}
                     <button
                       type="button"
                       onClick={() => setShowAdvanced(!showAdvanced)}
@@ -2068,6 +2136,14 @@ export default function AdminAnnouncements() {
                                               ],
                                             });
                                           } else {
+                                            if (
+                                              isLockedExistingFilterValue(
+                                                "purok",
+                                                purokName,
+                                              )
+                                            ) {
+                                              return;
+                                            }
                                             setFormData({
                                               ...formData,
                                               purok: formData.purok.filter(
@@ -2114,7 +2190,19 @@ export default function AdminAnnouncements() {
                                     </span>
                                     <button
                                       type="button"
+                                      disabled={isLockedExistingFilterValue(
+                                        "purok",
+                                        purokName,
+                                      )}
                                       onClick={() => {
+                                        if (
+                                          isLockedExistingFilterValue(
+                                            "purok",
+                                            purokName,
+                                          )
+                                        ) {
+                                          return;
+                                        }
                                         setFormData({
                                           ...formData,
                                           purok: formData.purok.filter(
@@ -2327,6 +2415,14 @@ export default function AdminAnnouncements() {
                                               ],
                                             });
                                           } else {
+                                            if (
+                                              isLockedExistingFilterValue(
+                                                "voter_status",
+                                                status,
+                                              )
+                                            ) {
+                                              return;
+                                            }
                                             setFormData({
                                               ...formData,
                                               voter_status:
@@ -2380,7 +2476,19 @@ export default function AdminAnnouncements() {
                                     </span>
                                     <button
                                       type="button"
+                                      disabled={isLockedExistingFilterValue(
+                                        "voter_status",
+                                        status,
+                                      )}
                                       onClick={() => {
+                                        if (
+                                          isLockedExistingFilterValue(
+                                            "voter_status",
+                                            status,
+                                          )
+                                        ) {
+                                          return;
+                                        }
                                         setFormData({
                                           ...formData,
                                           voter_status:
@@ -2481,6 +2589,14 @@ export default function AdminAnnouncements() {
                                               ],
                                             });
                                           } else {
+                                            if (
+                                              isLockedExistingFilterValue(
+                                                "occupation",
+                                                occ.value,
+                                              )
+                                            ) {
+                                              return;
+                                            }
                                             setFormData({
                                               ...formData,
                                               occupation:
@@ -2532,7 +2648,19 @@ export default function AdminAnnouncements() {
                                       </span>
                                       <button
                                         type="button"
+                                        disabled={isLockedExistingFilterValue(
+                                          "occupation",
+                                          occ,
+                                        )}
                                         onClick={() => {
+                                          if (
+                                            isLockedExistingFilterValue(
+                                              "occupation",
+                                              occ,
+                                            )
+                                          ) {
+                                            return;
+                                          }
                                           setFormData({
                                             ...formData,
                                             occupation:
@@ -2635,6 +2763,14 @@ export default function AdminAnnouncements() {
                                                 ],
                                               });
                                             } else {
+                                              if (
+                                                isLockedExistingFilterValue(
+                                                  "religion",
+                                                  rel,
+                                                )
+                                              ) {
+                                                return;
+                                              }
                                               setFormData({
                                                 ...formData,
                                                 religion:
@@ -2683,7 +2819,19 @@ export default function AdminAnnouncements() {
                                     </span>
                                     <button
                                       type="button"
+                                      disabled={isLockedExistingFilterValue(
+                                        "religion",
+                                        rel,
+                                      )}
                                       onClick={() => {
+                                        if (
+                                          isLockedExistingFilterValue(
+                                            "religion",
+                                            rel,
+                                          )
+                                        ) {
+                                          return;
+                                        }
                                         setFormData({
                                           ...formData,
                                           religion: formData.religion.filter(
@@ -2787,6 +2935,14 @@ export default function AdminAnnouncements() {
                                               ],
                                             });
                                           } else {
+                                            if (
+                                              isLockedExistingFilterValue(
+                                                "civil_status",
+                                                status,
+                                              )
+                                            ) {
+                                              return;
+                                            }
                                             setFormData({
                                               ...formData,
                                               civil_status:
@@ -2836,7 +2992,19 @@ export default function AdminAnnouncements() {
                                     </span>
                                     <button
                                       type="button"
+                                      disabled={isLockedExistingFilterValue(
+                                        "civil_status",
+                                        status,
+                                      )}
                                       onClick={() => {
+                                        if (
+                                          isLockedExistingFilterValue(
+                                            "civil_status",
+                                            status,
+                                          )
+                                        ) {
+                                          return;
+                                        }
                                         setFormData({
                                           ...formData,
                                           civil_status:
@@ -2876,6 +3044,7 @@ export default function AdminAnnouncements() {
                             </label>
                             <select
                               value={formData.sex}
+                              disabled={isSexLocked}
                               onChange={(e) =>
                                 setFormData({
                                   ...formData,
