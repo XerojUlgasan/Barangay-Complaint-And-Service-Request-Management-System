@@ -23,11 +23,33 @@ import {
   getResidentsUsersTable,
   getResidentById,
   getOfficialByCode,
+  getOfficialAccessControl,
   deactivateOfficial,
   getActivatedOfficials,
+  upsertOfficialAccessControl,
 } from "../../supabse_db/superadmin/superadmin";
 import supabase, { API_CONFIG } from "../../supabse_db/supabase_client";
 import "../../styles/BarangayAdmin.css";
+
+const DEFAULT_OFFICIAL_PERMISSIONS = {
+  read_req: false,
+  edit_req: false,
+  read_comp: false,
+  edit_comp: false,
+  read_sett: false,
+  create_sett: false,
+  update_sett: false,
+};
+
+const PERMISSION_FIELDS = [
+  { key: "read_req", label: "Reading requests" },
+  { key: "edit_req", label: "Update requests" },
+  { key: "read_comp", label: "Read complaints" },
+  { key: "edit_comp", label: "Update complaints" },
+  { key: "read_sett", label: "View settlements" },
+  { key: "create_sett", label: "Create settlements" },
+  { key: "update_sett", label: "Update settlements" },
+];
 
 export default function AdminUsers() {
   const [officials, setOfficials] = useState([]);
@@ -53,6 +75,16 @@ export default function AdminUsers() {
   const [showEmailBinding, setShowEmailBinding] = useState(false);
   const [bindingEmail, setBindingEmail] = useState("");
   const [emailError, setEmailError] = useState("");
+
+  // ── Official permissions modal ────────────────────────────────
+  const [permissionsModal, setPermissionsModal] = useState(false);
+  const [permissionsTarget, setPermissionsTarget] = useState(null);
+  const [permissionsLoading, setPermissionsLoading] = useState(false);
+  const [permissionsSaving, setPermissionsSaving] = useState(false);
+  const [permissionsError, setPermissionsError] = useState("");
+  const [permissionsValues, setPermissionsValues] = useState(
+    DEFAULT_OFFICIAL_PERMISSIONS,
+  );
 
   // ── Manage / Deactivate Officials modal ────────────────────────
   const [manageModal, setManageModal] = useState(false);
@@ -81,6 +113,7 @@ export default function AdminUsers() {
       foundOfficial ||
       showFinalConfirm ||
       showEmailBinding ||
+      permissionsModal ||
       manageModal ||
       showDeactivateConfirm;
     if (!anyOpen) return;
@@ -95,6 +128,7 @@ export default function AdminUsers() {
     foundOfficial,
     showFinalConfirm,
     showEmailBinding,
+    permissionsModal,
     manageModal,
     showDeactivateConfirm,
   ]);
@@ -113,6 +147,10 @@ export default function AdminUsers() {
       }
       if (showFinalConfirm) {
         setShowFinalConfirm(false);
+        return;
+      }
+      if (permissionsModal) {
+        closePermissionsModal();
         return;
       }
       if (foundOfficial) {
@@ -137,6 +175,7 @@ export default function AdminUsers() {
     foundOfficial,
     showFinalConfirm,
     showEmailBinding,
+    permissionsModal,
     manageModal,
     showDeactivateConfirm,
   ]);
@@ -154,6 +193,7 @@ export default function AdminUsers() {
       if (officialsResult.success && Array.isArray(officialsResult.data)) {
         const formattedOfficials = officialsResult.data.map((official) => ({
           id: official.id,
+          uid: official.uid || null,
           officialCode: official.official_code || "N/A",
           name: official.full_name || "Unknown",
           status: hasOfficialUid(official.uid)
@@ -383,6 +423,83 @@ export default function AdminUsers() {
     }
 
     setSelectedResident(residentRow.resident || residentRow);
+  };
+
+  const closePermissionsModal = () => {
+    setPermissionsModal(false);
+    setPermissionsTarget(null);
+    setPermissionsLoading(false);
+    setPermissionsSaving(false);
+    setPermissionsError("");
+    setPermissionsValues(DEFAULT_OFFICIAL_PERMISSIONS);
+  };
+
+  const openPermissionsModal = async (official) => {
+    if (!official?.uid) return;
+
+    setPermissionsTarget(official);
+    setPermissionsValues(DEFAULT_OFFICIAL_PERMISSIONS);
+    setPermissionsError("");
+    setPermissionsModal(true);
+    setPermissionsLoading(true);
+
+    try {
+      const result = await getOfficialAccessControl(official.uid);
+
+      if (result.success && result.data) {
+        setPermissionsValues({
+          read_req: Boolean(result.data.read_req),
+          edit_req: Boolean(result.data.edit_req),
+          read_comp: Boolean(result.data.read_comp),
+          edit_comp: Boolean(result.data.edit_comp),
+          read_sett: Boolean(result.data.read_sett),
+          create_sett: Boolean(result.data.create_sett),
+          update_sett: Boolean(result.data.update_sett),
+        });
+      } else if (!result.success) {
+        setPermissionsError(result.message || "Failed to load permissions.");
+      }
+    } catch (err) {
+      console.error("Failed to load permissions:", err);
+      setPermissionsError("Failed to load permissions.");
+    } finally {
+      setPermissionsLoading(false);
+    }
+  };
+
+  const togglePermission = (key) => {
+    setPermissionsValues((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  const handleSavePermissions = async () => {
+    if (!permissionsTarget?.uid) {
+      setPermissionsError("Official account is not registered yet.");
+      return;
+    }
+
+    setPermissionsSaving(true);
+    setPermissionsError("");
+
+    try {
+      const result = await upsertOfficialAccessControl(
+        permissionsTarget.uid,
+        permissionsValues,
+      );
+
+      if (result.success) {
+        closePermissionsModal();
+      } else {
+        setPermissionsError(result.message || "Failed to save permissions.");
+      }
+    } catch (err) {
+      console.error("Failed to save permissions:", err);
+      setPermissionsError("Failed to save permissions.");
+    } finally {
+      setPermissionsSaving(false);
+    }
   };
 
   // ── Badge helpers ───────────────────────────────────────────────
@@ -678,6 +795,158 @@ export default function AdminUsers() {
                     </section>
                   ))}
                 </div>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
+
+  const permissionsModalPortal =
+    permissionsModal && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            className="ao-overlay"
+            style={{ zIndex: 10280 }}
+            onClick={closePermissionsModal}
+          >
+            <div
+              className="ao-modal"
+              style={{ width: "min(620px, 100%)" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="ao-modal-header">
+                <div
+                  className="ao-modal-header-icon"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)",
+                    boxShadow: "0 4px 12px rgba(14,165,233,0.3)",
+                  }}
+                >
+                  <Settings size={22} />
+                </div>
+                <div>
+                  <h3 className="ao-modal-title">Permissions</h3>
+                  <p className="ao-modal-subtitle">
+                    Configure access for {permissionsTarget?.first_name || ""}{" "}
+                    {permissionsTarget?.last_name || ""}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="ao-close-btn"
+                  onClick={closePermissionsModal}
+                  aria-label="Close"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="ao-modal-body">
+                {permissionsLoading ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 10,
+                      padding: "28px 0",
+                      color: "#64748b",
+                    }}
+                  >
+                    <Loader2 size={18} className="ao-spin" />
+                    Loading permissions...
+                  </div>
+                ) : (
+                  <>
+                    <div
+                      style={{
+                        background: "#eff6ff",
+                        border: "1.5px solid #bfdbfe",
+                        borderRadius: 12,
+                        padding: "12px 14px",
+                        marginBottom: 16,
+                        color: "#1e3a8a",
+                        fontSize: 13,
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      Set the official permissions below. Leaving a box
+                      unchecked keeps that access disabled.
+                    </div>
+
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          "repeat(auto-fit, minmax(220px, 1fr))",
+                        gap: 12,
+                      }}
+                    >
+                      {PERMISSION_FIELDS.map((item) => (
+                        <label
+                          key={item.key}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                            border: "1.5px solid #e2e8f0",
+                            borderRadius: 12,
+                            padding: "12px 14px",
+                            background: permissionsValues[item.key]
+                              ? "#f0fdf4"
+                              : "#fff",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={Boolean(permissionsValues[item.key])}
+                            onChange={() => togglePermission(item.key)}
+                            style={{ width: 16, height: 16 }}
+                          />
+                          <span style={{ fontWeight: 600, color: "#0f172a" }}>
+                            {item.label}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+
+                    {permissionsError && (
+                      <p className="ao-error" style={{ marginTop: 14 }}>
+                        {permissionsError}
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <div className="ao-modal-footer">
+                <button
+                  type="button"
+                  className="ao-cancel-btn"
+                  onClick={closePermissionsModal}
+                  disabled={permissionsSaving}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="ao-activate-btn"
+                  onClick={handleSavePermissions}
+                  disabled={permissionsLoading || permissionsSaving}
+                >
+                  {permissionsSaving ? (
+                    <>
+                      <Loader2 size={16} className="ao-spin" /> Saving…
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck size={16} /> Save Permissions
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>,
@@ -1977,6 +2246,7 @@ export default function AdminUsers() {
                         <th>Role</th>
                         <th>Email</th>
                         <th>Status</th>
+                        <th>Permissions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2002,13 +2272,26 @@ export default function AdminUsers() {
                                   </span>
                                 </span>
                               </td>
+                              <td>
+                                {o.status === "Registered" ? (
+                                  <button
+                                    type="button"
+                                    className="view-details-btn"
+                                    onClick={() => openPermissionsModal(o)}
+                                  >
+                                    <Settings size={16} /> Permissions
+                                  </button>
+                                ) : (
+                                  <span style={{ color: "#94a3b8" }}>—</span>
+                                )}
+                              </td>
                             </tr>
                           );
                         })
                       ) : (
                         <tr>
                           <td
-                            colSpan="5"
+                            colSpan="6"
                             style={{ textAlign: "center", color: "#9ca3af" }}
                           >
                             No officials found
@@ -2083,6 +2366,7 @@ export default function AdminUsers() {
       )}
 
       {residentModal}
+      {permissionsModalPortal}
       {codeInputModal}
       {confirmModal}
       {emailBindingModal}

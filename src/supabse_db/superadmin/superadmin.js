@@ -335,6 +335,91 @@ export const getOfficialByCode = async (officialCode) => {
   return { success: true, data };
 };
 
+export const getOfficialAccessControl = async (authUid) => {
+  const accessResult = await ensureSuperAdminAccess();
+
+  if (!accessResult.success) {
+    return accessResult;
+  }
+
+  if (!authUid) {
+    return {
+      success: false,
+      message: "Official account is not registered yet.",
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("official_access_control")
+    .select("*")
+    .eq("auth_uid", authUid)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error fetching official access control:", error);
+    return {
+      success: false,
+      message: "Failed to fetch official permissions.",
+    };
+  }
+
+  return {
+    success: true,
+    data: data || {
+      auth_uid: authUid,
+      read_req: false,
+      edit_req: false,
+      read_comp: false,
+      edit_comp: false,
+      read_sett: false,
+      create_sett: false,
+      update_sett: false,
+    },
+  };
+};
+
+export const upsertOfficialAccessControl = async (authUid, permissions) => {
+  const accessResult = await ensureSuperAdminAccess();
+
+  if (!accessResult.success) {
+    return accessResult;
+  }
+
+  if (!authUid) {
+    return {
+      success: false,
+      message: "Official account is not registered yet.",
+    };
+  }
+
+  const payload = {
+    auth_uid: authUid,
+    read_req: Boolean(permissions?.read_req),
+    edit_req: Boolean(permissions?.edit_req),
+    read_comp: Boolean(permissions?.read_comp),
+    edit_comp: Boolean(permissions?.edit_comp),
+    read_sett: Boolean(permissions?.read_sett),
+    create_sett: Boolean(permissions?.create_sett),
+    update_sett: Boolean(permissions?.update_sett),
+  };
+
+  const { data, error } = await supabase
+    .from("official_access_control")
+    .upsert(payload, { onConflict: "auth_uid" })
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("Error saving official access control:", error);
+    return {
+      success: false,
+      message: "Failed to save official permissions.",
+    };
+  }
+
+  return { success: true, data };
+};
+
 export const activateOfficial = async (officialId) => {
   const accessResult = await ensureSuperAdminAccess();
 
