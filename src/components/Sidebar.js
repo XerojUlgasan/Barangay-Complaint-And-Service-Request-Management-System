@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { NavLink } from "react-router-dom";
+import { usePermissions } from "../context/PermissionsContext";
 import "../styles/Sidebar.css";
 
 /**
@@ -14,6 +15,7 @@ import "../styles/Sidebar.css";
  * - Active route indication with highlighting
  * - Mobile responsive hamburger menu
  * - Logout functionality
+ * - Permission-based button disabling with tooltips
  *
  * Props:
  * @param {string} activeMenu - Currently active menu item to highlight (e.g., 'dashboard', 'requests')
@@ -21,6 +23,39 @@ import "../styles/Sidebar.css";
 const Sidebar = ({ activeMenu = "dashboard", menuItems = [] }) => {
   // State to track if sidebar is open on mobile devices
   const [isOpen, setIsOpen] = useState(false);
+  const [hoveredItemPath, setHoveredItemPath] = useState(null);
+
+  // Get permissions from context (only available for officials)
+  let permissions = null;
+  let permissionsLoading = false;
+  try {
+    const permissionsContext = usePermissions();
+    permissions = permissionsContext.permissions;
+    permissionsLoading = permissionsContext.permissionsLoading;
+  } catch (err) {
+    // Permissions context not available (admin/other roles)
+    permissions = null;
+    permissionsLoading = false;
+  }
+
+  // Map menu items to permission checks
+  const getItemDisabledReason = (item) => {
+    if (!permissions) return null;
+
+    if (item.label === "Requests" && !permissions.read_req) {
+      return "You don't have permission to access requests";
+    }
+    if (item.label === "Complaints" && !permissions.read_comp) {
+      return "You don't have permission to access complaints";
+    }
+    if (item.label === "Mediation" && !permissions.read_sett) {
+      return "You don't have permission to access mediation";
+    }
+    if (item.label === "Conciliation" && !permissions.read_sett) {
+      return "You don't have permission to access conciliation";
+    }
+    return null;
+  };
 
   const groupedMenuItems = useMemo(() => {
     const groups = [];
@@ -94,22 +129,49 @@ const Sidebar = ({ activeMenu = "dashboard", menuItems = [] }) => {
             <div className="nav-section" key={group.title}>
               <h3 className="nav-section-title">{group.title}</h3>
               <ul className="nav-items">
-                {group.items.map((it) => (
-                  <li key={it.path}>
-                    <NavLink
-                      to={it.path}
-                      end={!!it.end}
-                      className={({ isActive }) =>
-                        `nav-item${it.section ? " nav-subitem" : ""}${isActive ? " active" : ""}`
-                      }
-                    >
-                      {it.icon ? (
-                        <span className="nav-icon">{it.icon}</span>
-                      ) : null}
-                      <span>{it.label}</span>
-                    </NavLink>
-                  </li>
-                ))}
+                {group.items.map((it) => {
+                  const disabledReason = getItemDisabledReason(it);
+                  const isDisabled = permissionsLoading || !!disabledReason;
+
+                  return (
+                    <li key={it.path} className="nav-item-wrapper">
+                      {isDisabled ? (
+                        <button
+                          className="nav-item nav-disabled"
+                          style={{
+                            opacity: 0.5,
+                            cursor: "not-allowed",
+                            backgroundColor: "#f3f4f6",
+                          }}
+                          onMouseEnter={() => setHoveredItemPath(it.path)}
+                          onMouseLeave={() => setHoveredItemPath(null)}
+                          disabled
+                        >
+                          {it.icon ? (
+                            <span className="nav-icon">{it.icon}</span>
+                          ) : null}
+                          <span>{it.label}</span>
+                        </button>
+                      ) : (
+                        <NavLink
+                          to={it.path}
+                          end={!!it.end}
+                          className={({ isActive }) =>
+                            `nav-item${it.section ? " nav-subitem" : ""}${isActive ? " active" : ""}`
+                          }
+                        >
+                          {it.icon ? (
+                            <span className="nav-icon">{it.icon}</span>
+                          ) : null}
+                          <span>{it.label}</span>
+                        </NavLink>
+                      )}
+                      {isDisabled && hoveredItemPath === it.path && (
+                        <div className="nav-tooltip">{disabledReason}</div>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           ))}

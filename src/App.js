@@ -10,6 +10,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 
 import { logout } from "./supabse_db/auth/auth";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { PermissionsProvider } from "./context/PermissionsContext";
 
 // --- Shared Layout (Official/Admin) ---
 import Layout from "./components/Layout";
@@ -60,7 +61,7 @@ function UserPage() {
 
 // Routes component that uses auth context
 function AppRoutes() {
-  const { userName, userPosition, userRole, userLoading } = useAuth();
+  const { userName, userPosition, userRole, userLoading, authUser } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -152,48 +153,50 @@ function AppRoutes() {
       <Route
         path="/BarangayOfficial"
         element={
-          <Layout
-            menuItems={[
-              {
-                path: "/BarangayOfficial",
-                label: "Dashboard",
-                icon: <LayoutDashboard size={18} />,
-                end: true,
-              },
-              {
-                path: "/BarangayOfficial/announcements",
-                label: "Announcements",
-                icon: <Megaphone size={18} />,
-              },
-              {
-                path: "/BarangayOfficial/requests",
-                label: "Requests",
-                icon: <FileText size={18} />,
-              },
-              {
-                path: "/BarangayOfficial/complaints",
-                label: "Complaints",
-                icon: <Megaphone size={18} />,
-              },
-              {
-                section: "Amicable Settlements",
-                path: "/BarangayOfficial/amicable-settlements/mediation",
-                label: "Mediation",
-                icon: <MessageSquare size={18} />,
-              },
-              {
-                section: "Amicable Settlements",
-                path: "/BarangayOfficial/amicable-settlements/conciliation",
-                label: "Conciliation",
-                icon: <MessageSquare size={18} />,
-              },
-            ]}
-            userName={userName}
-            userPosition={userPosition}
-            userRole={userRole}
-            userLoading={userLoading}
-            onLogout={handleLogout}
-          />
+          <PermissionsProvider userRole={userRole} authUser={authUser}>
+            <Layout
+              menuItems={[
+                {
+                  path: "/BarangayOfficial",
+                  label: "Dashboard",
+                  icon: <LayoutDashboard size={18} />,
+                  end: true,
+                },
+                {
+                  path: "/BarangayOfficial/announcements",
+                  label: "Announcements",
+                  icon: <Megaphone size={18} />,
+                },
+                {
+                  path: "/BarangayOfficial/requests",
+                  label: "Requests",
+                  icon: <FileText size={18} />,
+                },
+                {
+                  path: "/BarangayOfficial/complaints",
+                  label: "Complaints",
+                  icon: <Megaphone size={18} />,
+                },
+                {
+                  section: "Amicable Settlements",
+                  path: "/BarangayOfficial/amicable-settlements/mediation",
+                  label: "Mediation",
+                  icon: <MessageSquare size={18} />,
+                },
+                {
+                  section: "Amicable Settlements",
+                  path: "/BarangayOfficial/amicable-settlements/conciliation",
+                  label: "Conciliation",
+                  icon: <MessageSquare size={18} />,
+                },
+              ]}
+              userName={userName}
+              userPosition={userPosition}
+              userRole={userRole}
+              userLoading={userLoading}
+              onLogout={handleLogout}
+            />
+          </PermissionsProvider>
         }
       >
         <Route index element={<OfficialDashboard />} />

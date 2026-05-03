@@ -6,6 +6,7 @@ import {
   getSettlementComplaintOptions,
   updateSettlementSchedule,
 } from "../supabse_db/settlement/settlement";
+import { usePermissions } from "../context/PermissionsContext";
 
 const normalizeValue = (value) =>
   String(value || "")
@@ -15,6 +16,7 @@ const normalizeValue = (value) =>
     .replace(/\s+/g, " ");
 
 export default function OfficialSettlementPage({ title, defaultType }) {
+  const { permissions } = usePermissions();
   const [settlements, setSettlements] = useState([]);
   const [complaintOptions, setComplaintOptions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -135,6 +137,7 @@ export default function OfficialSettlementPage({ title, defaultType }) {
             loading={loading}
             onCreateSettlement={handleCreateSettlement}
             onUpdateSettlement={handleUpdateSettlement}
+            permissions={permissions}
           />
         </div>
       </div>

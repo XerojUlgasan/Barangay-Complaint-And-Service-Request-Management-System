@@ -151,6 +151,7 @@ export default function SettlementCalendar({
   onUpdateSettlement,
   readOnly = false,
   allowPastDates = false,
+  permissions = null,
 }) {
   const todayKey = getTodayKey();
   const [monthCursor, setMonthCursor] = useState(() => {
@@ -183,6 +184,7 @@ export default function SettlementCalendar({
   const [createMessage, setCreateMessage] = useState({ type: "", text: "" });
   const [editMessage, setEditMessage] = useState({ type: "", text: "" });
   const [submitting, setSubmitting] = useState(false);
+  const [hoveredButton, setHoveredButton] = useState(null);
 
   useEffect(() => {
     if (!selectedDay) return;
@@ -537,14 +539,51 @@ export default function SettlementCalendar({
           <h4>{formatPhilippineDateOnly(selectedDay, "Selected Day")}</h4>
           <div className="settlement-day-panel-actions">
             {!readOnly && (
-            <button
-              type="button"
-              className="settlement-add-btn"
-              onClick={openCreateModal}
-              disabled={isSelectedDayInPast || submitting}
-            >
-              Add Settlement
-            </button>
+              <div style={{ position: "relative", display: "inline-block" }}>
+                <button
+                  type="button"
+                  className="settlement-add-btn"
+                  onClick={openCreateModal}
+                  disabled={
+                    isSelectedDayInPast ||
+                    submitting ||
+                    !permissions?.create_sett
+                  }
+                  onMouseEnter={() => setHoveredButton("add-settlement")}
+                  onMouseLeave={() => setHoveredButton(null)}
+                  style={{
+                    opacity: !permissions?.create_sett ? 0.5 : 1,
+                    cursor: !permissions?.create_sett
+                      ? "not-allowed"
+                      : "pointer",
+                  }}
+                >
+                  Add Settlement
+                </button>
+                {hoveredButton === "add-settlement" &&
+                  !permissions?.create_sett && (
+                    <div
+                      className="settlement-button-tooltip"
+                      style={{
+                        position: "absolute",
+                        bottom: "100%",
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        marginBottom: "8px",
+                        backgroundColor: "#374151",
+                        color: "#fff",
+                        padding: "0.5rem 0.75rem",
+                        borderRadius: "4px",
+                        fontSize: "12px",
+                        whiteSpace: "nowrap",
+                        zIndex: 1000,
+                        pointerEvents: "none",
+                      }}
+                    >
+                      You don't have permission to create settlements
+                    </div>
+                  )}
+              </div>
             )}
             <span>{selectedDaySettlements.length} scheduled settlement(s)</span>
           </div>
@@ -579,12 +618,49 @@ export default function SettlementCalendar({
                     </span>
                   </div>
                   {!readOnly && (
-                  <button
-                    type="button"
-                    onClick={() => handleStartEdit(settlement)}
-                  >
-                    Edit
-                  </button>
+                    <div
+                      style={{ position: "relative", display: "inline-block" }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleStartEdit(settlement)}
+                        disabled={!permissions?.update_sett}
+                        onMouseEnter={() =>
+                          setHoveredButton(`edit-${settlement.id}`)
+                        }
+                        onMouseLeave={() => setHoveredButton(null)}
+                        style={{
+                          opacity: !permissions?.update_sett ? 0.5 : 1,
+                          cursor: !permissions?.update_sett
+                            ? "not-allowed"
+                            : "pointer",
+                        }}
+                      >
+                        Edit
+                      </button>
+                      {hoveredButton === `edit-${settlement.id}` &&
+                        !permissions?.update_sett && (
+                          <div
+                            className="settlement-button-tooltip"
+                            style={{
+                              position: "absolute",
+                              bottom: "100%",
+                              right: 0,
+                              marginBottom: "8px",
+                              backgroundColor: "#374151",
+                              color: "#fff",
+                              padding: "0.5rem 0.75rem",
+                              borderRadius: "4px",
+                              fontSize: "12px",
+                              whiteSpace: "nowrap",
+                              zIndex: 1000,
+                              pointerEvents: "none",
+                            }}
+                          >
+                            You don't have permission to edit settlements
+                          </div>
+                        )}
+                    </div>
                   )}
                 </div>
 

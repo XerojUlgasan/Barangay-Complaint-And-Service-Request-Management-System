@@ -1,12 +1,23 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "react-router-dom";
-import { CalendarDays, FileText, MapPin, Tag, Users, X, ChevronDown } from "lucide-react";
+import {
+  CalendarDays,
+  FileText,
+  MapPin,
+  Tag,
+  Users,
+  X,
+  ChevronDown,
+} from "lucide-react";
 import {
   getAssignedComplaints,
   updateComplaintCategory,
 } from "../../supabse_db/official/official";
-import { claimComplaint, unclaimComplaint } from "../../supabse_db/complaint/complaint";
+import {
+  claimComplaint,
+  unclaimComplaint,
+} from "../../supabse_db/complaint/complaint";
 import { fetchImagesForItem } from "../../supabse_db/uploadImages";
 import {
   formatPhilippineDateOnly,
@@ -14,6 +25,7 @@ import {
 } from "../../utils/philippineTime";
 import ImageLightbox from "../../components/ImageLightbox";
 import supabase from "../../supabse_db/supabase_client";
+import { usePermissions } from "../../context/PermissionsContext";
 import "../../styles/BarangayAdmin.css";
 
 const SECTION_CONFIGS = [
@@ -126,7 +138,9 @@ const ComplaintDetailModal = ({
 
   const isAssignedToMe = complaint?.assigned_official_id === currentUserId;
   const isUnassigned = !complaint?.assigned_official_id;
-  const isAssignedToOther = complaint?.assigned_official_id && complaint?.assigned_official_id !== currentUserId;
+  const isAssignedToOther =
+    complaint?.assigned_official_id &&
+    complaint?.assigned_official_id !== currentUserId;
   const canEdit = isAssignedToMe;
 
   useEffect(() => {
@@ -280,11 +294,19 @@ const ComplaintDetailModal = ({
               <label>Assigned Official</label>
               <div>
                 <Users size={16} />
-                <span style={{ 
-                  color: isUnassigned ? "#ef4444" : isAssignedToMe ? "#10b981" : "#f59e0b",
-                  fontWeight: "600"
-                }}>
-                  {isUnassigned ? "Unassigned" : complaint.assigned_official_name || "Unknown Official"}
+                <span
+                  style={{
+                    color: isUnassigned
+                      ? "#ef4444"
+                      : isAssignedToMe
+                        ? "#10b981"
+                        : "#f59e0b",
+                    fontWeight: "600",
+                  }}
+                >
+                  {isUnassigned
+                    ? "Unassigned"
+                    : complaint.assigned_official_name || "Unknown Official"}
                 </span>
               </div>
             </div>
@@ -312,19 +334,22 @@ const ComplaintDetailModal = ({
           </div>
 
           {isAssignedToOther && (
-            <div style={{
-              padding: "1rem",
-              backgroundColor: "#fef3c7",
-              border: "1px solid #f59e0b",
-              borderRadius: "0.5rem",
-              marginBottom: "1rem",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-            }}>
+            <div
+              style={{
+                padding: "1rem",
+                backgroundColor: "#fef3c7",
+                border: "1px solid #f59e0b",
+                borderRadius: "0.5rem",
+                marginBottom: "1rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+              }}
+            >
               <span style={{ fontSize: "1.25rem" }}>⚠️</span>
               <span style={{ color: "#92400e", fontWeight: "500" }}>
-                This complaint is assigned to another official. You cannot edit it.
+                This complaint is assigned to another official. You cannot edit
+                it.
               </span>
             </div>
           )}
@@ -420,7 +445,9 @@ const ComplaintDetailModal = ({
                 </button>
               )}
               {isUncategorized && (
-                <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}>
+                <div
+                  style={{ marginLeft: "auto", display: "flex", gap: "8px" }}
+                >
                   <select
                     className="filter-date-input"
                     value={selectedCategory || ""}
@@ -447,12 +474,14 @@ const ComplaintDetailModal = ({
             </>
           )}
           {isAssignedToOther && (
-            <div style={{
-              marginLeft: "auto",
-              color: "#64748b",
-              fontSize: "14px",
-              fontStyle: "italic",
-            }}>
+            <div
+              style={{
+                marginLeft: "auto",
+                color: "#64748b",
+                fontSize: "14px",
+                fontStyle: "italic",
+              }}
+            >
               Assigned to another official
             </div>
           )}
@@ -555,6 +584,7 @@ const ComplaintDetailModal = ({
 
 export default function OfficialComplaintsView() {
   const location = useLocation();
+  const { permissions, permissionsLoading } = usePermissions();
   const [activeSection, setActiveSection] = useState("uncategorized");
   const [complaints, setComplaints] = useState([]);
   const [loadingComplaints, setLoadingComplaints] = useState(true);
@@ -770,12 +800,16 @@ export default function OfficialComplaintsView() {
       if (claimFilter === "mine") {
         claimMatch = complaint.assigned_official_id === currentUserId;
       } else if (claimFilter === "others") {
-        claimMatch = complaint.assigned_official_id && complaint.assigned_official_id !== currentUserId;
+        claimMatch =
+          complaint.assigned_official_id &&
+          complaint.assigned_official_id !== currentUserId;
       } else if (claimFilter === "unclaimed") {
         claimMatch = !complaint.assigned_official_id;
       }
 
-      return sectionMatch && searchMatch && statusMatch && dateMatch && claimMatch;
+      return (
+        sectionMatch && searchMatch && statusMatch && dateMatch && claimMatch
+      );
     });
   }, [
     activeSection,
@@ -937,7 +971,14 @@ export default function OfficialComplaintsView() {
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", position: "relative" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: "1rem",
+            marginBottom: "1rem",
+            position: "relative",
+          }}
+        >
           <div style={{ position: "relative", display: "inline-block" }}>
             <button
               onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
@@ -957,7 +998,8 @@ export default function OfficialComplaintsView() {
               }}
             >
               <span>
-                {activeSectionConfig.label} ({sectionCounts[activeSection] || 0})
+                {activeSectionConfig.label} ({sectionCounts[activeSection] || 0}
+                )
               </span>
               <ChevronDown size={16} />
             </button>
@@ -976,7 +1018,8 @@ export default function OfficialComplaintsView() {
                     backgroundColor: "#fff",
                     border: "1px solid #d1d5db",
                     borderRadius: "0.375rem",
-                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                    boxShadow:
+                      "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
                     zIndex: 1000,
                     minWidth: "200px",
                   }}
@@ -993,10 +1036,15 @@ export default function OfficialComplaintsView() {
                         padding: "0.5rem 1rem",
                         textAlign: "left",
                         border: "none",
-                        backgroundColor: activeSection === section.key ? "#eff6ff" : "transparent",
-                        color: activeSection === section.key ? "#1e40af" : "#374151",
+                        backgroundColor:
+                          activeSection === section.key
+                            ? "#eff6ff"
+                            : "transparent",
+                        color:
+                          activeSection === section.key ? "#1e40af" : "#374151",
                         cursor: "pointer",
-                        fontWeight: activeSection === section.key ? "600" : "400",
+                        fontWeight:
+                          activeSection === section.key ? "600" : "400",
                         transition: "background-color 0.15s",
                         display: "flex",
                         justifyContent: "space-between",
@@ -1014,11 +1062,16 @@ export default function OfficialComplaintsView() {
                       }}
                     >
                       <span>{section.label}</span>
-                      <span style={{
-                        fontSize: "0.875rem",
-                        color: activeSection === section.key ? "#1e40af" : "#6b7280",
-                        fontWeight: "600",
-                      }}>
+                      <span
+                        style={{
+                          fontSize: "0.875rem",
+                          color:
+                            activeSection === section.key
+                              ? "#1e40af"
+                              : "#6b7280",
+                          fontWeight: "600",
+                        }}
+                      >
                         {sectionCounts[section.key] || 0}
                       </span>
                     </button>
@@ -1047,7 +1100,10 @@ export default function OfficialComplaintsView() {
               }}
             >
               <span>
-                {claimFilterOptions.find((opt) => opt.value === claimFilter)?.label}
+                {
+                  claimFilterOptions.find((opt) => opt.value === claimFilter)
+                    ?.label
+                }
               </span>
               <ChevronDown size={16} />
             </button>
@@ -1066,7 +1122,8 @@ export default function OfficialComplaintsView() {
                     backgroundColor: "#fff",
                     border: "1px solid #d1d5db",
                     borderRadius: "0.375rem",
-                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                    boxShadow:
+                      "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
                     zIndex: 1000,
                     minWidth: "200px",
                   }}
@@ -1083,10 +1140,15 @@ export default function OfficialComplaintsView() {
                         padding: "0.5rem 1rem",
                         textAlign: "left",
                         border: "none",
-                        backgroundColor: claimFilter === option.value ? "#eff6ff" : "transparent",
-                        color: claimFilter === option.value ? "#1e40af" : "#374151",
+                        backgroundColor:
+                          claimFilter === option.value
+                            ? "#eff6ff"
+                            : "transparent",
+                        color:
+                          claimFilter === option.value ? "#1e40af" : "#374151",
                         cursor: "pointer",
-                        fontWeight: claimFilter === option.value ? "600" : "400",
+                        fontWeight:
+                          claimFilter === option.value ? "600" : "400",
                         transition: "background-color 0.15s",
                       }}
                       onMouseEnter={(e) => {
@@ -1144,7 +1206,8 @@ export default function OfficialComplaintsView() {
                     backgroundColor: "#fff",
                     border: "1px solid #d1d5db",
                     borderRadius: "0.375rem",
-                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                    boxShadow:
+                      "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
                     zIndex: 1000,
                     minWidth: "200px",
                     maxHeight: "300px",
@@ -1163,10 +1226,15 @@ export default function OfficialComplaintsView() {
                         padding: "0.5rem 1rem",
                         textAlign: "left",
                         border: "none",
-                        backgroundColor: activeStatusFilter === status ? "#eff6ff" : "transparent",
-                        color: activeStatusFilter === status ? "#1e40af" : "#374151",
+                        backgroundColor:
+                          activeStatusFilter === status
+                            ? "#eff6ff"
+                            : "transparent",
+                        color:
+                          activeStatusFilter === status ? "#1e40af" : "#374151",
                         cursor: "pointer",
-                        fontWeight: activeStatusFilter === status ? "600" : "400",
+                        fontWeight:
+                          activeStatusFilter === status ? "600" : "400",
                         transition: "background-color 0.15s",
                       }}
                       onMouseEnter={(e) => {
@@ -1212,13 +1280,13 @@ export default function OfficialComplaintsView() {
                 <th>Incident Date</th>
                 <th>Submitted</th>
                 <th>Status</th>
-                <th>Action</th>
+                {permissions?.edit_comp && <th>Action</th>}
               </tr>
             </thead>
             <tbody>
               {loadingComplaints ? (
                 <tr>
-                  <td colSpan="7">
+                  <td colSpan={permissions?.edit_comp ? "7" : "6"}>
                     <div className="loading-wrap" style={{ padding: "1rem 0" }}>
                       <div className="loading-spinner" aria-hidden="true" />
                       <div className="loading-text">Loading complaints...</div>
@@ -1228,7 +1296,7 @@ export default function OfficialComplaintsView() {
               ) : errorComplaints ? (
                 <tr>
                   <td
-                    colSpan="7"
+                    colSpan={permissions?.edit_comp ? "7" : "6"}
                     style={{ color: "#ef4444", textAlign: "center" }}
                   >
                     {errorComplaints}
@@ -1275,21 +1343,26 @@ export default function OfficialComplaintsView() {
                         {highlightText(complaint.statusDisplay)}
                       </span>
                     </td>
-                    <td>
-                      <button
-                        className="view-details-btn"
-                        onClick={() => openModal(complaint)}
-                      >
-                        {complaint.sectionKey === "uncategorized"
-                          ? "View & Classify"
-                          : "View Details"}
-                      </button>
-                    </td>
+                    {permissions?.edit_comp && (
+                      <td>
+                        <button
+                          className="view-details-btn"
+                          onClick={() => openModal(complaint)}
+                        >
+                          {complaint.sectionKey === "uncategorized"
+                            ? "View & Classify"
+                            : "View Details"}
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="table-empty-cell">
+                  <td
+                    colSpan={permissions?.edit_comp ? "7" : "6"}
+                    className="table-empty-cell"
+                  >
                     No complaints found in this section
                   </td>
                 </tr>

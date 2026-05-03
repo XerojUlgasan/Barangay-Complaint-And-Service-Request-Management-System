@@ -15,6 +15,7 @@ import {
   requestStatusCodeToValue,
   requestStatusValueToCode,
 } from "../../utils/requestStatuses";
+import { usePermissions } from "../../context/PermissionsContext";
 import "../../styles/BarangayAdmin.css";
 import "../../styles/RequestDetail.css";
 
@@ -27,6 +28,7 @@ const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 export default function OfficialRequests() {
   const location = useLocation();
+  const { permissions, permissionsLoading } = usePermissions();
   const [selectedRequestStatus, setSelectedRequestStatus] =
     useState("All Status");
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -343,7 +345,14 @@ export default function OfficialRequests() {
           </div>
 
           {/* ── Claim Filter Dropdown ── */}
-          <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", position: "relative" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: "1rem",
+              marginBottom: "1rem",
+              position: "relative",
+            }}
+          >
             <div style={{ position: "relative", display: "inline-block" }}>
               <button
                 onClick={() => setClaimDropdownOpen(!claimDropdownOpen)}
@@ -363,7 +372,10 @@ export default function OfficialRequests() {
                 }}
               >
                 <span>
-                  {claimFilterOptions.find((opt) => opt.value === claimFilter)?.label}
+                  {
+                    claimFilterOptions.find((opt) => opt.value === claimFilter)
+                      ?.label
+                  }
                 </span>
                 <ChevronDown size={16} />
               </button>
@@ -382,7 +394,8 @@ export default function OfficialRequests() {
                       backgroundColor: "#fff",
                       border: "1px solid #d1d5db",
                       borderRadius: "0.375rem",
-                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                      boxShadow:
+                        "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
                       zIndex: 1000,
                       minWidth: "200px",
                     }}
@@ -399,10 +412,17 @@ export default function OfficialRequests() {
                           padding: "0.5rem 1rem",
                           textAlign: "left",
                           border: "none",
-                          backgroundColor: claimFilter === option.value ? "#eff6ff" : "transparent",
-                          color: claimFilter === option.value ? "#1e40af" : "#374151",
+                          backgroundColor:
+                            claimFilter === option.value
+                              ? "#eff6ff"
+                              : "transparent",
+                          color:
+                            claimFilter === option.value
+                              ? "#1e40af"
+                              : "#374151",
                           cursor: "pointer",
-                          fontWeight: claimFilter === option.value ? "600" : "400",
+                          fontWeight:
+                            claimFilter === option.value ? "600" : "400",
                           transition: "background-color 0.15s",
                         }}
                         onMouseEnter={(e) => {
@@ -412,7 +432,8 @@ export default function OfficialRequests() {
                         }}
                         onMouseLeave={(e) => {
                           if (claimFilter !== option.value) {
-                            e.currentTarget.style.backgroundColor = "transparent";
+                            e.currentTarget.style.backgroundColor =
+                              "transparent";
                           }
                         }}
                       >
@@ -459,7 +480,8 @@ export default function OfficialRequests() {
                       backgroundColor: "#fff",
                       border: "1px solid #d1d5db",
                       borderRadius: "0.375rem",
-                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                      boxShadow:
+                        "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
                       zIndex: 1000,
                       minWidth: "200px",
                       maxHeight: "300px",
@@ -478,10 +500,17 @@ export default function OfficialRequests() {
                           padding: "0.5rem 1rem",
                           textAlign: "left",
                           border: "none",
-                          backgroundColor: selectedRequestStatus === status ? "#eff6ff" : "transparent",
-                          color: selectedRequestStatus === status ? "#1e40af" : "#374151",
+                          backgroundColor:
+                            selectedRequestStatus === status
+                              ? "#eff6ff"
+                              : "transparent",
+                          color:
+                            selectedRequestStatus === status
+                              ? "#1e40af"
+                              : "#374151",
                           cursor: "pointer",
-                          fontWeight: selectedRequestStatus === status ? "600" : "400",
+                          fontWeight:
+                            selectedRequestStatus === status ? "600" : "400",
                           transition: "background-color 0.15s",
                         }}
                         onMouseEnter={(e) => {
@@ -491,7 +520,8 @@ export default function OfficialRequests() {
                         }}
                         onMouseLeave={(e) => {
                           if (selectedRequestStatus !== status) {
-                            e.currentTarget.style.backgroundColor = "transparent";
+                            e.currentTarget.style.backgroundColor =
+                              "transparent";
                           }
                         }}
                       >
@@ -518,13 +548,13 @@ export default function OfficialRequests() {
                   <th>Requester</th>
                   <th>Submitted</th>
                   <th>Status</th>
-                  <th>Action</th>
+                  {permissions?.edit_req && <th>Action</th>}
                 </tr>
               </thead>
               <tbody>
                 {loadingRequests ? (
                   <tr>
-                    <td colSpan="6">
+                    <td colSpan={permissions?.edit_req ? "6" : "5"}>
                       <div
                         className="loading-wrap"
                         style={{ padding: "1rem 0" }}
@@ -537,7 +567,7 @@ export default function OfficialRequests() {
                 ) : errorRequests ? (
                   <tr>
                     <td
-                      colSpan="6"
+                      colSpan={permissions?.edit_req ? "6" : "5"}
                       style={{ color: "#ef4444", textAlign: "center" }}
                     >
                       {errorRequests}
@@ -576,20 +606,25 @@ export default function OfficialRequests() {
                             {highlightText(r.statusDisplay)}
                           </span>
                         </td>
-                        <td>
-                          <button
-                            className="view-details-btn"
-                            onClick={() => openModal(r)}
-                          >
-                            View Details
-                          </button>
-                        </td>
+                        {permissions?.edit_req && (
+                          <td>
+                            <button
+                              className="view-details-btn"
+                              onClick={() => openModal(r)}
+                            >
+                              View Details
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     );
                   })
                 ) : (
                   <tr>
-                    <td colSpan="6" className="table-empty-cell">
+                    <td
+                      colSpan={permissions?.edit_req ? "6" : "5"}
+                      className="table-empty-cell"
+                    >
                       No requests found
                     </td>
                   </tr>
