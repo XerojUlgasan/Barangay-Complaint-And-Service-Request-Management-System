@@ -21,6 +21,11 @@ import {
   getRequestStatusColor,
   getRequestStatusTextColor,
 } from "../../utils/requestStatuses";
+import {
+  getUnassignedRequests,
+  getPresentOfficialsWithDetails,
+  bulkAssignRequests,
+} from "../../supabse_db/utils/autoAssign";
 
 const getStatusColor = (statusValue) => getRequestStatusColor(statusValue);
 const getStatusTextColor = (statusValue) =>
@@ -73,6 +78,30 @@ export default function AdminRequests() {
   const [searchQuery, setSearchQuery] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  // Auto-assign feature states
+  const [autoAssignModalOpen, setAutoAssignModalOpen] = useState(false);
+  const [autoAssignStep, setAutoAssignStep] = useState("filters"); // 'filters', 'officials', 'confirm', 'executing'
+  const [autoAssignLoading, setAutoAssignLoading] = useState(false);
+  const [autoAssignError, setAutoAssignError] = useState(null);
+
+  // Unassigned requests and their filters
+  const [unassignedRequests, setUnassignedRequests] = useState([]);
+  const [availableCertTypes, setAvailableCertTypes] = useState([]);
+  const [availableStatuses, setAvailableStatuses] = useState([]);
+  const [selectedCertTypes, setSelectedCertTypes] = useState({});
+  const [selectedStatuses, setSelectedStatuses] = useState({});
+
+  // Available officials for assignment
+  const [presentOfficials, setPresentOfficials] = useState([]);
+  const [selectedOfficials, setSelectedOfficials] = useState({});
+
+  // Confirmation and results
+  const [filteredUnassignedRequests, setFilteredUnassignedRequests] = useState(
+    [],
+  );
+  const [assignmentDistribution, setAssignmentDistribution] = useState([]);
+  const [autoAssignResult, setAutoAssignResult] = useState(null);
 
   const searchTerms = Array.from(
     new Set(searchQuery.toLowerCase().trim().split(/\s+/).filter(Boolean)),
@@ -489,6 +518,209 @@ export default function AdminRequests() {
     }
   };
 
+  // ============== AUTO-ASSIGN FUNCTIONS ==============
+
+  const openAutoAssignModal = async () => {
+    setAutoAssignModalOpen(true);
+    setAutoAssignStep("filters");
+    setAutoAssignError(null);
+    setAutoAssignLoading(true);
+
+    try {
+      // Fetch unassigned requests
+      const reqResult = await getUnassignedRequests();
+      if (!reqResult.success || reqResult.data.length === 0) {
+        setAutoAssignError(reqResult.message || "No unassigned requests found");
+        setAutoAssignLoading(false);
+        return;
+      }
+
+      setUnassignedRequests(reqResult.data);
+
+      // Extract unique certificate types and statuses
+      const certTypes = [
+        ...new Set(reqResult.data.map((r) => r.certificate_type)),
+      ];
+      const statuses = [
+        ...new Set(
+          reqResult.data.map((r) =>
+            formatRequestStatus(r.request_status || r.status),
+          ),
+        ),
+      ];
+
+      setAvailableCertTypes(certTypes);
+      setAvailableStatuses(statuses);
+
+      // Initialize all as unchecked
+      const certTypeObj = {};
+      certTypes.forEach((ct) => {
+        certTypeObj[ct] = false;
+      });
+      setSelectedCertTypes(certTypeObj);
+
+      const statusObj = {};
+      statuses.forEach((s) => {
+        statusObj[s] = false;
+      });
+      setSelectedStatuses(statusObj);
+
+      // Fetch present officials
+      const officialResult = await getPresentOfficialsWithDetails();
+      if (!officialResult.success) {
+        setAutoAssignError(
+          officialResult.message || "No officials present today",
+        );
+        setAutoAssignLoading(false);
+        return;
+      }
+
+      setPresentOfficials(officialResult.data);
+
+      // Initialize all officials as unchecked
+      const officialObj = {};
+      officialResult.data.forEach((o) => {
+        officialObj[o.uid] = false;
+      });
+      setSelectedOfficials(officialObj);
+
+      setAutoAssignLoading(false);
+    } catch (err) {
+      setAutoAssignError("Error loading data: " + err.message);
+      setAutoAssignLoading(false);
+    }
+  };
+
+  const closeAutoAssignModal = () => {
+    setAutoAssignModalOpen(false);
+    setAutoAssignStep("filters");
+    setAutoAssignError(null);
+    setAutoAssignLoading(false);
+    setUnassignedRequests([]);
+    setAvailableCertTypes([]);
+    setAvailableStatuses([]);
+    setSelectedCertTypes({});
+    setSelectedStatuses({});
+    setPresentOfficials([]);
+    setSelectedOfficials({});
+    setFilteredUnassignedRequests([]);
+    setAssignmentDistribution([]);
+    setAutoAssignResult(null);
+  };
+
+  const handleProceedToOfficials = () => {
+    const selectedCertCount =
+      Object.values(selectedCertTypes).filter(Boolean).length;
+    const selectedStatusCount =
+      Object.values(selectedStatuses).filter(Boolean).length;
+
+    if (selectedCertCount === 0 || selectedStatusCount === 0) {
+      setAutoAssignError(
+        "Please select at least one certificate type and status",
+      );
+      return;
+    }
+
+    // Filter unassigned requests based on selections
+    const filtered = unassignedRequests.filter((req) => {
+      const certTypeMatch = selectedCertTypes[req.certificate_type];
+      const statusMatch =
+        selectedStatuses[formatRequestStatus(req.request_status || req.status)];
+      return certTypeMatch && statusMatch;
+    });
+
+    if (filtered.length === 0) {
+      setAutoAssignError("No requests match the selected filters");
+      return;
+    }
+
+    setFilteredUnassignedRequests(filtered);
+    setAutoAssignStep("officials");
+    setAutoAssignError(null);
+  };
+
+  // Calculate currently filtered requests for preview
+  const getFilteredRequestsPreview = () => {
+    const selectedCertCount =
+      Object.values(selectedCertTypes).filter(Boolean).length;
+    const selectedStatusCount =
+      Object.values(selectedStatuses).filter(Boolean).length;
+
+    if (selectedCertCount === 0 || selectedStatusCount === 0) {
+      return unassignedRequests;
+    }
+
+    return unassignedRequests.filter((req) => {
+      const certTypeMatch = selectedCertTypes[req.certificate_type];
+      const statusMatch =
+        selectedStatuses[formatRequestStatus(req.request_status || req.status)];
+      return certTypeMatch && statusMatch;
+    });
+  };
+
+  const handleProceedToConfirm = () => {
+    const selectedOfficialUids = Object.entries(selectedOfficials)
+      .filter(([, checked]) => checked)
+      .map(([uid]) => uid);
+
+    if (selectedOfficialUids.length === 0) {
+      setAutoAssignError("Please select at least one official");
+      return;
+    }
+
+    // Calculate distribution
+    const itemCount = filteredUnassignedRequests.length;
+    const officialCount = selectedOfficialUids.length;
+    const baseCount = Math.floor(itemCount / officialCount);
+    const remainder = itemCount % officialCount;
+
+    const distribution = selectedOfficialUids.map((uid, idx) => {
+      const official = presentOfficials.find((o) => o.uid === uid);
+      return {
+        uid,
+        name: `${official?.firstName || ""} ${official?.lastName || ""}`.trim(),
+        position: official?.position || "",
+        count: idx === 0 ? baseCount + remainder : baseCount,
+      };
+    });
+
+    setAssignmentDistribution(distribution);
+    setAutoAssignStep("confirm");
+    setAutoAssignError(null);
+  };
+
+  const handleConfirmAssignment = async () => {
+    setAutoAssignStep("executing");
+    setAutoAssignLoading(true);
+    setAutoAssignError(null); // Clear any previous error
+
+    try {
+      const requestIds = filteredUnassignedRequests.map((r) => r.id);
+      const selectedOfficialUids = Object.entries(selectedOfficials)
+        .filter(([, checked]) => checked)
+        .map(([uid]) => uid);
+
+      const result = await bulkAssignRequests(requestIds, selectedOfficialUids);
+
+      if (!result.success) {
+        setAutoAssignError(
+          `Assignment failed: ${result.failureCount} items could not be assigned`,
+        );
+        setAutoAssignLoading(false);
+        setAutoAssignStep("confirm");
+        return;
+      }
+
+      setAutoAssignResult(result);
+      await fetchRequests(); // Refresh the requests list
+      setAutoAssignLoading(false);
+    } catch (err) {
+      setAutoAssignError("Error during assignment: " + err.message);
+      setAutoAssignLoading(false);
+      setAutoAssignStep("confirm");
+    }
+  };
+
   const renderCertificateRequirements = (requirements) => {
     if (!Array.isArray(requirements) || requirements.length === 0) {
       return <span style={{ color: "#6b7280" }}>No requirements listed.</span>;
@@ -676,6 +908,23 @@ export default function AdminRequests() {
               flexWrap: "wrap",
             }}
           >
+            <button
+              type="button"
+              onClick={openAutoAssignModal}
+              style={{
+                padding: "0.625rem 1rem",
+                borderRadius: "0.5rem",
+                border: "1px solid #cbd5e1",
+                background: "#10b981",
+                color: "#ffffff",
+                fontSize: "0.875rem",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Auto Assign Requests
+            </button>
+
             <button
               type="button"
               onClick={openCertificatesModal}
@@ -1168,6 +1417,658 @@ export default function AdminRequests() {
                   Close
                 </button>
               </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {/* Modal Overlay */}
+      {isModalOpen &&
+        createPortal(
+          <div
+            className="ar-modal-overlay request-detail-overlay"
+            onClick={closeModal}
+          />,
+          document.body,
+        )}
+
+      {/* Auto-Assign Modal */}
+      {autoAssignModalOpen &&
+        createPortal(
+          <div
+            className="ar-modal-overlay"
+            onClick={closeAutoAssignModal}
+            style={{ zIndex: 12000 }}
+          >
+            <div
+              className="ar-modal"
+              style={{ maxWidth: "700px", width: "94vw", zIndex: 12001 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="ar-modal-header">
+                <div className="ar-modal-header-top">
+                  <h3 className="ar-modal-title">Auto-Assign Requests</h3>
+                  <button
+                    className="ar-modal-close"
+                    onClick={closeAutoAssignModal}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+
+              {autoAssignStep === "filters" && (
+                <>
+                  <div className="ar-modal-body">
+                    {autoAssignLoading ? (
+                      <div className="loading-wrap">
+                        <div
+                          className="loading-spinner"
+                          aria-hidden="true"
+                        ></div>
+                        <div className="loading-text">Loading data...</div>
+                      </div>
+                    ) : autoAssignError ? (
+                      <div
+                        style={{
+                          padding: "1rem",
+                          backgroundColor: "#fee2e2",
+                          borderRadius: "0.5rem",
+                          color: "#991b1b",
+                          marginBottom: "1rem",
+                        }}
+                      >
+                        {autoAssignError}
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ marginBottom: "1.5rem" }}>
+                          <div
+                            style={{
+                              padding: "0.75rem",
+                              backgroundColor: "#f0fdf4",
+                              borderRadius: "0.5rem",
+                              marginBottom: "1rem",
+                              borderLeft: "4px solid #10b981",
+                            }}
+                          >
+                            <div
+                              style={{ fontSize: "0.875rem", color: "#166534" }}
+                            >
+                              <strong>Total Unassigned Requests:</strong>{" "}
+                              {unassignedRequests.length}
+                            </div>
+                            <div
+                              style={{ fontSize: "0.875rem", color: "#166534" }}
+                            >
+                              <strong>Matching Current Filters:</strong>{" "}
+                              {getFilteredRequestsPreview().length}
+                            </div>
+                          </div>
+
+                          <h4
+                            style={{ margin: "0 0 0.75rem", color: "#1f2937" }}
+                          >
+                            Certificate Types ({availableCertTypes.length})
+                          </h4>
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns:
+                                "repeat(auto-fit, minmax(180px, 1fr))",
+                              gap: "0.5rem",
+                            }}
+                          >
+                            {availableCertTypes.map((ct) => (
+                              <label
+                                key={ct}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "0.5rem",
+                                  cursor: "pointer",
+                                  padding: "0.5rem",
+                                  borderRadius: "0.375rem",
+                                  backgroundColor: selectedCertTypes[ct]
+                                    ? "#dbeafe"
+                                    : "#f9fafb",
+                                  border: selectedCertTypes[ct]
+                                    ? "1px solid #0ea5e9"
+                                    : "1px solid #e5e7eb",
+                                  transition: "all 0.2s",
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedCertTypes[ct] || false}
+                                  onChange={(e) =>
+                                    setSelectedCertTypes({
+                                      ...selectedCertTypes,
+                                      [ct]: e.target.checked,
+                                    })
+                                  }
+                                  style={{
+                                    cursor: "pointer",
+                                    width: "16px",
+                                    height: "16px",
+                                  }}
+                                />
+                                <span style={{ fontSize: "0.875rem" }}>
+                                  {ct}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div style={{ marginBottom: "1.5rem" }}>
+                          <h4
+                            style={{ margin: "0 0 0.75rem", color: "#1f2937" }}
+                          >
+                            Request Status ({availableStatuses.length})
+                          </h4>
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns:
+                                "repeat(auto-fit, minmax(180px, 1fr))",
+                              gap: "0.5rem",
+                            }}
+                          >
+                            {availableStatuses.map((st) => (
+                              <label
+                                key={st}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "0.5rem",
+                                  cursor: "pointer",
+                                  padding: "0.5rem",
+                                  borderRadius: "0.375rem",
+                                  backgroundColor: selectedStatuses[st]
+                                    ? "#dbeafe"
+                                    : "#f9fafb",
+                                  border: selectedStatuses[st]
+                                    ? "1px solid #0ea5e9"
+                                    : "1px solid #e5e7eb",
+                                  transition: "all 0.2s",
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedStatuses[st] || false}
+                                  onChange={(e) =>
+                                    setSelectedStatuses({
+                                      ...selectedStatuses,
+                                      [st]: e.target.checked,
+                                    })
+                                  }
+                                  style={{
+                                    cursor: "pointer",
+                                    width: "16px",
+                                    height: "16px",
+                                  }}
+                                />
+                                <span style={{ fontSize: "0.875rem" }}>
+                                  {st}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <h4
+                            style={{ margin: "0 0 0.75rem", color: "#1f2937" }}
+                          >
+                            Preview ({getFilteredRequestsPreview().length})
+                          </h4>
+                          {getFilteredRequestsPreview().length === 0 ? (
+                            <div
+                              style={{
+                                padding: "1rem",
+                                backgroundColor: "#f3f4f6",
+                                borderRadius: "0.5rem",
+                                textAlign: "center",
+                                color: "#6b7280",
+                              }}
+                            >
+                              No requests match the selected filters
+                            </div>
+                          ) : (
+                            <div
+                              style={{
+                                overflowX: "auto",
+                                borderRadius: "0.5rem",
+                                border: "1px solid #e5e7eb",
+                              }}
+                            >
+                              <table
+                                style={{
+                                  width: "100%",
+                                  borderCollapse: "collapse",
+                                  fontSize: "0.875rem",
+                                }}
+                              >
+                                <thead>
+                                  <tr
+                                    style={{
+                                      backgroundColor: "#f3f4f6",
+                                      borderBottom: "1px solid #e5e7eb",
+                                    }}
+                                  >
+                                    <th
+                                      style={{
+                                        padding: "0.75rem",
+                                        textAlign: "left",
+                                        fontWeight: "600",
+                                        color: "#1f2937",
+                                      }}
+                                    >
+                                      Request ID
+                                    </th>
+                                    <th
+                                      style={{
+                                        padding: "0.75rem",
+                                        textAlign: "left",
+                                        fontWeight: "600",
+                                        color: "#1f2937",
+                                      }}
+                                    >
+                                      Certificate Type
+                                    </th>
+                                    <th
+                                      style={{
+                                        padding: "0.75rem",
+                                        textAlign: "left",
+                                        fontWeight: "600",
+                                        color: "#1f2937",
+                                      }}
+                                    >
+                                      Status
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {getFilteredRequestsPreview()
+                                    .slice(0, 10)
+                                    .map((req, idx) => (
+                                      <tr
+                                        key={req.id}
+                                        style={{
+                                          backgroundColor:
+                                            idx % 2 === 0
+                                              ? "#ffffff"
+                                              : "#f9fafb",
+                                          borderBottom: "1px solid #e5e7eb",
+                                        }}
+                                      >
+                                        <td
+                                          style={{
+                                            padding: "0.75rem",
+                                            color: "#374151",
+                                            fontFamily: "monospace",
+                                          }}
+                                        >
+                                          {String(req.id).substring(0, 8)}...
+                                        </td>
+                                        <td
+                                          style={{
+                                            padding: "0.75rem",
+                                            color: "#374151",
+                                          }}
+                                        >
+                                          {req.certificate_type}
+                                        </td>
+                                        <td
+                                          style={{
+                                            padding: "0.75rem",
+                                            color: "#374151",
+                                          }}
+                                        >
+                                          <span
+                                            style={{
+                                              display: "inline-block",
+                                              padding: "0.25rem 0.75rem",
+                                              backgroundColor: "#e0e7ff",
+                                              color: "#3730a3",
+                                              borderRadius: "9999px",
+                                              fontSize: "0.75rem",
+                                              fontWeight: "500",
+                                            }}
+                                          >
+                                            {formatRequestStatus(
+                                              req.request_status || req.status,
+                                            )}
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                </tbody>
+                              </table>
+                              {getFilteredRequestsPreview().length > 10 && (
+                                <div
+                                  style={{
+                                    padding: "0.75rem",
+                                    backgroundColor: "#f9fafb",
+                                    textAlign: "center",
+                                    fontSize: "0.875rem",
+                                    color: "#6b7280",
+                                    borderTop: "1px solid #e5e7eb",
+                                  }}
+                                >
+                                  ...and{" "}
+                                  {getFilteredRequestsPreview().length - 10}{" "}
+                                  more
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="ar-modal-footer">
+                    <button
+                      className="ar-close-btn"
+                      onClick={closeAutoAssignModal}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="btn-save"
+                      onClick={handleProceedToOfficials}
+                      disabled={autoAssignLoading}
+                    >
+                      Next: Select Officials
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {autoAssignStep === "officials" && (
+                <>
+                  <div className="ar-modal-body">
+                    {presentOfficials.length === 0 ? (
+                      <div
+                        style={{
+                          padding: "1rem",
+                          backgroundColor: "#fee2e2",
+                          borderRadius: "0.5rem",
+                          color: "#991b1b",
+                        }}
+                      >
+                        No officials present today
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ marginBottom: "1rem" }}>
+                          <p
+                            style={{
+                              margin: "0 0 0.5rem",
+                              fontSize: "0.875rem",
+                              color: "#6b7280",
+                            }}
+                          >
+                            Requests to assign:{" "}
+                            <strong>{filteredUnassignedRequests.length}</strong>
+                          </p>
+                          <p
+                            style={{
+                              margin: "0",
+                              fontSize: "0.875rem",
+                              color: "#6b7280",
+                            }}
+                          >
+                            Officials present:{" "}
+                            <strong>{presentOfficials.length}</strong>
+                          </p>
+                        </div>
+
+                        <h4
+                          style={{ margin: "1rem 0 0.75rem", color: "#1f2937" }}
+                        >
+                          Select Officials to Assign To
+                        </h4>
+                        <div
+                          style={{
+                            display: "grid",
+                            gap: "0.75rem",
+                          }}
+                        >
+                          {presentOfficials.map((official) => (
+                            <label
+                              key={official.uid}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.75rem",
+                                padding: "0.75rem",
+                                border: "1px solid #e5e7eb",
+                                borderRadius: "0.5rem",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={
+                                  selectedOfficials[official.uid] || false
+                                }
+                                onChange={(e) =>
+                                  setSelectedOfficials({
+                                    ...selectedOfficials,
+                                    [official.uid]: e.target.checked,
+                                  })
+                                }
+                              />
+                              <div style={{ flex: 1 }}>
+                                <div
+                                  style={{
+                                    fontWeight: 500,
+                                    fontSize: "0.875rem",
+                                    color: "#1f2937",
+                                  }}
+                                >
+                                  {official.firstName} {official.lastName}
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: "0.75rem",
+                                    color: "#6b7280",
+                                  }}
+                                >
+                                  {official.position}
+                                </div>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="ar-modal-footer">
+                    <button
+                      className="ar-close-btn"
+                      onClick={() => setAutoAssignStep("filters")}
+                    >
+                      Back
+                    </button>
+                    <button
+                      className="btn-save"
+                      onClick={handleProceedToConfirm}
+                      disabled={presentOfficials.length === 0}
+                    >
+                      Next: Confirm Distribution
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {autoAssignStep === "confirm" && (
+                <>
+                  <div className="ar-modal-body">
+                    {autoAssignError && (
+                      <div
+                        style={{
+                          padding: "1rem",
+                          backgroundColor: "#fee2e2",
+                          borderRadius: "0.5rem",
+                          color: "#991b1b",
+                          marginBottom: "1rem",
+                        }}
+                      >
+                        {autoAssignError}
+                      </div>
+                    )}
+
+                    <div style={{ marginBottom: "1.5rem" }}>
+                      <h4 style={{ margin: "0 0 0.75rem", color: "#1f2937" }}>
+                        Assignment Distribution
+                      </h4>
+                      <div
+                        style={{
+                          display: "grid",
+                          gap: "0.75rem",
+                        }}
+                      >
+                        {assignmentDistribution.map((dist) => (
+                          <div
+                            key={dist.uid}
+                            style={{
+                              padding: "0.75rem",
+                              backgroundColor: "#f3f4f6",
+                              borderRadius: "0.5rem",
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                            }}
+                          >
+                            <div>
+                              <div
+                                style={{
+                                  fontWeight: 500,
+                                  fontSize: "0.875rem",
+                                  color: "#1f2937",
+                                }}
+                              >
+                                {dist.name}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: "0.75rem",
+                                  color: "#6b7280",
+                                }}
+                              >
+                                {dist.position}
+                              </div>
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "1.125rem",
+                                fontWeight: 700,
+                                color: "#2563eb",
+                              }}
+                            >
+                              {dist.count} items
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        padding: "0.75rem",
+                        backgroundColor: "#ecfdf5",
+                        borderRadius: "0.5rem",
+                        color: "#065f46",
+                        fontSize: "0.875rem",
+                      }}
+                    >
+                      <strong>Total:</strong>{" "}
+                      {filteredUnassignedRequests.length} requests will be
+                      assigned
+                    </div>
+                  </div>
+
+                  <div className="ar-modal-footer">
+                    <button
+                      className="ar-close-btn"
+                      onClick={() => setAutoAssignStep("officials")}
+                      disabled={autoAssignLoading}
+                    >
+                      Back
+                    </button>
+                    <button
+                      className="btn-save"
+                      onClick={handleConfirmAssignment}
+                      disabled={autoAssignLoading}
+                    >
+                      {autoAssignLoading ? "Assigning..." : "Confirm & Assign"}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {autoAssignStep === "executing" && (
+                <>
+                  <div className="ar-modal-body">
+                    {autoAssignResult && autoAssignResult.success ? (
+                      <div
+                        style={{
+                          padding: "1.5rem",
+                          backgroundColor: "#ecfdf5",
+                          borderRadius: "0.5rem",
+                          color: "#065f46",
+                          textAlign: "center",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: "1.25rem",
+                            fontWeight: 700,
+                            marginBottom: "0.5rem",
+                          }}
+                        >
+                          ✓ Assignment Complete!
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "0.875rem",
+                            marginBottom: "1rem",
+                          }}
+                        >
+                          {autoAssignResult.successCount} request
+                          {autoAssignResult.successCount === 1 ? "" : "s"}{" "}
+                          assigned successfully
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          padding: "1rem",
+                          backgroundColor: "#fee2e2",
+                          borderRadius: "0.5rem",
+                          color: "#991b1b",
+                        }}
+                      >
+                        {autoAssignError || "Assignment failed"}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="ar-modal-footer">
+                    <button
+                      className="ar-close-btn"
+                      onClick={closeAutoAssignModal}
+                    >
+                      Close
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>,
           document.body,

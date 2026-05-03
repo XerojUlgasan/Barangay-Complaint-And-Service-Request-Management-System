@@ -228,3 +228,235 @@ export const assignAllUnassignedByTable = async (
     failures,
   };
 };
+
+// ============== NEW AUTO-ASSIGN FEATURES ==============
+
+export const getPresentOfficialsWithDetails = async () => {
+  const today = getTodayDateString();
+
+  const { data, error } = await supabase
+    .from("attendance_records")
+    .select(
+      `official_id, attendance_date, time_in, time_out, 
+       official:barangay_officials!fk_official(uid, first_name, last_name, position, status)`,
+    )
+    .eq("attendance_date", today)
+    .not("time_in", "is", null)
+    .is("time_out", null);
+
+  if (error) {
+    console.log("getPresentOfficialsWithDetails error:", error);
+    return { success: false, data: [], message: error.message };
+  }
+
+  const officials = (data || [])
+    .map((row) => {
+      const official = Array.isArray(row?.official)
+        ? row.official[0]
+        : row?.official;
+      const status = String(official?.status || "").toUpperCase();
+      const uid = official?.uid || null;
+
+      if (status !== "ACTIVE" || !uid) return null;
+
+      return {
+        uid,
+        firstName: official?.first_name || "",
+        lastName: official?.last_name || "",
+        position: official?.position || "",
+        status,
+        attendanceDate: row?.attendance_date || null,
+        timeIn: row?.time_in || null,
+        timeOut: row?.time_out || null,
+      };
+    })
+    .filter(Boolean);
+
+  if (officials.length === 0) {
+    return {
+      success: false,
+      data: [],
+      message: "No officials present today",
+    };
+  }
+
+  return {
+    success: true,
+    data: officials,
+  };
+};
+
+export const getUnassignedRequests = async () => {
+  const { data, error } = await supabase
+    .from("request_tbl")
+    .select("id, certificate_type, request_status")
+    .is("assigned_official_id", null)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.log("getUnassignedRequests error:", error);
+    return { success: false, data: [], message: error.message };
+  }
+
+  return {
+    success: true,
+    data: data || [],
+  };
+};
+
+export const getUnassignedComplaints = async () => {
+  const { data, error } = await supabase
+    .from("complaint_tbl")
+    .select("id, complaint_type, status")
+    .is("assigned_official_id", null)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.log("getUnassignedComplaints error:", error);
+    return { success: false, data: [], message: error.message };
+  }
+
+  return {
+    success: true,
+    data: data || [],
+  };
+};
+
+export const bulkAssignRequests = async (requestIds, selectedOfficialUids) => {
+  if (
+    !requestIds ||
+    requestIds.length === 0 ||
+    !selectedOfficialUids ||
+    selectedOfficialUids.length === 0
+  ) {
+    return {
+      success: false,
+      message: "Invalid request IDs or official UIDs",
+    };
+  }
+
+  const itemCount = requestIds.length;
+  const officialCount = selectedOfficialUids.length;
+
+  // Calculate distribution: 3+2 pattern (first gets more if uneven)
+  const baseCount = Math.floor(itemCount / officialCount);
+  const remainder = itemCount % officialCount;
+
+  const distribution = selectedOfficialUids.map((uid, idx) => ({
+    uid,
+    count: idx === 0 ? baseCount + remainder : baseCount,
+  }));
+
+  let assignmentIndex = 0;
+  const assignments = [];
+
+  for (const { uid, count } of distribution) {
+    for (let i = 0; i < count && assignmentIndex < requestIds.length; i++) {
+      assignments.push({
+        requestId: requestIds[assignmentIndex],
+        uid,
+      });
+      assignmentIndex += 1;
+    }
+  }
+
+  let successCount = 0;
+  const failures = [];
+
+  for (const { requestId, uid } of assignments) {
+    const { error } = await supabase
+      .from("request_tbl")
+      .update({ assigned_official_id: uid })
+      .eq("id", requestId)
+      .is("assigned_official_id", null);
+
+    if (error) {
+      failures.push({
+        requestId,
+        uid,
+        error: error.message,
+      });
+    } else {
+      successCount += 1;
+    }
+  }
+
+  return {
+    success: failures.length === 0,
+    successCount,
+    failureCount: failures.length,
+    failures,
+    distribution,
+  };
+};
+
+export const bulkAssignComplaints = async (
+  complaintIds,
+  selectedOfficialUids,
+) => {
+  if (
+    !complaintIds ||
+    complaintIds.length === 0 ||
+    !selectedOfficialUids ||
+    selectedOfficialUids.length === 0
+  ) {
+    return {
+      success: false,
+      message: "Invalid complaint IDs or official UIDs",
+    };
+  }
+
+  const itemCount = complaintIds.length;
+  const officialCount = selectedOfficialUids.length;
+
+  // Calculate distribution: 3+2 pattern (first gets more if uneven)
+  const baseCount = Math.floor(itemCount / officialCount);
+  const remainder = itemCount % officialCount;
+
+  const distribution = selectedOfficialUids.map((uid, idx) => ({
+    uid,
+    count: idx === 0 ? baseCount + remainder : baseCount,
+  }));
+
+  let assignmentIndex = 0;
+  const assignments = [];
+
+  for (const { uid, count } of distribution) {
+    for (let i = 0; i < count && assignmentIndex < complaintIds.length; i++) {
+      assignments.push({
+        complaintId: complaintIds[assignmentIndex],
+        uid,
+      });
+      assignmentIndex += 1;
+    }
+  }
+
+  let successCount = 0;
+  const failures = [];
+
+  for (const { complaintId, uid } of assignments) {
+    const { error } = await supabase
+      .from("complaint_tbl")
+      .update({ assigned_official_id: uid })
+      .eq("id", complaintId)
+      .is("assigned_official_id", null);
+
+    if (error) {
+      failures.push({
+        complaintId,
+        uid,
+        error: error.message,
+      });
+    } else {
+      successCount += 1;
+    }
+  }
+
+  return {
+    success: failures.length === 0,
+    successCount,
+    failureCount: failures.length,
+    failures,
+    distribution,
+  };
+};
