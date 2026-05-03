@@ -16,8 +16,8 @@ const supabase = createClient(
 
 // Centralized API Configuration
 export const API_CONFIG = {
-  SERVER_API_URL: "https://barangayease-api.onrender.com/",
-    // SERVER_API_URL: "http://localhost:3000",
+  SERVER_API_URL: "https://barangayease-api.onrender.com",
+  // SERVER_API_URL: "http://localhost:3000",
 };
 
 export default supabase;
