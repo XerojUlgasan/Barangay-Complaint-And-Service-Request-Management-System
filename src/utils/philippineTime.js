@@ -8,6 +8,12 @@ const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const pad2 = (value) => String(value).padStart(2, "0");
 
 const normalizeDateString = (value) => String(value || "").trim();
+const PH_DATE_KEY_FORMAT_OPTIONS = {
+  timeZone: PH_TIMEZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+};
 
 export const parseDbTimestamp = (value, { assumeUtcForNaive = true } = {}) => {
   if (!value) return null;
@@ -90,6 +96,17 @@ export const formatPhilippineShortDateTime = (value, fallback = "—") =>
     },
     fallback,
   );
+
+export const getPhilippineDateKey = (value) => {
+  const parsed = parseDbTimestamp(value);
+  if (!parsed) return "";
+
+  return parsed.toLocaleDateString("en-CA", PH_DATE_KEY_FORMAT_OPTIONS);
+};
+
+export const isSamePhilippineCalendarDay = (leftValue, rightValue) =>
+  Boolean(getPhilippineDateKey(leftValue)) &&
+  getPhilippineDateKey(leftValue) === getPhilippineDateKey(rightValue);
 
 export const toPhilippineDateTimeLocalValue = (value) => {
   const parsed = parseDbTimestamp(value);

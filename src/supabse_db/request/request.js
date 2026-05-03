@@ -4,6 +4,7 @@ import {
   getResidentsByAuthUids,
 } from "../resident/resident";
 import { assignAllUnassignedByTable } from "../utils/autoAssign";
+import { isSamePhilippineCalendarDay } from "../../utils/philippineTime";
 
 // Helper function to check user role without causing 406 errors
 const checkUserRole = async (userId) => {
@@ -23,6 +24,69 @@ const checkUserRole = async (userId) => {
   };
 };
 
+const normalizeTextValue = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ");
+
+const fetchResidentRequestsForDayChecks = async (userId) => {
+  const { data, error } = await supabase
+    .from("request_tbl")
+    .select("id, requester_id, certificate_type, request_status, created_at")
+    .eq("requester_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    return { success: false, message: error.message };
+  }
+
+  return { success: true, data: Array.isArray(data) ? data : [] };
+};
+
+const checkResidentRequestLimits = async (userId, certType) => {
+  const residentRequestsResult = await fetchResidentRequestsForDayChecks(userId);
+
+  if (!residentRequestsResult.success) {
+    return residentRequestsResult;
+  }
+
+  const today = new Date();
+  const todaysRequests = residentRequestsResult.data.filter((request) =>
+    isSamePhilippineCalendarDay(request.created_at, today),
+  );
+
+  if (todaysRequests.length >= 3) {
+    return {
+      success: false,
+      message: "You can only file up to 3 requests per day.",
+    };
+  }
+
+  const normalizedCertificateType = normalizeTextValue(certType);
+  if (!normalizedCertificateType) {
+    return { success: true };
+  }
+
+  const hasSameCertificateType = todaysRequests.some((request) => {
+    const sameCertificateType =
+      normalizeTextValue(request.certificate_type) === normalizedCertificateType;
+    const isRejected = normalizeTextValue(request.request_status) === "rejected";
+    return sameCertificateType && !isRejected;
+  });
+
+  if (hasSameCertificateType) {
+    return {
+      success: false,
+      message:
+        "You already filed this certificate type today. You can only submit another after the previous one is rejected.",
+    };
+  }
+
+  return { success: true };
+};
+
 export const insertRequest = async (subj, desc, cert_type) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
   console.log(userData);
@@ -39,6 +103,15 @@ export const insertRequest = async (subj, desc, cert_type) => {
       success: false,
       message: "Officials and superadmin cannot insert requests",
     };
+  }
+
+  const limitResult = await checkResidentRequestLimits(
+    userData.user.id,
+    cert_type,
+  );
+
+  if (!limitResult.success) {
+    return limitResult;
   }
 
   const { data, error } = await supabase

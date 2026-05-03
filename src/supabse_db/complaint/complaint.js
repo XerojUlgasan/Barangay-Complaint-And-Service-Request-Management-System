@@ -7,6 +7,7 @@ import { assignAllUnassignedByTable } from "../utils/autoAssign";
 import {
   parseDbTimestamp,
   philippineDateTimeLocalToUtcIso,
+  isSamePhilippineCalendarDay,
 } from "../../utils/philippineTime";
 
 // Helper function to check user role without causing 406 errors
@@ -184,6 +185,44 @@ export const getMediationConflictSessions = async ({
   };
 };
 
+const fetchResidentComplaintsForDayChecks = async (userId) => {
+  const { data, error } = await supabase
+    .from("complaint_tbl")
+    .select("id, complainant_id, status, created_at")
+    .eq("complainant_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    return { success: false, message: error.message };
+  }
+
+  return { success: true, data: Array.isArray(data) ? data : [] };
+};
+
+const checkResidentComplaintLimits = async (userId) => {
+  const residentComplaintsResult = await fetchResidentComplaintsForDayChecks(
+    userId,
+  );
+
+  if (!residentComplaintsResult.success) {
+    return residentComplaintsResult;
+  }
+
+  const today = new Date();
+  const todaysComplaints = residentComplaintsResult.data.filter((complaint) =>
+    isSamePhilippineCalendarDay(complaint.created_at, today),
+  );
+
+  if (todaysComplaints.length >= 3) {
+    return {
+      success: false,
+      message: "You can only file up to 3 complaints per day.",
+    };
+  }
+
+  return { success: true };
+};
+
 export const insertComplaint = async (
   type,
   inci_date,
@@ -206,6 +245,12 @@ export const insertComplaint = async (
       success: false,
       message: "Officials and superadmin cannot insert complaints",
     };
+  }
+
+  const limitResult = await checkResidentComplaintLimits(userData.user.id);
+
+  if (!limitResult.success) {
+    return limitResult;
   }
 
   const { data, error } = await supabase
