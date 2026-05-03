@@ -274,7 +274,7 @@ export const getSettlementComplaintOptions = async () => {
     const { data: linkedSettlements, error: linkedSettlementError } =
       await supabase
         .from("settlement_tbl")
-        .select("id, status, type")
+        .select("id, status, type, session_end")
         .in("id", linkedSettlementIds);
 
     if (linkedSettlementError) {
@@ -290,6 +290,9 @@ export const getSettlementComplaintOptions = async () => {
     );
   }
 
+  const nowUtc = new Date();
+  const NEW_SESSION_ELIGIBLE_STATUSES = ["unresolved", "rescheduled", "scheduled"];
+
   const options = (complaints || []).map((row) => {
     const complainantName = residentNames[row.complainant_id] || "Unknown";
     const respondentNames = (
@@ -303,10 +306,23 @@ export const getSettlementComplaintOptions = async () => {
       : null;
     const linkedStatus = normalizeValue(linkedSettlement?.status);
     const hasLinkedSettlement = Boolean(row.settlement_id);
+
+    const sessionEndPassed =
+      linkedSettlement?.session_end
+        ? new Date(linkedSettlement.session_end) < nowUtc
+        : false;
+
+    const isNewSessionEligible =
+      hasLinkedSettlement &&
+      Boolean(linkedSettlement) &&
+      NEW_SESSION_ELIGIBLE_STATUSES.includes(linkedStatus) &&
+      sessionEndPassed;
+
     const isLocked =
       hasLinkedSettlement &&
       Boolean(linkedSettlement) &&
-      linkedStatus !== "rejected";
+      linkedStatus !== "rejected" &&
+      !isNewSessionEligible;
 
     return {
       id: row.id,
@@ -318,12 +334,15 @@ export const getSettlementComplaintOptions = async () => {
       linkedSettlementId: row.settlement_id || null,
       linkedSettlementStatus: linkedStatus || null,
       lockedForNewSettlement: isLocked,
+      isNewSessionEligible,
       complainantName,
       respondentNames,
-      label: `#${row.id} - ${row.complaint_type || "Untitled Complaint"}`,
+      label: `#${row.id} - ${row.complaint_type || "Untitled Complaint"}${isNewSessionEligible ? " [New Session]" : ""}`,
       subtitle: `Complainant: ${complainantName}${respondentNames ? ` | Respondent(s): ${respondentNames}` : ""}${
         hasLinkedSettlement
-          ? ` | Linked settlement #${row.settlement_id}${linkedStatus ? ` (${linkedStatus})` : ""}`
+          ? ` | Linked settlement #${row.settlement_id}${linkedStatus ? ` (${linkedStatus})` : ""}${
+              isNewSessionEligible ? " — eligible for new session" : ""
+            }`
           : ""
       }`,
     };
@@ -581,7 +600,7 @@ export const createSettlement = async ({
     const { data: linkedSettlement, error: linkedSettlementError } =
       await supabase
         .from("settlement_tbl")
-        .select("id, status")
+        .select("id, status, session_end")
         .eq("id", complaint.settlement_id)
         .maybeSingle();
 
@@ -593,12 +612,37 @@ export const createSettlement = async ({
     }
 
     const linkedStatus = normalizeValue(linkedSettlement?.status);
-    if (!linkedSettlement || linkedStatus !== "rejected") {
+    const nowUtc = new Date();
+    const sessionEndPassed = linkedSettlement?.session_end
+      ? new Date(linkedSettlement.session_end) < nowUtc
+      : false;
+
+    const NEW_SESSION_ELIGIBLE_STATUSES = ["unresolved", "rescheduled", "scheduled"];
+    const isNewSessionEligible =
+      linkedSettlement &&
+      NEW_SESSION_ELIGIBLE_STATUSES.includes(linkedStatus) &&
+      sessionEndPassed;
+
+    if (!linkedSettlement || (linkedStatus !== "rejected" && !isNewSessionEligible)) {
       return {
         success: false,
         message:
-          "This complaint already has a linked settlement. A new one is only allowed when the linked settlement status is rejected.",
+          "This complaint already has a linked settlement. A new one is only allowed when the linked settlement status is rejected, or when the status is unresolved/rescheduled/scheduled and the session end has passed.",
       };
+    }
+
+    if (isNewSessionEligible) {
+      const { error: updateError } = await supabase
+        .from("settlement_tbl")
+        .update({ status: "unresolved" })
+        .eq("id", linkedSettlement.id);
+
+      if (updateError) {
+        return {
+          success: false,
+          message: `Failed to update previous settlement: ${updateError.message}`,
+        };
+      }
     }
   }
 

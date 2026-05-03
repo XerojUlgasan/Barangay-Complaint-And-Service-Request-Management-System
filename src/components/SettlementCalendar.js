@@ -331,7 +331,7 @@ export default function SettlementCalendar({
     if (selectedComplaintOption?.lockedForNewSettlement) {
       setCreateMessage({
         type: "error",
-        text: "This complaint already has a linked settlement that is not rejected.",
+        text: "This complaint already has an active settlement. A new session is only allowed when the previous session has ended and its status is unresolved, rescheduled, or scheduled.",
       });
       return;
     }
@@ -771,10 +771,18 @@ export default function SettlementCalendar({
                     {selectedComplaintOption?.subtitle}
                   </p>
                 ) : null}
+                {selectedComplaintOption?.isNewSessionEligible ? (
+                  <p className="settlement-form-message success">
+                    🔄 New Session — the previous settlement session has ended.
+                    The old settlement will be marked as unresolved and a new
+                    session will be created.
+                  </p>
+                ) : null}
                 {selectedComplaintOption?.lockedForNewSettlement ? (
                   <p className="settlement-form-message error">
-                    This complaint already has a linked settlement that is not
-                    rejected, so a new settlement cannot be created.
+                    This complaint already has an active settlement. A new
+                    session is only allowed once the previous session has ended
+                    and its status is unresolved, rescheduled, or scheduled.
                   </p>
                 ) : null}
               </div>
