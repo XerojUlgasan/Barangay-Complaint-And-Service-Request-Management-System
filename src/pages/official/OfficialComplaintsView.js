@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "react-router-dom";
-import { CalendarDays, FileText, MapPin, Tag, Users, X } from "lucide-react";
+import { CalendarDays, FileText, MapPin, Tag, Users, X, ChevronDown } from "lucide-react";
 import {
   getAssignedComplaints,
   updateComplaintCategory,
@@ -571,6 +571,16 @@ export default function OfficialComplaintsView() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [claimFilter, setClaimFilter] = useState("all");
+  const [claimDropdownOpen, setClaimDropdownOpen] = useState(false);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+
+  const claimFilterOptions = [
+    { value: "all", label: "All Complaints" },
+    { value: "mine", label: "Assigned to Me" },
+    { value: "others", label: "Assigned to Others" },
+    { value: "unclaimed", label: "Unassigned" },
+  ];
 
   const searchTerms = useMemo(
     () =>
@@ -927,79 +937,256 @@ export default function OfficialComplaintsView() {
           </div>
         </div>
 
-        <div className="complaint-section-tabs">
-          {SECTION_CONFIGS.map((section) => (
+        <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", position: "relative" }}>
+          <div style={{ position: "relative", display: "inline-block" }}>
             <button
-              key={section.key}
-              type="button"
-              className={`complaint-section-tab${activeSection === section.key ? " active" : ""}`}
-              onClick={() => setActiveSection(section.key)}
+              onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
+              style={{
+                padding: "0.5rem 1rem",
+                border: "1px solid #d1d5db",
+                borderRadius: "0.375rem",
+                backgroundColor: "#fff",
+                color: "#374151",
+                fontWeight: "500",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                minWidth: "200px",
+                justifyContent: "space-between",
+              }}
             >
-              <span>{section.label}</span>
-              <span className="complaint-section-count">
-                {sectionCounts[section.key] || 0}
+              <span>
+                {activeSectionConfig.label} ({sectionCounts[activeSection] || 0})
               </span>
+              <ChevronDown size={16} />
             </button>
-          ))}
-        </div>
+            {categoryDropdownOpen && (
+              <>
+                <div
+                  style={{ position: "fixed", inset: 0, zIndex: 999 }}
+                  onClick={() => setCategoryDropdownOpen(false)}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "100%",
+                    left: 0,
+                    marginTop: "0.25rem",
+                    backgroundColor: "#fff",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "0.375rem",
+                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                    zIndex: 1000,
+                    minWidth: "200px",
+                  }}
+                >
+                  {SECTION_CONFIGS.map((section) => (
+                    <button
+                      key={section.key}
+                      onClick={() => {
+                        setActiveSection(section.key);
+                        setCategoryDropdownOpen(false);
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "0.5rem 1rem",
+                        textAlign: "left",
+                        border: "none",
+                        backgroundColor: activeSection === section.key ? "#eff6ff" : "transparent",
+                        color: activeSection === section.key ? "#1e40af" : "#374151",
+                        cursor: "pointer",
+                        fontWeight: activeSection === section.key ? "600" : "400",
+                        transition: "background-color 0.15s",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (activeSection !== section.key) {
+                          e.currentTarget.style.backgroundColor = "#f3f4f6";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (activeSection !== section.key) {
+                          e.currentTarget.style.backgroundColor = "transparent";
+                        }
+                      }}
+                    >
+                      <span>{section.label}</span>
+                      <span style={{
+                        fontSize: "0.875rem",
+                        color: activeSection === section.key ? "#1e40af" : "#6b7280",
+                        fontWeight: "600",
+                      }}>
+                        {sectionCounts[section.key] || 0}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
 
-        <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
-          <button
-            onClick={() => setClaimFilter("all")}
-            style={{
-              padding: "0.5rem 1rem",
-              border: "1px solid #d1d5db",
-              borderRadius: "0.375rem",
-              backgroundColor: claimFilter === "all" ? "#3b82f6" : "#fff",
-              color: claimFilter === "all" ? "#fff" : "#374151",
-              fontWeight: "500",
-              cursor: "pointer",
-            }}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setClaimFilter("mine")}
-            style={{
-              padding: "0.5rem 1rem",
-              border: "1px solid #d1d5db",
-              borderRadius: "0.375rem",
-              backgroundColor: claimFilter === "mine" ? "#10b981" : "#fff",
-              color: claimFilter === "mine" ? "#fff" : "#374151",
-              fontWeight: "500",
-              cursor: "pointer",
-            }}
-          >
-            My Claims
-          </button>
-          <button
-            onClick={() => setClaimFilter("others")}
-            style={{
-              padding: "0.5rem 1rem",
-              border: "1px solid #d1d5db",
-              borderRadius: "0.375rem",
-              backgroundColor: claimFilter === "others" ? "#f59e0b" : "#fff",
-              color: claimFilter === "others" ? "#fff" : "#374151",
-              fontWeight: "500",
-              cursor: "pointer",
-            }}
-          >
-            Claimed by Others
-          </button>
-          <button
-            onClick={() => setClaimFilter("unclaimed")}
-            style={{
-              padding: "0.5rem 1rem",
-              border: "1px solid #d1d5db",
-              borderRadius: "0.375rem",
-              backgroundColor: claimFilter === "unclaimed" ? "#ef4444" : "#fff",
-              color: claimFilter === "unclaimed" ? "#fff" : "#374151",
-              fontWeight: "500",
-              cursor: "pointer",
-            }}
-          >
-            Unclaimed
-          </button>
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <button
+              onClick={() => setClaimDropdownOpen(!claimDropdownOpen)}
+              style={{
+                padding: "0.5rem 1rem",
+                border: "1px solid #d1d5db",
+                borderRadius: "0.375rem",
+                backgroundColor: "#fff",
+                color: "#374151",
+                fontWeight: "500",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                minWidth: "200px",
+                justifyContent: "space-between",
+              }}
+            >
+              <span>
+                {claimFilterOptions.find((opt) => opt.value === claimFilter)?.label}
+              </span>
+              <ChevronDown size={16} />
+            </button>
+            {claimDropdownOpen && (
+              <>
+                <div
+                  style={{ position: "fixed", inset: 0, zIndex: 999 }}
+                  onClick={() => setClaimDropdownOpen(false)}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "100%",
+                    left: 0,
+                    marginTop: "0.25rem",
+                    backgroundColor: "#fff",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "0.375rem",
+                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                    zIndex: 1000,
+                    minWidth: "200px",
+                  }}
+                >
+                  {claimFilterOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => {
+                        setClaimFilter(option.value);
+                        setClaimDropdownOpen(false);
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "0.5rem 1rem",
+                        textAlign: "left",
+                        border: "none",
+                        backgroundColor: claimFilter === option.value ? "#eff6ff" : "transparent",
+                        color: claimFilter === option.value ? "#1e40af" : "#374151",
+                        cursor: "pointer",
+                        fontWeight: claimFilter === option.value ? "600" : "400",
+                        transition: "background-color 0.15s",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (claimFilter !== option.value) {
+                          e.currentTarget.style.backgroundColor = "#f3f4f6";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (claimFilter !== option.value) {
+                          e.currentTarget.style.backgroundColor = "transparent";
+                        }
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <button
+              onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
+              style={{
+                padding: "0.5rem 1rem",
+                border: "1px solid #d1d5db",
+                borderRadius: "0.375rem",
+                backgroundColor: "#fff",
+                color: "#374151",
+                fontWeight: "500",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                minWidth: "200px",
+                justifyContent: "space-between",
+              }}
+            >
+              <span>{activeStatusFilter}</span>
+              <ChevronDown size={16} />
+            </button>
+            {statusDropdownOpen && (
+              <>
+                <div
+                  style={{ position: "fixed", inset: 0, zIndex: 999 }}
+                  onClick={() => setStatusDropdownOpen(false)}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "100%",
+                    left: 0,
+                    marginTop: "0.25rem",
+                    backgroundColor: "#fff",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "0.375rem",
+                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                    zIndex: 1000,
+                    minWidth: "200px",
+                    maxHeight: "300px",
+                    overflowY: "auto",
+                  }}
+                >
+                  {STATUS_FILTER_OPTIONS.map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => {
+                        setActiveStatusFilter(status);
+                        setStatusDropdownOpen(false);
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "0.5rem 1rem",
+                        textAlign: "left",
+                        border: "none",
+                        backgroundColor: activeStatusFilter === status ? "#eff6ff" : "transparent",
+                        color: activeStatusFilter === status ? "#1e40af" : "#374151",
+                        cursor: "pointer",
+                        fontWeight: activeStatusFilter === status ? "600" : "400",
+                        transition: "background-color 0.15s",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (activeStatusFilter !== status) {
+                          e.currentTarget.style.backgroundColor = "#f3f4f6";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (activeStatusFilter !== status) {
+                          e.currentTarget.style.backgroundColor = "transparent";
+                        }
+                      }}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="complaint-section-summary">
@@ -1008,17 +1195,6 @@ export default function OfficialComplaintsView() {
             <span>{activeSectionConfig.description}</span>
           </div>
           <div className="official-section-summary-right">
-            <select
-              className="filter-date-input official-status-filter-select"
-              value={activeStatusFilter}
-              onChange={(event) => setActiveStatusFilter(event.target.value)}
-            >
-              {STATUS_FILTER_OPTIONS.map((statusOption) => (
-                <option key={statusOption} value={statusOption}>
-                  {statusOption}
-                </option>
-              ))}
-            </select>
             <div className="table-count-label">
               Showing {filteredComplaints.length} of{" "}
               {sectionCounts[activeSection] || 0} complaints

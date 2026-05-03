@@ -40,6 +40,14 @@ export default function OfficialRequests() {
   const [endDate, setEndDate] = useState("");
   const [currentUserId, setCurrentUserId] = useState(null);
   const [claimFilter, setClaimFilter] = useState("all");
+  const [claimDropdownOpen, setClaimDropdownOpen] = useState(false);
+
+  const claimFilterOptions = [
+    { value: "all", label: "All Requests" },
+    { value: "mine", label: "Assigned to Me" },
+    { value: "others", label: "Assigned to Others" },
+    { value: "unclaimed", label: "Unassigned" },
+  ];
 
   const searchTerms = Array.from(
     new Set(searchQuery.toLowerCase().trim().split(/\s+/).filter(Boolean)),
@@ -334,101 +342,166 @@ export default function OfficialRequests() {
             </div>
           </div>
 
-          {/* ── Claim Filter Buttons ── */}
-          <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
-            <button
-              onClick={() => setClaimFilter("all")}
-              style={{
-                padding: "0.5rem 1rem",
-                border: "1px solid #d1d5db",
-                borderRadius: "0.375rem",
-                backgroundColor: claimFilter === "all" ? "#3b82f6" : "#fff",
-                color: claimFilter === "all" ? "#fff" : "#374151",
-                fontWeight: "500",
-                cursor: "pointer",
-              }}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setClaimFilter("mine")}
-              style={{
-                padding: "0.5rem 1rem",
-                border: "1px solid #d1d5db",
-                borderRadius: "0.375rem",
-                backgroundColor: claimFilter === "mine" ? "#10b981" : "#fff",
-                color: claimFilter === "mine" ? "#fff" : "#374151",
-                fontWeight: "500",
-                cursor: "pointer",
-              }}
-            >
-              My Claims
-            </button>
-            <button
-              onClick={() => setClaimFilter("others")}
-              style={{
-                padding: "0.5rem 1rem",
-                border: "1px solid #d1d5db",
-                borderRadius: "0.375rem",
-                backgroundColor: claimFilter === "others" ? "#f59e0b" : "#fff",
-                color: claimFilter === "others" ? "#fff" : "#374151",
-                fontWeight: "500",
-                cursor: "pointer",
-              }}
-            >
-              Claimed by Others
-            </button>
-            <button
-              onClick={() => setClaimFilter("unclaimed")}
-              style={{
-                padding: "0.5rem 1rem",
-                border: "1px solid #d1d5db",
-                borderRadius: "0.375rem",
-                backgroundColor:
-                  claimFilter === "unclaimed" ? "#ef4444" : "#fff",
-                color: claimFilter === "unclaimed" ? "#fff" : "#374151",
-                fontWeight: "500",
-                cursor: "pointer",
-              }}
-            >
-              Unclaimed
-            </button>
-          </div>
-
-          {/* ── Status Dropdown ── */}
-          <div
-            className="status-filter-wrapper"
-            style={{ marginBottom: "1rem" }}
-          >
-            <button
-              className="status-filter-btn"
-              onClick={() => setRequestDropdownOpen(!requestDropdownOpen)}
-            >
-              <span>{selectedRequestStatus}</span>
-              <ChevronDown size={16} />
-            </button>
-            {requestDropdownOpen && (
-              <>
-                <div
-                  style={{ position: "fixed", inset: 0, zIndex: 999 }}
-                  onClick={() => setRequestDropdownOpen(false)}
-                />
-                <div className="status-dropdown">
-                  {filterOptions.map((status) => (
-                    <button
-                      key={status}
-                      className={`status-option${selectedRequestStatus === status ? " active" : ""}`}
-                      onClick={() => {
-                        setSelectedRequestStatus(status);
-                        setRequestDropdownOpen(false);
-                      }}
-                    >
-                      {status}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
+          {/* ── Claim Filter Dropdown ── */}
+          <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", position: "relative" }}>
+            <div style={{ position: "relative", display: "inline-block" }}>
+              <button
+                onClick={() => setClaimDropdownOpen(!claimDropdownOpen)}
+                style={{
+                  padding: "0.5rem 1rem",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "0.375rem",
+                  backgroundColor: "#fff",
+                  color: "#374151",
+                  fontWeight: "500",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  minWidth: "200px",
+                  justifyContent: "space-between",
+                }}
+              >
+                <span>
+                  {claimFilterOptions.find((opt) => opt.value === claimFilter)?.label}
+                </span>
+                <ChevronDown size={16} />
+              </button>
+              {claimDropdownOpen && (
+                <>
+                  <div
+                    style={{ position: "fixed", inset: 0, zIndex: 999 }}
+                    onClick={() => setClaimDropdownOpen(false)}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "100%",
+                      left: 0,
+                      marginTop: "0.25rem",
+                      backgroundColor: "#fff",
+                      border: "1px solid #d1d5db",
+                      borderRadius: "0.375rem",
+                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                      zIndex: 1000,
+                      minWidth: "200px",
+                    }}
+                  >
+                    {claimFilterOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          setClaimFilter(option.value);
+                          setClaimDropdownOpen(false);
+                        }}
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem 1rem",
+                          textAlign: "left",
+                          border: "none",
+                          backgroundColor: claimFilter === option.value ? "#eff6ff" : "transparent",
+                          color: claimFilter === option.value ? "#1e40af" : "#374151",
+                          cursor: "pointer",
+                          fontWeight: claimFilter === option.value ? "600" : "400",
+                          transition: "background-color 0.15s",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (claimFilter !== option.value) {
+                            e.currentTarget.style.backgroundColor = "#f3f4f6";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (claimFilter !== option.value) {
+                            e.currentTarget.style.backgroundColor = "transparent";
+                          }
+                        }}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+            <div style={{ position: "relative", display: "inline-block" }}>
+              <button
+                onClick={() => setRequestDropdownOpen(!requestDropdownOpen)}
+                style={{
+                  padding: "0.5rem 1rem",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "0.375rem",
+                  backgroundColor: "#fff",
+                  color: "#374151",
+                  fontWeight: "500",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  minWidth: "200px",
+                  justifyContent: "space-between",
+                }}
+              >
+                <span>{selectedRequestStatus}</span>
+                <ChevronDown size={16} />
+              </button>
+              {requestDropdownOpen && (
+                <>
+                  <div
+                    style={{ position: "fixed", inset: 0, zIndex: 999 }}
+                    onClick={() => setRequestDropdownOpen(false)}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "100%",
+                      left: 0,
+                      marginTop: "0.25rem",
+                      backgroundColor: "#fff",
+                      border: "1px solid #d1d5db",
+                      borderRadius: "0.375rem",
+                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                      zIndex: 1000,
+                      minWidth: "200px",
+                      maxHeight: "300px",
+                      overflowY: "auto",
+                    }}
+                  >
+                    {filterOptions.map((status) => (
+                      <button
+                        key={status}
+                        onClick={() => {
+                          setSelectedRequestStatus(status);
+                          setRequestDropdownOpen(false);
+                        }}
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem 1rem",
+                          textAlign: "left",
+                          border: "none",
+                          backgroundColor: selectedRequestStatus === status ? "#eff6ff" : "transparent",
+                          color: selectedRequestStatus === status ? "#1e40af" : "#374151",
+                          cursor: "pointer",
+                          fontWeight: selectedRequestStatus === status ? "600" : "400",
+                          transition: "background-color 0.15s",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (selectedRequestStatus !== status) {
+                            e.currentTarget.style.backgroundColor = "#f3f4f6";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (selectedRequestStatus !== status) {
+                            e.currentTarget.style.backgroundColor = "transparent";
+                          }
+                        }}
+                      >
+                        {status}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
           <div className="table-count-label">
