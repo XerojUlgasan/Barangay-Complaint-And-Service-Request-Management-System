@@ -133,7 +133,10 @@ const Layout = ({
         </main>
 
         {showLogoutModal && (
-          <div className="portal-logout-modal-overlay" onClick={handleCloseLogoutModal}>
+          <div
+            className="portal-logout-modal-overlay"
+            onClick={handleCloseLogoutModal}
+          >
             <div
               className="portal-logout-modal"
               onClick={(e) => e.stopPropagation()}

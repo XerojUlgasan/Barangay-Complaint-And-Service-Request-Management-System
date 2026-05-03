@@ -569,7 +569,8 @@ export default function SettlementCalendar({
                     Add Settlement
                   </button>
                 </div>
-                {hoveredButton === "add-settlement" && addSettlementDisabledReason && (
+                {hoveredButton === "add-settlement" &&
+                  addSettlementDisabledReason && (
                     <div
                       className="settlement-button-tooltip"
                       style={{
@@ -588,7 +589,7 @@ export default function SettlementCalendar({
                         pointerEvents: "none",
                       }}
                     >
-                    {addSettlementDisabledReason}
+                      {addSettlementDisabledReason}
                     </div>
                   )}
               </div>

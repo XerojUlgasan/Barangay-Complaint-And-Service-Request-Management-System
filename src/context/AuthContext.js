@@ -104,15 +104,19 @@ export function AuthProvider({ children }) {
 
           if (officialRow?.official_id) {
             const todayKey = getPhilippineDateKey();
-            const { data: attendanceRow, error: attendanceError } = await supabase
-              .from("attendance_records")
-              .select("attendance_id, time_in, time_out, attendance_status")
-              .eq("official_id", officialRow.official_id)
-              .eq("attendance_date", todayKey)
-              .maybeSingle();
+            const { data: attendanceRow, error: attendanceError } =
+              await supabase
+                .from("attendance_records")
+                .select("attendance_id, time_in, time_out, attendance_status")
+                .eq("official_id", officialRow.official_id)
+                .eq("attendance_date", todayKey)
+                .maybeSingle();
 
             if (attendanceError) {
-              console.error("Error loading attendance record:", attendanceError);
+              console.error(
+                "Error loading attendance record:",
+                attendanceError,
+              );
               if (mounted) {
                 setOfficialAccessStatus("locked");
                 setOfficialAccessMessage(getOfficialAccessMessage("error"));
