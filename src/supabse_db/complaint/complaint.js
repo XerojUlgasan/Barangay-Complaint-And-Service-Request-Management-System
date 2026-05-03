@@ -200,9 +200,8 @@ const fetchResidentComplaintsForDayChecks = async (userId) => {
 };
 
 const checkResidentComplaintLimits = async (userId) => {
-  const residentComplaintsResult = await fetchResidentComplaintsForDayChecks(
-    userId,
-  );
+  const residentComplaintsResult =
+    await fetchResidentComplaintsForDayChecks(userId);
 
   if (!residentComplaintsResult.success) {
     return residentComplaintsResult;

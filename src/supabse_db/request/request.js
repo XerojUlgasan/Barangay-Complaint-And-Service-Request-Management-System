@@ -46,7 +46,8 @@ const fetchResidentRequestsForDayChecks = async (userId) => {
 };
 
 const checkResidentRequestLimits = async (userId, certType) => {
-  const residentRequestsResult = await fetchResidentRequestsForDayChecks(userId);
+  const residentRequestsResult =
+    await fetchResidentRequestsForDayChecks(userId);
 
   if (!residentRequestsResult.success) {
     return residentRequestsResult;
@@ -71,8 +72,10 @@ const checkResidentRequestLimits = async (userId, certType) => {
 
   const hasSameCertificateType = todaysRequests.some((request) => {
     const sameCertificateType =
-      normalizeTextValue(request.certificate_type) === normalizedCertificateType;
-    const isRejected = normalizeTextValue(request.request_status) === "rejected";
+      normalizeTextValue(request.certificate_type) ===
+      normalizedCertificateType;
+    const isRejected =
+      normalizeTextValue(request.request_status) === "rejected";
     return sameCertificateType && !isRejected;
   });
 
