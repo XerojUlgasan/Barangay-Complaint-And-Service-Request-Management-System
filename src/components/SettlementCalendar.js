@@ -204,10 +204,10 @@ export default function SettlementCalendar({
   }, [initialType]);
 
   const openCreateModal = () => {
-    if (isSelectedDayInPast) {
+    if (isSelectedDayNotUpcoming) {
       setCreateMessage({
         type: "error",
-        text: "Past dates are not allowed.",
+        text: "Add Settlement is only available for upcoming days.",
       });
       return;
     }
@@ -285,6 +285,12 @@ export default function SettlementCalendar({
 
   const selectedDaySettlements = settlementsByDay[selectedDay] || [];
   const isSelectedDayInPast = selectedDay < todayKey;
+  const isSelectedDayNotUpcoming = selectedDay <= todayKey;
+  const addSettlementDisabledReason = !permissions?.create_sett
+    ? "You don't have permission to create settlements"
+    : isSelectedDayNotUpcoming
+      ? "Add Settlement is only available for upcoming days."
+      : "";
 
   const filteredComplaintOptions = useMemo(() => {
     const normalizedSearch = normalizeValue(complaintSearch);
@@ -330,10 +336,10 @@ export default function SettlementCalendar({
       return;
     }
 
-    if (isSelectedDayInPast) {
+    if (isSelectedDayNotUpcoming) {
       setCreateMessage({
         type: "error",
-        text: "Past dates are not allowed.",
+        text: "Add Settlement is only available for upcoming days.",
       });
       return;
     }
@@ -540,28 +546,30 @@ export default function SettlementCalendar({
           <div className="settlement-day-panel-actions">
             {!readOnly && (
               <div style={{ position: "relative", display: "inline-block" }}>
-                <button
-                  type="button"
-                  className="settlement-add-btn"
-                  onClick={openCreateModal}
-                  disabled={
-                    isSelectedDayInPast ||
-                    submitting ||
-                    !permissions?.create_sett
-                  }
+                <div
                   onMouseEnter={() => setHoveredButton("add-settlement")}
                   onMouseLeave={() => setHoveredButton(null)}
-                  style={{
-                    opacity: !permissions?.create_sett ? 0.5 : 1,
-                    cursor: !permissions?.create_sett
-                      ? "not-allowed"
-                      : "pointer",
-                  }}
                 >
-                  Add Settlement
-                </button>
-                {hoveredButton === "add-settlement" &&
-                  !permissions?.create_sett && (
+                  <button
+                    type="button"
+                    className="settlement-add-btn"
+                    onClick={openCreateModal}
+                    disabled={
+                      isSelectedDayNotUpcoming ||
+                      submitting ||
+                      !permissions?.create_sett
+                    }
+                    style={{
+                      opacity: addSettlementDisabledReason ? 0.5 : 1,
+                      cursor: addSettlementDisabledReason
+                        ? "not-allowed"
+                        : "pointer",
+                    }}
+                  >
+                    Add Settlement
+                  </button>
+                </div>
+                {hoveredButton === "add-settlement" && addSettlementDisabledReason && (
                     <div
                       className="settlement-button-tooltip"
                       style={{
@@ -580,7 +588,7 @@ export default function SettlementCalendar({
                         pointerEvents: "none",
                       }}
                     >
-                      You don't have permission to create settlements
+                    {addSettlementDisabledReason}
                     </div>
                   )}
               </div>
@@ -593,9 +601,9 @@ export default function SettlementCalendar({
           Selected day is locked. Session start and end use this same date.
         </p>
 
-        {isSelectedDayInPast ? (
+        {isSelectedDayNotUpcoming ? (
           <p className="settlement-form-message error">
-            Selected day is in the past. Scheduling and edits are disabled.
+            Add Settlement is only available for upcoming days.
           </p>
         ) : null}
 
@@ -733,7 +741,7 @@ export default function SettlementCalendar({
                   value={complaintSearch}
                   onChange={(event) => setComplaintSearch(event.target.value)}
                   placeholder="Search by complaint, complainant, or respondent"
-                  disabled={isSelectedDayInPast || submitting}
+                  disabled={isSelectedDayNotUpcoming || submitting}
                 />
               </div>
 
@@ -748,7 +756,7 @@ export default function SettlementCalendar({
                     }))
                   }
                   required
-                  disabled={isSelectedDayInPast || submitting}
+                  disabled={isSelectedDayNotUpcoming || submitting}
                 >
                   <option value="">Select complaint</option>
                   {filteredComplaintOptions.map((option) => (
@@ -805,7 +813,7 @@ export default function SettlementCalendar({
                       }))
                     }
                     required
-                    disabled={isSelectedDayInPast || submitting}
+                    disabled={isSelectedDayNotUpcoming || submitting}
                   />
                 </div>
                 <div>
@@ -820,7 +828,7 @@ export default function SettlementCalendar({
                       }))
                     }
                     required
-                    disabled={isSelectedDayInPast || submitting}
+                    disabled={isSelectedDayNotUpcoming || submitting}
                   />
                 </div>
               </div>
@@ -828,7 +836,7 @@ export default function SettlementCalendar({
               <button
                 type="submit"
                 className="settlement-create-submit"
-                disabled={submitting || isSelectedDayInPast}
+                disabled={submitting || isSelectedDayNotUpcoming}
               >
                 {submitting ? "Saving..." : "Save Settlement"}
               </button>

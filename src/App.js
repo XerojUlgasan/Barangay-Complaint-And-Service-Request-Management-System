@@ -61,7 +61,15 @@ function UserPage() {
 
 // Routes component that uses auth context
 function AppRoutes() {
-  const { userName, userPosition, userRole, userLoading, authUser } = useAuth();
+  const {
+    userName,
+    userPosition,
+    userRole,
+    userLoading,
+    authUser,
+    officialAccessStatus,
+    officialAccessMessage,
+  } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -194,6 +202,8 @@ function AppRoutes() {
               userPosition={userPosition}
               userRole={userRole}
               userLoading={userLoading}
+              portalAccessStatus={officialAccessStatus}
+              portalAccessMessage={officialAccessMessage}
               onLogout={handleLogout}
             />
           </PermissionsProvider>

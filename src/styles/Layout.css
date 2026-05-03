@@ -21,6 +21,61 @@
   padding: 2rem;
   background: linear-gradient(180deg, #f0fdf4 0%, #f9fafb 50%, #ffffff 100%);
   box-sizing: border-box;
+  position: relative;
+}
+
+.portal-lock-modal-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.portal-lock-checking {
+  background: rgba(15, 23, 42, 0.25);
+}
+
+.portal-lock-modal {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.22);
+  padding: 1.5rem;
+  text-align: center;
+  animation: portalLogoutPop 0.18s ease-out;
+}
+
+.portal-lock-modal-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 0.9rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #fee2e2;
+}
+
+.portal-lock-checking .portal-lock-modal-icon {
+  background: #dbeafe;
+}
+
+.portal-lock-modal-title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.portal-lock-modal-message {
+  margin: 0.55rem 0 0;
+  color: #4b5563;
+  font-size: 0.97rem;
 }
 
 .portal-logout-modal-overlay {
@@ -142,6 +197,11 @@
     padding: 1.25rem;
     margin-top: 0;
     box-sizing: border-box;
+  }
+
+  .portal-lock-modal {
+    max-width: 340px;
+    padding: 1.2rem;
   }
 
   .sidebar.closed ~ .main-wrapper {

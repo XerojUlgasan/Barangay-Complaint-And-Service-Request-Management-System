@@ -28,8 +28,12 @@ const Layout = ({
   userRole = null,
   onLogout,
   userLoading = false,
+  portalAccessStatus = "idle",
+  portalAccessMessage = "",
 }) => {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const showPortalLock = portalAccessStatus === "locked";
+  const showPortalChecking = portalAccessStatus === "checking";
 
   const handleOpenLogoutModal = () => {
     setShowLogoutModal(true);
@@ -77,7 +81,55 @@ const Layout = ({
 
         {/* Main Content Area - renders nested routes via Outlet */}
         <main className="main-content">
-          <Outlet />
+          {showPortalChecking ? (
+            <div className="portal-lock-modal-overlay portal-lock-checking">
+              <div className="portal-lock-modal">
+                <div className="portal-lock-modal-icon">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#0ea5e9"
+                    strokeWidth="2"
+                    width="32"
+                    height="32"
+                  >
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 7v5l3 2" />
+                  </svg>
+                </div>
+                <h3 className="portal-lock-modal-title">Checking Attendance</h3>
+                <p className="portal-lock-modal-message">
+                  Verifying your attendance record before opening the portal.
+                </p>
+              </div>
+            </div>
+          ) : showPortalLock ? (
+            <div className="portal-lock-modal-overlay">
+              <div className="portal-lock-modal">
+                <div className="portal-lock-modal-icon">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#dc2626"
+                    strokeWidth="2"
+                    width="32"
+                    height="32"
+                  >
+                    <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+                    <path d="M12 9v4" />
+                    <path d="M12 17h.01" />
+                  </svg>
+                </div>
+                <h3 className="portal-lock-modal-title">Access Blocked</h3>
+                <p className="portal-lock-modal-message">
+                  {portalAccessMessage ||
+                    "You are not allowed to use the official portal right now."}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <Outlet />
+          )}
         </main>
 
         {showLogoutModal && (

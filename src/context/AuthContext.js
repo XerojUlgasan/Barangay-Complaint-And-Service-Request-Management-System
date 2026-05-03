@@ -3,6 +3,20 @@ import { useNavigate } from "react-router-dom";
 import supabase from "../supabse_db/supabase_client";
 import { clearResidentCache } from "../supabse_db/resident/resident";
 
+const getPhilippineDateKey = () =>
+  new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+
+const getOfficialAccessMessage = (status) => {
+  if (status === "timed_out") {
+    return "You have been timed out for today. Please contact the administrator if you need access.";
+  }
+  if (status === "not_present") {
+    return "You have no attendance record for today. Please check in first.";
+  }
+
+  return "Unable to verify your attendance status right now.";
+};
+
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
@@ -15,6 +29,13 @@ export function AuthProvider({ children }) {
   const [userRole, setUserRole] = useState(null); // 'superadmin', 'official', or null
   const [userLoading, setUserLoading] = useState(true);
   const [residentLoading, setResidentLoading] = useState(true);
+  const [officialAccessStatus, setOfficialAccessStatus] = useState("idle");
+  const [officialAccessMessage, setOfficialAccessMessage] = useState("");
+
+  const resetOfficialAccessState = () => {
+    setOfficialAccessStatus("idle");
+    setOfficialAccessMessage("");
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -29,6 +50,7 @@ export function AuthProvider({ children }) {
       setUserRole(null);
       setResidentLoading(false);
       setUserLoading(false);
+      resetOfficialAccessState();
       clearResidentCache();
       const currentPath = window.location.pathname;
       if (
@@ -61,6 +83,56 @@ export function AuthProvider({ children }) {
             setUserPosition(metadataPosition);
             setUserName(metadataFullName || user.email || "Barangay Official");
             setUserLoading(false);
+            setOfficialAccessStatus("checking");
+            setOfficialAccessMessage("");
+          }
+
+          const { data: officialRow, error: officialRowError } = await supabase
+            .from("barangay_officials")
+            .select("official_id")
+            .eq("uid", user.id)
+            .maybeSingle();
+
+          if (officialRowError) {
+            console.error("Error loading official profile:", officialRowError);
+            if (mounted) {
+              setOfficialAccessStatus("locked");
+              setOfficialAccessMessage(getOfficialAccessMessage("error"));
+            }
+            return;
+          }
+
+          if (officialRow?.official_id) {
+            const todayKey = getPhilippineDateKey();
+            const { data: attendanceRow, error: attendanceError } = await supabase
+              .from("attendance_records")
+              .select("attendance_id, time_in, time_out, attendance_status")
+              .eq("official_id", officialRow.official_id)
+              .eq("attendance_date", todayKey)
+              .maybeSingle();
+
+            if (attendanceError) {
+              console.error("Error loading attendance record:", attendanceError);
+              if (mounted) {
+                setOfficialAccessStatus("locked");
+                setOfficialAccessMessage(getOfficialAccessMessage("error"));
+              }
+              return;
+            }
+
+            // Block access if no attendance record OR already timed out
+            if (!attendanceRow || attendanceRow?.time_out) {
+              if (mounted) {
+                const reason = !attendanceRow ? "not_present" : "timed_out";
+                setOfficialAccessStatus("locked");
+                setOfficialAccessMessage(getOfficialAccessMessage(reason));
+              }
+              return;
+            }
+          }
+
+          if (mounted) {
+            resetOfficialAccessState();
           }
           // Role is already set to "official", redirect and stop here
           const currentPath = window.location.pathname;
@@ -84,6 +156,7 @@ export function AuthProvider({ children }) {
               metadataFullName || user.email || user.id || "Barangay User",
             );
             setUserLoading(false);
+            resetOfficialAccessState();
           }
 
           const currentPath = window.location.pathname;
@@ -117,6 +190,7 @@ export function AuthProvider({ children }) {
               metadataFullName || user.email || user.id || "Barangay Admin",
             );
             setUserLoading(false);
+            resetOfficialAccessState();
           }
           return;
         }
@@ -125,6 +199,7 @@ export function AuthProvider({ children }) {
           setResident(null);
           setResidentLoading(false);
           setUserLoading(false);
+          resetOfficialAccessState();
         }
 
         await supabase.auth.signOut();
@@ -133,6 +208,7 @@ export function AuthProvider({ children }) {
         console.error("Error loading user data:", err);
         if (mounted) setResidentLoading(false);
         if (mounted) setUserLoading(false);
+        if (mounted) resetOfficialAccessState();
       }
     };
 
@@ -183,6 +259,8 @@ export function AuthProvider({ children }) {
     userPosition,
     userRole,
     userLoading,
+    officialAccessStatus,
+    officialAccessMessage,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
