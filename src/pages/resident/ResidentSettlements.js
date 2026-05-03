@@ -82,6 +82,13 @@ const toMillis = (value) => {
   return date.getTime();
 };
 
+const isSettlementOverdue = (sessionEnd) => {
+  if (!sessionEnd) return false;
+  const endTime = toMillis(sessionEnd);
+  if (Number.isNaN(endTime)) return false;
+  return endTime < Date.now();
+};
+
 const toPartyNames = (parties = []) => {
   if (!Array.isArray(parties) || parties.length === 0)
     return "No parties found.";
@@ -89,6 +96,8 @@ const toPartyNames = (parties = []) => {
     .map((party) => party?.fullName || party?.uid || "Unknown")
     .join(", ");
 };
+
+const formatShortDateTime = (value) => formatScheduleDateTime(value);
 
 const ResidentSettlements = () => {
   const navigate = useNavigate();
@@ -306,6 +315,15 @@ const ResidentSettlements = () => {
                   <div className="details-row">
                     <span className="details-label">Status</span>
                     <div className="resident-settlement-status-wrap">
+                      {isSettlementOverdue(selectedSettlement.session_end) &&
+                        (normalizeValue(selectedSettlement.status) ===
+                          "scheduled" ||
+                          normalizeValue(selectedSettlement.status) ===
+                            "rescheduled") && (
+                          <span className="badge resident-settlement-status-badge overdue">
+                            Overdue
+                          </span>
+                        )}
                       <span
                         className={`badge resident-settlement-status-badge ${getSettlementStatusClass(selectedSettlement.status)}`}
                       >
@@ -319,39 +337,95 @@ const ResidentSettlements = () => {
                       #{selectedSettlement.complaint_id}
                     </span>
                   </div>
-                  <div className="details-row">
-                    <span className="details-label">Location</span>
-                    <span className="details-value">
-                      {selectedSettlement.complaint?.incident_location ||
-                        "Not specified"}
-                    </span>
-                  </div>
-                  <div className="details-full">
-                    <span className="details-label">Schedule</span>
-                    <div className="resident-settlement-schedule">
-                      <div className="resident-settlement-time-chip start">
-                        <span>Start</span>
+                  <div className="details-full resident-settlement-detail-section">
+                    <span className="details-label">Complaint Details</span>
+                    <div className="resident-settlement-detail-list">
+                      <div className="resident-settlement-detail-item">
+                        <span>Complaint Type</span>
                         <strong>
-                          {formatScheduleDateTime(
-                            selectedSettlement.session_start,
+                          {selectedSettlement.complaint?.complaint_type ||
+                            "Complaint"}
+                        </strong>
+                      </div>
+                      <div className="resident-settlement-detail-item">
+                        <span>Complaint Status</span>
+                        <strong>
+                          {selectedSettlement.complaint?.status || "Unknown"}
+                        </strong>
+                      </div>
+                      <div className="resident-settlement-detail-item">
+                        <span>Incident Date</span>
+                        <strong>
+                          {formatShortDateTime(
+                            selectedSettlement.complaint?.incident_date,
                           )}
                         </strong>
                       </div>
-                      <div className="resident-settlement-time-chip end">
-                        <span>End</span>
+                      <div className="resident-settlement-detail-item resident-settlement-detail-item-full">
+                        <span>Description</span>
                         <strong>
-                          {formatScheduleDateTime(
-                            selectedSettlement.session_end,
-                          )}
+                          {selectedSettlement.complaint?.description ||
+                            "No description provided."}
+                        </strong>
+                      </div>
+                      <div className="resident-settlement-detail-item">
+                        <span>Complaint Location</span>
+                        <strong>
+                          {selectedSettlement.complaint?.incident_location ||
+                            "Not specified"}
                         </strong>
                       </div>
                     </div>
                   </div>
-                  <div className="details-full">
-                    <span className="details-label">Parties</span>
-                    <p className="details-desc">
-                      {toPartyNames(selectedSettlement.partyNames)}
-                    </p>
+                  <div className="details-full resident-settlement-detail-section">
+                    <span className="details-label">Settlement Details</span>
+                    <div className="resident-settlement-detail-list">
+                      <div className="resident-settlement-detail-item">
+                        <span>Settlement Type</span>
+                        <strong>
+                          {getSettlementTypeLabel(selectedSettlement.type)}
+                        </strong>
+                      </div>
+                      <div className="resident-settlement-detail-item">
+                        <span>Settlement Status</span>
+                        <strong>
+                          {getSettlementStatusLabel(selectedSettlement.status)}
+                        </strong>
+                      </div>
+                      <div className="resident-settlement-detail-item">
+                        <span>Created At</span>
+                        <strong>
+                          {formatShortDateTime(selectedSettlement.created_at)}
+                        </strong>
+                      </div>
+                      <div className="resident-settlement-detail-item resident-settlement-detail-item-full">
+                        <span>Schedule</span>
+                        <div className="resident-settlement-schedule">
+                          <div className="resident-settlement-time-chip start">
+                            <span>Start</span>
+                            <strong>
+                              {formatScheduleDateTime(
+                                selectedSettlement.session_start,
+                              )}
+                            </strong>
+                          </div>
+                          <div className="resident-settlement-time-chip end">
+                            <span>End</span>
+                            <strong>
+                              {formatScheduleDateTime(
+                                selectedSettlement.session_end,
+                              )}
+                            </strong>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="resident-settlement-detail-item resident-settlement-detail-item-full">
+                        <span>Parties</span>
+                        <strong>
+                          {toPartyNames(selectedSettlement.partyNames)}
+                        </strong>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -514,6 +588,14 @@ const ResidentSettlements = () => {
                         </svg>
                       </div>
                       <div className="resident-settlement-status-wrap">
+                        {isSettlementOverdue(settlement.session_end) &&
+                          (normalizeValue(settlement.status) === "scheduled" ||
+                            normalizeValue(settlement.status) ===
+                              "rescheduled") && (
+                            <span className="badge resident-settlement-status-badge overdue">
+                              Overdue
+                            </span>
+                          )}
                         <span
                           className={`badge resident-settlement-status-badge ${getSettlementStatusClass(settlement.status)}`}
                         >
@@ -530,12 +612,6 @@ const ResidentSettlements = () => {
                       <span>{getSettlementTypeLabel(settlement.type)}</span>
                       <span>Complaint #{settlement.complaint_id}</span>
                     </div>
-
-                    <p className="mr-card-compact-desc resident-settlement-location">
-                      Location:{" "}
-                      {settlement.complaint?.incident_location ||
-                        "Not specified"}
-                    </p>
 
                     <div className="resident-settlement-schedule">
                       <div className="resident-settlement-time-chip start">

@@ -569,6 +569,8 @@ const Announcements = () => {
                     (ann.category || "").toLowerCase() === "event";
                   const isAlert =
                     (ann.category || "").toLowerCase() === "alert";
+                  const eventStatus = getEventStatus(ann);
+                  const isCompletedEvent = eventStatus === "Completed";
                   const isSignedUp = userSignups && userSignups[ann.id];
                   const participantCount =
                     (participantCounts && participantCounts[ann.id]) || 0;
@@ -585,11 +587,10 @@ const Announcements = () => {
                         ),
                       )
                     : 0;
-                  const eventStatus = getEventStatus(ann);
 
                   return (
                     <div
-                      className="ann-card-new"
+                      className={`ann-card-new${isCompletedEvent ? " is-completed-event" : ""}`}
                       key={ann.id}
                       style={{
                         animationDelay: `${idx * 0.05}s`,
@@ -768,14 +769,30 @@ const Announcements = () => {
                             isSignedUp ? (
                               <button
                                 className="ann-card-btn-cancel"
+                                disabled={isCompletedEvent}
                                 onClick={() => {
+                                  if (isCompletedEvent) return;
                                   setSelectedAnnouncement(ann);
                                   setSignupMessage(null);
                                   setSignupAction("cancel");
                                   setShowSignupModal(true);
                                 }}
+                                title={
+                                  isCompletedEvent
+                                    ? "This event has already finished"
+                                    : undefined
+                                }
                               >
                                 ✓ Signed Up
+                              </button>
+                            ) : isCompletedEvent ? (
+                              <button
+                                className="ann-card-btn-primary"
+                                disabled
+                                title="This event has already finished"
+                                style={{ opacity: 0.6, cursor: "not-allowed" }}
+                              >
+                                Completed
                               </button>
                             ) : isEventFull ? (
                               <button
@@ -789,12 +806,19 @@ const Announcements = () => {
                             ) : (
                               <button
                                 className="ann-card-btn-primary"
+                                disabled={isCompletedEvent}
                                 onClick={() => {
+                                  if (isCompletedEvent) return;
                                   setSelectedAnnouncement(ann);
                                   setSignupMessage(null);
                                   setSignupAction("signup");
                                   setShowSignupModal(true);
                                 }}
+                                title={
+                                  isCompletedEvent
+                                    ? "This event has already finished"
+                                    : undefined
+                                }
                               >
                                 Sign Up
                               </button>
@@ -1073,7 +1097,16 @@ const Announcements = () => {
 
                 <div className="resident-ann-actions">
                   {selectedAnnouncement.category?.toLowerCase() === "event" &&
-                    (userSignups && userSignups[selectedAnnouncement.id] ? (
+                    (getEventStatus(selectedAnnouncement) === "Completed" ? (
+                      <button
+                        className="ann-signup-btn"
+                        style={{ flex: 1, padding: "12px" }}
+                        disabled
+                        title="This event has already finished"
+                      >
+                        Event Completed
+                      </button>
+                    ) : userSignups && userSignups[selectedAnnouncement.id] ? (
                       <button
                         className="ann-signup-btn cancel"
                         style={{ flex: 1, padding: "12px" }}

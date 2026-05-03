@@ -5,6 +5,7 @@ import {
   getComplaintsAgainstResident,
   getComplaintHistory,
 } from "../../supabse_db/complaint/complaint";
+import { getSettlementsByComplaintId } from "../../supabse_db/settlement/settlement";
 import { logout } from "../../supabse_db/auth/auth";
 import { fetchImagesForItem } from "../../supabse_db/uploadImages";
 import {
@@ -147,6 +148,8 @@ const MyComplaints = () => {
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [historyData, setHistoryData] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [settlementHistory, setSettlementHistory] = useState([]);
+  const [settlementHistoryLoading, setSettlementHistoryLoading] = useState(false);
   const [respondentNames, setRespondentNames] = useState({});
   const [complaintImages, setComplaintImages] = useState([]);
   const [complaintImagesLoading, setComplaintImagesLoading] = useState(false);
@@ -450,11 +453,22 @@ const MyComplaints = () => {
     setComplaintImagesLoading(true);
     setHistoryData([]);
     setComplaintImages([]);
+    setSettlementHistory([]);
+    setSettlementHistoryLoading(true);
 
     const [history, imagesResult] = await Promise.all([
       loadComplaintHistory(complaint),
       fetchImagesForItem("complaint", complaint.id),
     ]);
+
+    // Fetch settlement history for this complaint (latest first)
+    const settlementsResult = await getSettlementsByComplaintId(complaint.id);
+    if (settlementsResult.success) {
+      setSettlementHistory(Array.isArray(settlementsResult.data) ? settlementsResult.data : []);
+    } else {
+      setSettlementHistory([]);
+    }
+    setSettlementHistoryLoading(false);
 
     setHistoryData(history);
     if (imagesResult.success) {
@@ -794,6 +808,45 @@ const MyComplaints = () => {
                     </div>
                   )}
                 </div>
+                    <div className="resident-history-section">
+                      <div className="resident-history-header">
+                        <h4>Settlement History</h4>
+                        <span>All settlements linked to this complaint (latest first).</span>
+                      </div>
+
+                      {settlementHistoryLoading ? (
+                        <p className="modal-empty-text">Loading settlements...</p>
+                      ) : settlementHistory.length === 0 ? (
+                        <p className="modal-empty-text">No settlements found for this complaint.</p>
+                      ) : (
+                        <div className="history-timeline resident-history-timeline">
+                          {settlementHistory.map((settlement, idx) => (
+                            <div className="timeline-item" key={settlement.id || idx}>
+                              <div className="timeline-dot" style={{ backgroundColor: '#93C5FD' }} />
+                              {idx < settlementHistory.length - 1 && <div className="timeline-line" />}
+                              <div className="timeline-content">
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <div>
+                                    <strong>Settlement #{settlement.id}</strong>
+                                    <div className="timeline-meta">
+                                      <span className="timeline-date">
+                                        {formatLongDateTime(settlement.sessionStartLocal)} — {formatLongDateTime(settlement.sessionEndLocal)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <span className="badge" style={{ backgroundColor: '#60A5FA' }}>{(settlement.status || '').toString()}</span>
+                                  </div>
+                                </div>
+                                <div style={{ marginTop: 6 }}>
+                                  <div className="timeline-remarks">Parties: {(settlement.partyNames || []).map(p => p.fullName).join(', ') || '-'}</div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
 
                 {complaintImagesLoading ? (
                   <div className="resident-history-section">
@@ -1134,7 +1187,7 @@ const MyComplaints = () => {
                   <p className="mr-empty-text">No complaints found.</p>
                 ) : (
                   <div className="requests-table-card resident-complaints-table-card">
-                    <table className="requests-table balanced-table resident-complaints-table">
+                    <table className="requests-table balanced-table resident-complaints-table complaint-table">
                       <thead>
                         <tr>
                           <th>Complaint Type</th>

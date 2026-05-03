@@ -172,7 +172,7 @@ const fetchComplaintMap = async (complaintIds = []) => {
   const { data, error } = await supabase
     .from("complaint_tbl")
     .select(
-      "id, complaint_type, complainant_id, respondent_id, incident_location, status, category",
+      "id, complaint_type, complainant_id, respondent_id, incident_location, description, incident_date, status, category, created_at",
     )
     .in("id", uniqueComplaintIds);
 
