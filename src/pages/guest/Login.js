@@ -1,15 +1,13 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import {
-  loginByEmail,
-  requestPasswordReset,
-} from "../../supabse_db/auth/auth";
+import { loginByEmail, requestPasswordReset } from "../../supabse_db/auth/auth";
 import { API_CONFIG } from "../../supabse_db/supabase_client";
 import supabase from "../../supabse_db/supabase_client";
 import "../../styles/Auth.css";
 
 // Get the Supabase anon token for public/unauthenticated requests
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjbmxqaW9neG5tZnVnY2FxeGdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0NjM1NTAsImV4cCI6MjA4NjAzOTU1MH0.C_GLCdO2YjmHMz4UAnSnMxMIjVVwIO8I3tVFGrgBSZc";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjbmxqaW9neG5tZnVnY2FxeGdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0NjM1NTAsImV4cCI6MjA4NjAzOTU1MH0.C_GLCdO2YjmHMz4UAnSnMxMIjVVwIO8I3tVFGrgBSZc";
 
 const Login = () => {
   const [isSignIn, setIsSignIn] = useState(true);
@@ -42,6 +40,8 @@ const Login = () => {
   const [notification, setNotification] = useState(null);
 
   const navigate = useNavigate();
+  // Today's date in YYYY-MM-DD format for date input `max` and validation
+  const today = new Date().toISOString().split("T")[0];
 
   // Popup notification function
   const showNotification = (message, type = "success") => {
@@ -129,6 +129,13 @@ const Login = () => {
     setVerifyError("");
     setVerifyLoading(true);
 
+    // Prevent selecting a future birthdate
+    if (birthdate && birthdate > today) {
+      setVerifyError("Birthdate cannot be in the future.");
+      setVerifyLoading(false);
+      return;
+    }
+
     try {
       const payload = {
         house_id: householdId.trim(),
@@ -138,25 +145,38 @@ const Login = () => {
         bdate: birthdate,
       };
 
-      console.log("📤 Sending to checkIdentity:", JSON.stringify(payload, null, 2));
+      console.log(
+        "📤 Sending to checkIdentity:",
+        JSON.stringify(payload, null, 2),
+      );
 
       const headers = {
         "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        Accept: "application/json",
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       };
 
-      const response = await fetch(`${API_CONFIG.SERVER_API_URL}/resident/checkIdentity`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(payload),
-      });
+      const response = await fetch(
+        `${API_CONFIG.SERVER_API_URL}/resident/checkIdentity`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload),
+        },
+      );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         setVerifyLoading(false);
-        console.error("❌ Error from checkIdentity:", response.status, errorData);
-        setVerifyError(errorData.message || `Error: ${response.status} ${response.statusText}`);
+        console.error(
+          "❌ Error from checkIdentity:",
+          response.status,
+          errorData,
+        );
+        setVerifyError(
+          errorData.message ||
+            `Error: ${response.status} ${response.statusText}`,
+        );
         return;
       }
 
@@ -166,7 +186,10 @@ const Login = () => {
       console.log("✅ Response from checkIdentity:", data);
 
       if (!data.result) {
-        setVerifyError(data.message || "Identity verification failed. Please check your details.");
+        setVerifyError(
+          data.message ||
+            "Identity verification failed. Please check your details.",
+        );
         return;
       }
 
@@ -175,7 +198,9 @@ const Login = () => {
       setStep(2);
     } catch (error) {
       setVerifyLoading(false);
-      setVerifyError("An error occurred during verification. Please try again.");
+      setVerifyError(
+        "An error occurred during verification. Please try again.",
+      );
       console.error("Verification error:", error);
     }
   };
@@ -184,6 +209,13 @@ const Login = () => {
     e.preventDefault();
     setRegisterError("");
     setRegisterLoading(true);
+
+    // Prevent activating account with a future birthdate
+    if (birthdate && birthdate > today) {
+      setRegisterError("Birthdate cannot be in the future.");
+      setRegisterLoading(false);
+      return;
+    }
 
     try {
       const payload = {
@@ -196,25 +228,38 @@ const Login = () => {
         email: newEmail.trim(),
       };
 
-      console.log("📤 Sending to activateAccount:", JSON.stringify(payload, null, 2));
+      console.log(
+        "📤 Sending to activateAccount:",
+        JSON.stringify(payload, null, 2),
+      );
 
       const headers = {
         "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        Accept: "application/json",
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       };
 
-      const response = await fetch(`${API_CONFIG.SERVER_API_URL}/resident/activateAccount`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(payload),
-      });
+      const response = await fetch(
+        `${API_CONFIG.SERVER_API_URL}/resident/activateAccount`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload),
+        },
+      );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         setRegisterLoading(false);
-        console.error("❌ Error from activateAccount:", response.status, errorData);
-        setRegisterError(errorData.message || `Error: ${response.status} ${response.statusText}`);
+        console.error(
+          "❌ Error from activateAccount:",
+          response.status,
+          errorData,
+        );
+        setRegisterError(
+          errorData.message ||
+            `Error: ${response.status} ${response.statusText}`,
+        );
         return;
       }
 
@@ -224,13 +269,20 @@ const Login = () => {
       console.log("✅ Response from activateAccount:", data);
 
       if (!data.result) {
-        setRegisterError(data.message || "Account activation failed. Please try again.");
+        setRegisterError(
+          data.message || "Account activation failed. Please try again.",
+        );
         return;
       }
 
       // Success - show message and redirect to sign-in
-      showNotification(data.message || "Account activated successfully! Please sign in with your new account.", "success", 3000);
-      
+      showNotification(
+        data.message ||
+          "Account activated successfully! Please sign in with your new account.",
+        "success",
+        3000,
+      );
+
       // Reset to sign-in form after a short delay
       setTimeout(() => {
         setIsSignIn(true);
@@ -247,7 +299,9 @@ const Login = () => {
       }, 1500);
     } catch (error) {
       setRegisterLoading(false);
-      setRegisterError("An error occurred during account activation. Please try again.");
+      setRegisterError(
+        "An error occurred during account activation. Please try again.",
+      );
       console.error("Account activation error:", error);
     }
   };
@@ -581,6 +635,7 @@ const Login = () => {
                   className="form-control"
                   id="birthdate"
                   value={birthdate}
+                  max={today}
                   onChange={(e) => setBirthdate(e.target.value)}
                   required
                 />
@@ -667,7 +722,11 @@ const Login = () => {
 
       {/* Notification Popup Modal */}
       {notification && (
-        <div className="notification-modal-overlay" role="dialog" aria-modal="true">
+        <div
+          className="notification-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="notification-modal-card">
             <div className="notification-modal-icon">
               {notification.type === "success" ? (
