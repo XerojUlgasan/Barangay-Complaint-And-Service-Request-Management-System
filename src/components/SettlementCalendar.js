@@ -120,6 +120,27 @@ const fromMinutes = (value) => {
 
 const addOneHour = (timeValue) => fromMinutes(toMinutes(timeValue) + 60);
 
+const enforceMaxOneHourGap = (startTime, endTime) => {
+  // Ensures the gap between start and end time does not exceed 1 hour
+  // Returns adjusted end time if needed
+  const startMinutes = toMinutes(startTime);
+  const endMinutes = toMinutes(endTime);
+  const maxEndMinutes = startMinutes + 60;
+
+  if (endMinutes > maxEndMinutes) {
+    return fromMinutes(maxEndMinutes);
+  }
+
+  return endTime;
+};
+
+const isTimeGapMoreThanOneHour = (startTime, endTime) => {
+  // Returns true if the gap between start and end time exceeds 1 hour
+  const startMinutes = toMinutes(startTime);
+  const endMinutes = toMinutes(endTime);
+  return endMinutes - startMinutes > 60;
+};
+
 const getTimeOnly = (dateTimeValue, fallback = DEFAULT_START_TIME) => {
   const raw = String(dateTimeValue || "").trim();
   if (!raw.includes("T")) return fallback;
@@ -397,6 +418,14 @@ export default function SettlementCalendar({
       return;
     }
 
+    if (isTimeGapMoreThanOneHour(createForm.startTime, createForm.endTime)) {
+      setCreateMessage({
+        type: "error",
+        text: "Session duration cannot exceed 1 hour.",
+      });
+      return;
+    }
+
     if (!isWithinSchedulingWindow(selectedDay, createForm.startTime, createForm.endTime)) {
       const weekday = getWeekdayInManila(selectedDay);
       const isSunday = weekday === 0;
@@ -511,6 +540,14 @@ export default function SettlementCalendar({
       setEditMessage({
         type: "error",
         text: "Session end time must be later than session start time.",
+      });
+      return;
+    }
+
+    if (isTimeGapMoreThanOneHour(startTime, endTime)) {
+      setEditMessage({
+        type: "error",
+        text: "Session duration cannot exceed 1 hour.",
       });
       return;
     }
@@ -896,12 +933,14 @@ export default function SettlementCalendar({
                   <input
                     type="time"
                     value={createForm.startTime}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      const nextStartTime = event.target.value;
                       setCreateForm((previous) => ({
                         ...previous,
-                        startTime: event.target.value,
-                      }))
-                    }
+                        startTime: nextStartTime,
+                        endTime: enforceMaxOneHourGap(nextStartTime, previous.endTime),
+                      }));
+                    }}
                     required
                     disabled={isSelectedDayNotUpcoming || submitting}
                   />
@@ -911,12 +950,13 @@ export default function SettlementCalendar({
                   <input
                     type="time"
                     value={createForm.endTime}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      const nextEndTime = event.target.value;
                       setCreateForm((previous) => ({
                         ...previous,
-                        endTime: event.target.value,
-                      }))
-                    }
+                        endTime: enforceMaxOneHourGap(previous.startTime, nextEndTime),
+                      }));
+                    }}
                     required
                     disabled={isSelectedDayNotUpcoming || submitting}
                   />
@@ -1060,9 +1100,13 @@ export default function SettlementCalendar({
                     }
                     onChange={(event) => {
                       const nextTime = event.target.value;
+                      const currentEndTime = isOutcomeLockedStatus(editForm.status)
+                        ? editForm.recordedEndTime
+                        : editForm.endTime;
                       setEditForm((previous) => ({
                         ...previous,
                         startTime: nextTime,
+                        endTime: enforceMaxOneHourGap(nextTime, currentEndTime),
                         status: "rescheduled",
                       }));
                     }}
@@ -1083,9 +1127,12 @@ export default function SettlementCalendar({
                     }
                     onChange={(event) => {
                       const nextTime = event.target.value;
+                      const currentStartTime = isOutcomeLockedStatus(editForm.status)
+                        ? editForm.recordedStartTime
+                        : editForm.startTime;
                       setEditForm((previous) => ({
                         ...previous,
-                        endTime: nextTime,
+                        endTime: enforceMaxOneHourGap(currentStartTime, nextTime),
                         status: "rescheduled",
                       }));
                     }}
