@@ -632,21 +632,6 @@ const ComplaintDetailModal = ({
           )}
           {isAssignedToMe && (
             <>
-              {onUnclaim && (
-                <button
-                  className="complaint-detail-secondary"
-                  onClick={handleUnclaim}
-                  disabled={claimingInProgress}
-                  style={{
-                    marginLeft: "auto",
-                    backgroundColor: claimingInProgress ? "#94a3b8" : "#ef4444",
-                    color: "#fff",
-                    cursor: claimingInProgress ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {claimingInProgress ? "Unclaiming..." : "Unclaim"}
-                </button>
-              )}
               {isUncategorized && (
                 <div
                   style={{ marginLeft: "auto", display: "flex", gap: "8px" }}
