@@ -50,7 +50,9 @@ const RequestDetail = ({
   const isAssignedToOther =
     request?.assigned_official_id &&
     request?.assigned_official_id !== currentUserId;
-  const canEdit = isAssignedToMe;
+  const rawStatus = (request?.status || "").toLowerCase();
+  const isFinished = rawStatus === "completed" || rawStatus === "rejected";
+  const canEdit = isAssignedToMe && !isFinished;
 
   useEffect(() => {
     if (request) {
@@ -302,6 +304,11 @@ const RequestDetail = ({
   };
 
   const statusBadge = getStatusBadge();
+
+  const willBeFinished = (() => {
+    const value = (requestStatusCodeToValue(formData.status) || "").toLowerCase();
+    return value === "completed" || value === "rejected";
+  })();
 
   const modalContent = (
     <>
@@ -616,62 +623,66 @@ const RequestDetail = ({
               >
                 Close
               </button>
-              <button
-                onClick={() => handleSave(true)}
-                disabled={claimingInProgress}
-                style={{
-                  flex: "1",
-                  padding: "0.75rem 1rem",
-                  backgroundColor: claimingInProgress ? "#94a3b8" : "#ef4444",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "0.5rem",
-                  fontSize: "0.95rem",
-                  fontWeight: "600",
-                  cursor: claimingInProgress ? "not-allowed" : "pointer",
-                  transition: "all 0.2s ease",
-                }}
-                onMouseEnter={(e) => {
-                  if (!claimingInProgress) {
-                    e.currentTarget.style.backgroundColor = "#dc2626";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!claimingInProgress) {
-                    e.currentTarget.style.backgroundColor = "#ef4444";
-                  }
-                }}
-              >
-                {claimingInProgress ? "Saving..." : "Save & Unclaim"}
-              </button>
-              <button
-                onClick={() => handleSave(false)}
-                disabled={claimingInProgress}
-                style={{
-                  flex: "1",
-                  padding: "0.75rem 1rem",
-                  backgroundColor: claimingInProgress ? "#94a3b8" : "#10b981",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "0.5rem",
-                  fontSize: "0.95rem",
-                  fontWeight: "600",
-                  cursor: claimingInProgress ? "not-allowed" : "pointer",
-                  transition: "all 0.2s ease",
-                }}
-                onMouseEnter={(e) => {
-                  if (!claimingInProgress) {
-                    e.currentTarget.style.backgroundColor = "#059669";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!claimingInProgress) {
-                    e.currentTarget.style.backgroundColor = "#10b981";
-                  }
-                }}
-              >
-                {claimingInProgress ? "Saving..." : "✓ Save & Keep Claim"}
-              </button>
+              {!isFinished && (
+                <>
+                  <button
+                    onClick={() => handleSave(true)}
+                    disabled={claimingInProgress || willBeFinished}
+                    style={{
+                      flex: "1",
+                      padding: "0.75rem 1rem",
+                      backgroundColor: claimingInProgress ? "#94a3b8" : "#ef4444",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "0.5rem",
+                      fontSize: "0.95rem",
+                      fontWeight: "600",
+                      cursor: claimingInProgress || willBeFinished ? "not-allowed" : "pointer",
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!claimingInProgress && !willBeFinished) {
+                        e.currentTarget.style.backgroundColor = "#dc2626";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!claimingInProgress && !willBeFinished) {
+                        e.currentTarget.style.backgroundColor = "#ef4444";
+                      }
+                    }}
+                  >
+                    {claimingInProgress ? "Saving..." : "Save & Unclaim"}
+                  </button>
+                  <button
+                    onClick={() => handleSave(false)}
+                    disabled={claimingInProgress}
+                    style={{
+                      flex: "1",
+                      padding: "0.75rem 1rem",
+                      backgroundColor: claimingInProgress ? "#94a3b8" : "#10b981",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "0.5rem",
+                      fontSize: "0.95rem",
+                      fontWeight: "600",
+                      cursor: claimingInProgress ? "not-allowed" : "pointer",
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!claimingInProgress) {
+                        e.currentTarget.style.backgroundColor = "#059669";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!claimingInProgress) {
+                        e.currentTarget.style.backgroundColor = "#10b981";
+                      }
+                    }}
+                  >
+                    {claimingInProgress ? "Saving..." : "✓ Save & Keep Claim"}
+                  </button>
+                </>
+              )}
             </>
           )}
           {!isAssignedToMe && !isUnassigned && (
