@@ -49,6 +49,51 @@ const getTodayKey = () => {
   return local;
 };
 
+const getWeekdayInManila = (dateKeyIso) => {
+  // dateKeyIso is in YYYY-MM-DD format
+  // Returns 0 = Sunday, 1 = Monday, ..., 6 = Saturday (from WEEKDAY_HEADERS)
+  const parts = dateKeyIso.split("-");
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1; // month is 0-indexed
+  const day = parseInt(parts[2], 10);
+
+  const date = new Date(Date.UTC(year, month, day, 12, 0, 0)); // noon UTC
+  const weekdayName = date.toLocaleDateString("en-US", {
+    weekday: "short",
+    timeZone: "Asia/Manila",
+  });
+
+  return WEEKDAY_HEADERS.findIndex((header) => header === weekdayName);
+};
+
+const isWithinSchedulingWindow = (dateKeyIso, startTime, endTime) => {
+  // Validate that settlement scheduling falls within allowed time windows:
+  // Monday-Friday: 8am-5pm (08:00-17:00)
+  // Saturday: 8am-12pm (08:00-12:00)
+  // Sunday: Not allowed
+  const weekday = getWeekdayInManila(dateKeyIso); // 0=Sun, 1=Mon, ..., 6=Sat
+
+  // Sunday (0) is not allowed
+  if (weekday === 0) {
+    return false;
+  }
+
+  const startMinutes = toMinutes(startTime);
+  const endMinutes = toMinutes(endTime);
+
+  // Monday-Friday (1-5): 8am-5pm (480-1020 minutes)
+  if (weekday >= 1 && weekday <= 5) {
+    return startMinutes >= 480 && endMinutes <= 1020; // 08:00 = 480, 17:00 = 1020
+  }
+
+  // Saturday (6): 8am-12pm (480-720 minutes)
+  if (weekday === 6) {
+    return startMinutes >= 480 && endMinutes <= 720; // 08:00 = 480, 12:00 = 720
+  }
+
+  return false;
+};
+
 const DEFAULT_START_TIME = "09:00";
 const DEFAULT_END_TIME = "10:00";
 const EDIT_STATUS_OPTIONS = [
@@ -352,6 +397,22 @@ export default function SettlementCalendar({
       return;
     }
 
+    if (!isWithinSchedulingWindow(selectedDay, createForm.startTime, createForm.endTime)) {
+      const weekday = getWeekdayInManila(selectedDay);
+      const isSunday = weekday === 0;
+      const errorText = isSunday
+        ? "Settlements cannot be scheduled on Sundays."
+        : weekday === 6
+          ? "On Saturday, settlements can only be scheduled between 8:00 AM and 12:00 PM."
+          : "Settlements can only be scheduled between 8:00 AM and 5:00 PM on weekdays.";
+
+      setCreateMessage({
+        type: "error",
+        text: errorText,
+      });
+      return;
+    }
+
     const sessionStart = composeDateTime(selectedDay, createForm.startTime);
     const sessionEnd = composeDateTime(selectedDay, createForm.endTime);
 
@@ -391,6 +452,9 @@ export default function SettlementCalendar({
   };
 
   const handleStartEdit = (settlement) => {
+    if (!settlement || isOutcomeLockedStatus(settlement.status)) return;
+    if (!permissions?.update_sett) return;
+
     const recordedDateKey = getLocalDateKey(settlement.session_start);
     const recordedStartTime = getTimeOnly(
       settlement.sessionStartLocal,
@@ -455,6 +519,22 @@ export default function SettlementCalendar({
       setEditMessage({
         type: "error",
         text: "Past dates are not allowed.",
+      });
+      return;
+    }
+
+    if (!shouldLockOutcome && !isWithinSchedulingWindow(dateKey, startTime, endTime)) {
+      const weekday = getWeekdayInManila(dateKey);
+      const isSunday = weekday === 0;
+      const errorText = isSunday
+        ? "Settlements cannot be scheduled on Sundays."
+        : weekday === 6
+          ? "On Saturday, settlements can only be scheduled between 8:00 AM and 12:00 PM."
+          : "Settlements can only be scheduled between 8:00 AM and 5:00 PM on weekdays.";
+
+      setEditMessage({
+        type: "error",
+        text: errorText,
       });
       return;
     }
@@ -524,14 +604,15 @@ export default function SettlementCalendar({
           const isSelected = selectedDay === cell.key;
           const isToday = todayKey === cell.key;
           const isPast = cell.key < todayKey;
+          const isSunday = !cell.outsideMonth && getWeekdayInManila(cell.key) === 0;
 
           return (
             <button
               key={cell.key}
               type="button"
-              className={`settlement-calendar-cell${cell.outsideMonth ? " outside" : ""}${isSelected ? " selected" : ""}${isToday ? " today" : ""}${isPast && !allowPastDates ? " past" : ""}`}
+              className={`settlement-calendar-cell${cell.outsideMonth ? " outside" : ""}${isSelected ? " selected" : ""}${isToday ? " today" : ""}${isPast && !allowPastDates ? " past" : ""}${isSunday ? " sunday-disabled" : ""}`}
               onClick={() => setSelectedDay(cell.key)}
-              disabled={isPast && !allowPastDates}
+              disabled={isPast && !allowPastDates || isSunday}
             >
               <span className="day-number">{cell.day}</span>
               {total > 0 ? <span className="day-count">{total}</span> : null}
@@ -626,7 +707,7 @@ export default function SettlementCalendar({
                       {titleCase(settlement.status || "scheduled")}
                     </span>
                   </div>
-                  {!readOnly && (
+                  {!readOnly && !isOutcomeLockedStatus(settlement.status) && (
                     <div
                       style={{ position: "relative", display: "inline-block" }}
                     >
