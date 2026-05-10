@@ -1,27 +1,51 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
+import {
+  checkIfPasswordChangeRequired,
+  updatePasswordAndSetFlag,
+} from "../../supabse_db/auth/auth";
 import { getOfficialPerformanceMetrics, getAllOfficialsPerformance } from "../../supabse_db/official/officialPerformance";
 import { Bar, Doughnut, Pie } from "react-chartjs-2";
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend } from "chart.js";
+import PasswordChangeModal from "../../components/PasswordChangeModal";
 import "../../styles/BarangayOfficial.css";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend);
 
 const OfficialDashboard = () => {
-  const { user } = useAuth();
+  const { authUser, userLoading, userName } = useAuth();
   const [timeFilter, setTimeFilter] = useState("all");
   const [dashboardData, setDashboardData] = useState(null);
   const [teamPerformance, setTeamPerformance] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   useEffect(() => {
+    if (userLoading || !authUser) return;
+
+    const checkPasswordChange = async () => {
+      try {
+        const needsPasswordChange = await checkIfPasswordChangeRequired();
+        setShowPasswordModal(needsPasswordChange);
+      } catch (error) {
+        console.error("Error checking password change requirement:", error);
+      }
+    };
+
+    checkPasswordChange();
     fetchData();
-  }, [timeFilter]);
+  }, [authUser, userLoading, timeFilter]);
 
   const fetchData = async () => {
     setLoading(true);
     const [dataResult, teamResult] = await Promise.all([
-      getOfficialPerformanceMetrics(user?.id, timeFilter),
+      getOfficialPerformanceMetrics(authUser?.id, timeFilter),
       getAllOfficialsPerformance(timeFilter)
     ]);
 
@@ -29,6 +53,39 @@ const OfficialDashboard = () => {
     if (teamResult.success) setTeamPerformance(teamResult.data);
     setLoading(false);
   };
+
+  const handlePasswordChange = useCallback(async (e) => {
+    e.preventDefault();
+    setPasswordError("");
+
+    if (!newPassword || !confirmPassword) {
+      setPasswordError("Please fill in all fields.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Passwords do not match.");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordError("Password must be at least 6 characters.");
+      return;
+    }
+
+    setPasswordLoading(true);
+    const result = await updatePasswordAndSetFlag(newPassword);
+    setPasswordLoading(false);
+
+    if (!result.success) {
+      setPasswordError(result.message);
+      return;
+    }
+
+    setShowPasswordModal(false);
+    setNewPassword("");
+    setConfirmPassword("");
+  }, [newPassword, confirmPassword]);
 
   const getTimeFilterLabel = () => {
     const labels = { "7d": "Last 7 Days", "30d": "Last 30 Days", "90d": "Last 90 Days", "all": "All Time" };
@@ -154,6 +211,23 @@ const OfficialDashboard = () => {
 
   return (
     <div className="dashboard-container">
+      <PasswordChangeModal
+        open={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        onSubmit={handlePasswordChange}
+        newPassword={newPassword}
+        setNewPassword={setNewPassword}
+        confirmPassword={confirmPassword}
+        setConfirmPassword={setConfirmPassword}
+        showNewPassword={showNewPassword}
+        setShowNewPassword={setShowNewPassword}
+        showConfirmPassword={showConfirmPassword}
+        setShowConfirmPassword={setShowConfirmPassword}
+        passwordError={passwordError}
+        passwordLoading={passwordLoading}
+        title="Secure Your Account"
+        subtitle={`Welcome, ${userName || "official"}. This is your first login. Please set a strong password to secure your account.`}
+      />
       <div className="dashboard-header">
         <h1>Official Dashboard</h1>
         <div className="time-filter-buttons">
@@ -267,7 +341,7 @@ const OfficialDashboard = () => {
             </thead>
             <tbody>
               {teamPerformance.map((official, index) => (
-                <tr key={official.uid} className={official.uid === user?.id ? "highlight-row" : ""}>
+                <tr key={official.uid} className={official.uid === authUser?.id ? "highlight-row" : ""}>
                   <td>{index + 1}</td>
                   <td>{official.name}</td>
                   <td>{official.position}</td>
