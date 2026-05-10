@@ -7,6 +7,7 @@ import {
   MapPin,
   Tag,
   Users,
+  UserRound,
   X,
   ChevronDown,
 } from "lucide-react";
@@ -26,7 +27,12 @@ import {
 import ImageLightbox from "../../components/ImageLightbox";
 import supabase from "../../supabse_db/supabase_client";
 import { usePermissions } from "../../context/PermissionsContext";
+import {
+  formatResidentFullName,
+  getResidentByAuthUid,
+} from "../../supabse_db/resident/resident";
 import "../../styles/BarangayAdmin.css";
+import "../../styles/RequestDetail.css";
 
 const SECTION_CONFIGS = [
   {
@@ -135,6 +141,11 @@ const ComplaintDetailModal = ({
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [successMessage, setSuccessMessage] = useState(null);
   const [claimingInProgress, setClaimingInProgress] = useState(false);
+  const [residentInfoOpen, setResidentInfoOpen] = useState(false);
+  const [residentInfo, setResidentInfo] = useState(null);
+  const [residentInfoLoading, setResidentInfoLoading] = useState(false);
+  const [residentInfoError, setResidentInfoError] = useState("");
+  const [residentInfoLabel, setResidentInfoLabel] = useState("");
 
   const isAssignedToMe = complaint?.assigned_official_id === currentUserId;
   const isUnassigned = !complaint?.assigned_official_id;
@@ -148,6 +159,11 @@ const ComplaintDetailModal = ({
       setSelectedCategory(null);
       setShowConfirmation(false);
       setSuccessMessage(null);
+      setResidentInfoOpen(false);
+      setResidentInfo(null);
+      setResidentInfoLoading(false);
+      setResidentInfoError("");
+      setResidentInfoLabel("");
     }
   }, [isOpen]);
 
@@ -206,6 +222,139 @@ const ComplaintDetailModal = ({
     "community dispute",
     "personal complaint",
   ];
+
+  const formatValue = (value) => {
+    if (value === null || value === undefined || value === "") return "N/A";
+    if (Array.isArray(value)) return value.length ? value.join(", ") : "N/A";
+    if (typeof value === "boolean") return value ? "Yes" : "No";
+    return String(value);
+  };
+
+  const formatDate = (value) => {
+    if (!value) return "N/A";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return formatValue(value);
+    return date.toLocaleDateString();
+  };
+
+  const formatDateTime = (value) => {
+    if (!value) return "N/A";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return formatValue(value);
+    return date.toLocaleString();
+  };
+
+  const buildResidentFieldSections = (resident) => {
+    if (!resident) return [];
+
+    return [
+      {
+        title: "Identity",
+        fields: [
+          ["Resident No.", resident.resident_no],
+          ["Profile ID", resident.profile_id],
+          ["Household ID", resident.household_id],
+          ["Purok ID", resident.purok_id],
+          ["Purok", resident.purok_name || resident.purok],
+          ["First Name", resident.first_name],
+          ["Middle Name", resident.middle_name],
+          ["Last Name", resident.last_name],
+          ["Suffix", resident.suffix],
+          ["Date of Birth", formatDate(resident.date_of_birth)],
+          ["Age", resident.age],
+          ["Place of Birth", resident.place_of_birth],
+          ["Sex", resident.sex],
+          ["Civil Status", resident.civil_status],
+          ["Nationality", resident.nationality],
+          ["Religion", resident.religion],
+          ["Occupation", resident.occupation],
+        ],
+      },
+      {
+        title: "Contact and Residence",
+        fields: [
+          ["Contact Number", resident.contact_number],
+          ["Email", resident.email || resident.registered_email],
+          ["Address", resident.address_line],
+          ["Years of Stay", resident.years_of_stay],
+          ["Voter Status", resident.voter_status],
+        ],
+      },
+      {
+        title: "Government and Health IDs",
+        fields: [
+          ["PhilHealth No.", resident.philhealth_no],
+          ["SSS No.", resident.sss_no],
+          ["TIN No.", resident.tin_no],
+          ["Blood Type", resident.blood_type],
+          ["Age Group", resident.age_group],
+          ["ID Number", resident.id_number],
+          ["Valid ID Type", resident.valid_id_type],
+          ["Valid ID URL", resident.valid_id_url],
+          ["Photo URL", resident.photo_url],
+        ],
+      },
+      {
+        title: "System Info",
+        fields: [
+          ["Auth UID", resident.auth_uid],
+          ["Activated", resident.is_activated],
+          ["Status", resident.status],
+          ["Created At", formatDateTime(resident.created_at)],
+          ["Updated At", formatDateTime(resident.updated_at)],
+          ["Created By", resident.created_by],
+        ],
+      },
+    ];
+  };
+
+  const handleViewResidentInfo = async (authUid, label) => {
+    setResidentInfoOpen(true);
+    setResidentInfoLabel(label || "Resident");
+    setResidentInfoError("");
+
+    if (!authUid) {
+      setResidentInfo(null);
+      setResidentInfoError("Unable to identify this resident.");
+      return;
+    }
+
+    if (residentInfo?.auth_uid === authUid) return;
+
+    setResidentInfoLoading(true);
+    try {
+      const result = await getResidentByAuthUid(authUid, {
+        forceRefresh: true,
+      });
+
+      if (!result.success) {
+        setResidentInfo(null);
+        setResidentInfoError(
+          result.message || "Unable to load resident information.",
+        );
+        return;
+      }
+
+      if (!result.data) {
+        setResidentInfo(null);
+        setResidentInfoError("Resident information was not found.");
+        return;
+      }
+
+      setResidentInfo(result.data);
+    } catch (error) {
+      setResidentInfo(null);
+      setResidentInfoError(
+        error.message || "Unable to load resident information.",
+      );
+    } finally {
+      setResidentInfoLoading(false);
+    }
+  };
+
+  const closeResidentInfo = () => {
+    setResidentInfoOpen(false);
+  };
 
   return createPortal(
     <>
@@ -268,9 +417,24 @@ const ComplaintDetailModal = ({
 
             <div className="complaint-detail-card">
               <label>Complainant</label>
-              <div>
+              <div className="citizen-detail-value">
                 <Users size={16} />
                 <span>{complaint.complainant}</span>
+                <button
+                  type="button"
+                  className="resident-info-button"
+                  onClick={() =>
+                    handleViewResidentInfo(
+                      complaint.complainantAuthUid,
+                      "Complainant",
+                    )
+                  }
+                  disabled={!complaint.complainantAuthUid}
+                  style={{ marginLeft: "0.5rem" }}
+                >
+                  <UserRound size={14} />
+                  View Information
+                </button>
               </div>
             </div>
 
@@ -284,9 +448,48 @@ const ComplaintDetailModal = ({
 
             <div className="complaint-detail-card">
               <label>Respondent(s)</label>
-              <div>
+              <div
+                className="citizen-detail-value"
+                style={{ alignItems: "flex-start" }}
+              >
                 <Users size={16} />
-                <span>{complaint.respondentDisplay}</span>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <span>{complaint.respondentDisplay}</span>
+                  {Array.isArray(complaint.respondentAuthUids) &&
+                  complaint.respondentAuthUids.length > 0 ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "0.5rem",
+                      }}
+                    >
+                      {complaint.respondentAuthUids.map((authUid, index) => (
+                        <button
+                          key={`${authUid}-${index}`}
+                          type="button"
+                          className="resident-info-button"
+                          onClick={() =>
+                            handleViewResidentInfo(
+                              authUid,
+                              `Respondent ${index + 1}`,
+                            )
+                          }
+                          disabled={!authUid}
+                        >
+                          <UserRound size={14} />
+                          View Respondent {index + 1}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
               </div>
             </div>
 
@@ -576,6 +779,99 @@ const ComplaintDetailModal = ({
             </div>
           </div>
         )}
+
+        {residentInfoOpen && (
+          <>
+            <div
+              className="resident-info-overlay"
+              onClick={closeResidentInfo}
+            ></div>
+            <div
+              className="resident-info-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="resident-info-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="resident-info-header">
+                <div>
+                  <span className="resident-info-kicker">Resident Details</span>
+                  <h3 id="resident-info-title">
+                    {residentInfo
+                      ? formatResidentFullName(residentInfo) || residentInfoLabel
+                      : residentInfoLabel}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  className="resident-info-close"
+                  onClick={closeResidentInfo}
+                  aria-label="Close resident information"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="resident-info-body">
+                {residentInfoLoading ? (
+                  <p className="resident-info-note">
+                    Loading resident details...
+                  </p>
+                ) : residentInfoError ? (
+                  <p className="resident-info-error">{residentInfoError}</p>
+                ) : residentInfo ? (
+                  <>
+                    <div className="resident-info-summary">
+                      <div className="resident-info-avatar">
+                        {residentInfo.photo_url ? (
+                          <img
+                            src={residentInfo.photo_url}
+                            alt={formatResidentFullName(residentInfo)}
+                          />
+                        ) : (
+                          <UserRound size={28} />
+                        )}
+                      </div>
+                      <div>
+                        <strong>
+                          {formatResidentFullName(residentInfo) || residentInfoLabel}
+                        </strong>
+                        <span>
+                          {formatValue(residentInfo.sex)} - Age{" "}
+                          {formatValue(residentInfo.age)}
+                        </span>
+                        <span>{formatValue(residentInfo.address_line)}</span>
+                      </div>
+                    </div>
+
+                    <div className="resident-info-sections">
+                      {buildResidentFieldSections(residentInfo).map((section) => (
+                        <section
+                          className="resident-info-section"
+                          key={section.title}
+                        >
+                          <h4>{section.title}</h4>
+                          <div className="resident-info-fields">
+                            {section.fields.map(([label, value]) => (
+                              <div className="resident-info-field" key={label}>
+                                <span>{label}</span>
+                                <strong>{formatValue(value)}</strong>
+                              </div>
+                            ))}
+                          </div>
+                        </section>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <p className="resident-info-note">
+                    No resident information available.
+                  </p>
+                )}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </>,
     document.body,
@@ -672,11 +968,14 @@ export default function OfficialComplaintsView() {
       const transformed = result.data.map((row) => {
         const status = row.status || "for review";
         const sectionKey = getSectionKey(row.category);
+        const respondentAuthUids = Array.isArray(row.respondent_id)
+          ? row.respondent_id.filter(Boolean)
+          : row.respondent_id
+            ? [row.respondent_id]
+            : [];
         const respondentDisplay =
           row.respondent_names ||
-          (Array.isArray(row.respondent_id)
-            ? row.respondent_id.join(", ")
-            : "") ||
+          (respondentAuthUids.length ? respondentAuthUids.join(", ") : "") ||
           "—";
 
         return {
@@ -686,7 +985,9 @@ export default function OfficialComplaintsView() {
           incidentDate: formatDate(row.incident_date),
           submittedAt: formatDate(row.created_at, true),
           complainant: row.complainant_name || "Unknown",
+          complainantAuthUid: row.complainant_id || null,
           respondentDisplay,
+          respondentAuthUids,
           status,
           statusDisplay: getStatusConfig(status).label,
           statusColor: getStatusConfig(status).color,
